@@ -64,13 +64,16 @@ create policy "trip_day_items: قطع أيام رحلاتي" on public.trip_day_
     join public.trips t on t.id = d.trip_id
     where d.id = trip_day_id and t.user_id = auth.uid()
   ))
-  with check (exists (
-    select 1 from public.trip_days d
-    join public.trips t on t.id = d.trip_id
-    where d.id = trip_day_id and t.user_id = auth.uid()
-  ));
+  with check (
+    exists (
+      select 1 from public.trip_days d
+      join public.trips t on t.id = d.trip_id
+      where d.id = trip_day_id and t.user_id = auth.uid()
+    )
+    and public.owns_item(item_id)
+  );
 
 create policy "trip_packed: شنطة رحلاتي" on public.trip_packed
   for all
-  using (exists (select 1 from public.trips t where t.id = trip_id and t.user_id = auth.uid()))
-  with check (exists (select 1 from public.trips t where t.id = trip_id and t.user_id = auth.uid()));
+  using (public.owns_trip(trip_id))
+  with check (public.owns_trip(trip_id) and public.owns_item(item_id));

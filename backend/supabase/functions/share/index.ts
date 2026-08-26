@@ -17,7 +17,20 @@ const escapeHtml = (value: string): string =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char] as string,
   )
 
-const page = (title: string, description: string, image: string, body: string): string => `<!doctype html>
+/**
+ * روابط الصور تُقبل بمخططات آمنة فقط. الهروب من HTML يمنع كسر الوسم، لكنه
+ * ما يمنع مخططًا غريبًا داخل `src` — فنرفضه صراحة.
+ */
+const safeImage = (url: string): string => {
+  try {
+    const parsed = new URL(url)
+    return parsed.protocol === 'https:' || parsed.protocol === 'http:' ? url : ''
+  } catch {
+    return ''
+  }
+}
+
+const page = (title: string, description: string, rawImage: string, body: string): string => `<!doctype html>
 <html lang="ar" dir="rtl">
   <head>
     <meta charset="utf-8" />
@@ -26,7 +39,7 @@ const page = (title: string, description: string, image: string, body: string): 
     <meta property="og:type" content="website" />
     <meta property="og:title" content="${escapeHtml(title)}" />
     <meta property="og:description" content="${escapeHtml(description)}" />
-    ${image ? `<meta property="og:image" content="${escapeHtml(image)}" />` : ''}
+    ${safeImage(rawImage) ? `<meta property="og:image" content="${escapeHtml(safeImage(rawImage))}" />` : ''}
     <meta name="twitter:card" content="summary_large_image" />
     <style>
       body { margin:0; background:#fff; color:#111; font-family:'Alexandria',system-ui,sans-serif;
@@ -47,7 +60,15 @@ Deno.serve(async (request) => {
   const preflight = handlePreflight(request)
   if (preflight) return preflight
 
-  const headers = { ...corsHeaders, 'content-type': 'text/html; charset=utf-8' }
+  const headers = {
+    ...corsHeaders,
+    'content-type': 'text/html; charset=utf-8',
+    // الصفحة نصّ وصورة وأنماط داخلية فقط — ما فيها سكربت ولا إطارات
+    'content-security-policy':
+      "default-src 'none'; img-src https: data:; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    'referrer-policy': 'no-referrer',
+    'x-content-type-options': 'nosniff',
+  }
   const token = new URL(request.url).searchParams.get('token') ?? ''
   const appName = optionalEnv('APP_NAME', 'دولابي الذكي')
 
@@ -78,7 +99,7 @@ Deno.serve(async (request) => {
       .join('')
 
     const body = `<div class="card">
-      ${outfit.imageUrl ? `<img src="${escapeHtml(outfit.imageUrl)}" alt="${escapeHtml(outfit.name)}" />` : ''}
+      ${safeImage(outfit.imageUrl ?? '') ? `<img src="${escapeHtml(safeImage(outfit.imageUrl ?? ''))}" alt="${escapeHtml(outfit.name)}" />` : ''}
       <div class="meta">
         <h1>${escapeHtml(outfit.name)}</h1>
         <p>${escapeHtml(outfit.occasion ?? '')}${outfit.simulated ? ' · معاينة تقريبية' : ''}</p>

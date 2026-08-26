@@ -122,7 +122,25 @@ export const useWardrobe = create<WardrobeState>()(
         set({ wardrobes: [SEED_WARDROBES[0]], items: [] })
       },
     }),
-    { name: storageKey('wardrobe') },
+    {
+      name: storageKey('wardrobe'),
+      version: 1,
+      /**
+       * الإصدار ١: أُزيلت صور خزانة البداية المرفقة. أي قطعة محفوظة تشير
+       * لملف في `/wardrobe/` صار مساره ميتًا — نسقط المسار فترجع القطعة
+       * للرسم المتّجه بدل ما تطلع صورة مكسورة.
+       */
+      migrate: (persisted, version) => {
+        const state = persisted as WardrobeState
+        if (version >= 1) return state
+        return {
+          ...state,
+          items: state.items.map(({ imageUrl, ...item }) =>
+            imageUrl?.startsWith('/wardrobe/') ? item : { ...item, imageUrl },
+          ),
+        }
+      },
+    },
   ),
 )
 

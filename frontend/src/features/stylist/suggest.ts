@@ -45,19 +45,31 @@ function assemble(items: WardrobeItem[], variant: number, preferNeutral: boolean
   const chosen: (WardrobeItem | undefined)[] = []
 
   // كل اقتراح ثالث يميل لقطعة كاملة لو كان في الخزانة وحدة
-  if (variant % 3 === 2 && onePiece.length) {
+  const wearsOnePiece = variant % 3 === 2 && onePiece.length > 0
+  if (wearsOnePiece) {
     chosen.push(pick(onePiece, variant))
   } else {
     chosen.push(pick(tops, variant), pick(bottoms, variant))
   }
   chosen.push(pick(shoes, variant))
-  if (variant % 2 === 1) chosen.push(pick(bags, variant))
+
+  // الفستان وحده مع الحذاء يبان ناقصًا — الحقيبة تكمّل الإطلالة
+  if (wearsOnePiece || variant % 2 === 1) chosen.push(pick(bags, variant))
   if (variant % 3 === 1) chosen.push(pick(outer, variant))
 
   return chosen.filter(Boolean).map((i) => i!.id)
 }
 
 const has = (text: string, ...keys: string[]) => keys.some((k) => text.includes(k))
+
+/** قطعة تصلح للمناسبات: فستان أو حذاء أو حقيبة. */
+const isDressy = (item: WardrobeItem): boolean => {
+  const slot = categoryById(item.categoryId)?.slot
+  return slot === 'full' || slot === 'shoes' || slot === 'bag'
+}
+
+/** بصمة الإطلالة — تمنع تكرار نفس التشكيلة بين اقتراحات اليوم. */
+const lookKey = (look: StylistLook): string => look.itemIds.toSorted().join(',')
 
 export function suggest(
   question: string,
@@ -116,14 +128,11 @@ export function suggest(
   const relaxed = has(q, 'كاجوال', 'مريح', 'بيت', 'مشوار')
   const evening = has(q, 'مناسبة', 'عشاء', 'عرس', 'حفلة')
 
-  let scope = items
-  if (evening) {
-    const eveningPieces = items.filter((i) => {
-      const cat = categoryById(i.categoryId)
-      return cat?.slot === 'full' || cat?.slot === 'shoes' || cat?.slot === 'bag'
-    })
-    if (eveningPieces.length >= 3) scope = eveningPieces
-  }
+  // قطع المناسبات تتقدّم في الترتيب، وما تُستبعد الباقي — الاستبعاد يخلي
+  // الإطلالة ناقصة لو الخزانة ما فيها إلا فستان أو فستانين
+  const scope = evening
+    ? items.toSorted((a, b) => Number(isDressy(b)) - Number(isDressy(a)))
+    : items
 
   const looks: StylistLook[] = [0, 1, 2]
     .map((variant) => ({
@@ -163,11 +172,34 @@ export type DailyLook = StylistLook & {
   occasionLabel: string
 }
 
-/** ثلاث نوايا ثابتة عشان الاقتراحات تبان مقصودة، مو عشوائية. */
-const DAILY_INTENTS = [
-  { occasionId: 'university', occasionLabel: 'للجامعة', prompt: 'نسّقي لي إطلالة للجامعة' },
-  { occasionId: 'daily', occasionLabel: 'ليوم عادي', prompt: 'إطلالة كاجوال لليوم' },
-  { occasionId: 'event', occasionLabel: 'لمناسبة', prompt: 'إطلالة لمناسبة مسائية' },
+/**
+ * ثلاث نوايا ثابتة عشان الاقتراحات تبان مقصودة، مو عشوائية.
+ * `wantsOnePiece` تحدّد شكل الإطلالة: المناسبة تميل لفستان، والجامعة لقطعتين.
+ */
+const DAILY_INTENTS: {
+  occasionId: string
+  occasionLabel: string
+  prompt: string
+  wantsOnePiece: boolean
+}[] = [
+  {
+    occasionId: 'university',
+    occasionLabel: 'للجامعة',
+    prompt: 'نسّقي لي إطلالة للجامعة',
+    wantsOnePiece: false,
+  },
+  {
+    occasionId: 'daily',
+    occasionLabel: 'ليوم عادي',
+    prompt: 'إطلالة كاجوال لليوم',
+    wantsOnePiece: false,
+  },
+  {
+    occasionId: 'event',
+    occasionLabel: 'لمناسبة',
+    prompt: 'إطلالة لمناسبة مسائية',
+    wantsOnePiece: true,
+  },
 ]
 
 /**
@@ -175,11 +207,33 @@ const DAILY_INTENTS = [
  * حتمية: نفس الخزانة تعطي نفس الاقتراحات، فما تتقلّب مع كل رسم.
  */
 export function dailyLooks(wardrobe: WardrobeItem[]): DailyLook[] {
+  const owned = wardrobe.filter((item) => item.source === 'wardrobe')
+  const onePieceIds = new Set(
+    owned.filter((item) => categoryById(item.categoryId)?.slot === 'full').map((item) => item.id),
+  )
+  const hasOnePiece = (look: StylistLook) => look.itemIds.some((id) => onePieceIds.has(id))
+  const used = new Set<string>()
+
   return DAILY_INTENTS.flatMap((intent, index) => {
     const { looks } = suggest(intent.prompt, wardrobe)
     if (!looks.length) return []
-    // نيّة مختلفة ← تشكيلة مختلفة، عشان الثلاثة ما تتشابه
-    const look = looks[index % looks.length]
+
+    const fresh = looks.filter((look) => !used.has(lookKey(look)))
+    const pool = fresh.length ? fresh : looks
+
+    // نطابق شكل الإطلالة مع النيّة أول، ثم نرجع للترتيب، ثم لأغنى إطلالة —
+    // بطاقة بقطعتين تبان ناقصة في الرئيسية.
+    const shaped = pool.filter((look) => hasOnePiece(look) === intent.wantsOnePiece)
+    const candidates = shaped.length ? shaped : pool
+    const preferred = candidates[index % candidates.length]
+    const look =
+      preferred.itemIds.length >= 3
+        ? preferred
+        : candidates.reduce((best, current) =>
+            current.itemIds.length > best.itemIds.length ? current : best,
+          )
+
+    used.add(lookKey(look))
     return [{ ...look, occasionId: intent.occasionId, occasionLabel: intent.occasionLabel }]
   })
 }

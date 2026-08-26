@@ -60,14 +60,18 @@ alter table public.outfit_items   enable row level security;
 alter table public.outfit_closets enable row level security;
 
 create policy "outfits: إطلالاتي" on public.outfits
-  for all using (user_id = auth.uid()) with check (user_id = auth.uid());
+  for all
+  using (user_id = auth.uid())
+  with check (user_id = auth.uid() and public.owns_model(model_id));
 
+-- الطرفان: الإطلالة لي، والقطعة لي كذلك. بدون الشرط الثاني تقدر مستخدمة
+-- تربط قطعة غيرها بإطلالتها، فيتسرّب اسمها وماركتها وسعرها عبر رابط المشاركة.
 create policy "outfit_items: قطع إطلالاتي" on public.outfit_items
   for all
-  using (exists (select 1 from public.outfits o where o.id = outfit_id and o.user_id = auth.uid()))
-  with check (exists (select 1 from public.outfits o where o.id = outfit_id and o.user_id = auth.uid()));
+  using (public.owns_outfit(outfit_id))
+  with check (public.owns_outfit(outfit_id) and public.owns_item(item_id));
 
 create policy "outfit_closets: تصنيف إطلالاتي" on public.outfit_closets
   for all
-  using (exists (select 1 from public.outfits o where o.id = outfit_id and o.user_id = auth.uid()))
-  with check (exists (select 1 from public.outfits o where o.id = outfit_id and o.user_id = auth.uid()));
+  using (public.owns_outfit(outfit_id))
+  with check (public.owns_outfit(outfit_id) and public.owns_closet(closet_id));

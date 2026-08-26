@@ -1,16 +1,17 @@
 /**
- * إضافة قطعة تملكينها: اختاري طريقة الإدخال، شوفي التجهيز، ثم راجعي التفاصيل.
+ * إضافة قطعة تملكينها: اختاري طريقة الإدخال ← الصورة وإزالة الخلفية ←
+ * راجعي التفاصيل ← احفظي.
  *
- * الصورة **حقيقية**: تُقرأ من الملف، تُقصّ مربّعة وتُصغّر في المتصفح، وتُخزّن
- * في IndexedDB مربوطة بالقطعة. مرحلة «نجهّز القطعة» تعكس الخط الحقيقي عشان
- * الانتظار يكون مشروحًا مو مخفيًا (W-05 · المبدأ ٧).
+ * الصورة كلها مسؤولية `ImageUploader` المشترك — ما فيه منطق معالجة هنا.
+ * الشاشة تهتم بالحقول فقط، وتحفظ بعد ما توافق المستخدمة على الصورة.
  *
- * ما زال على الخادم (W-05 · A-07): إزالة الخلفية والتصنيف التلقائي. لين يجي،
- * الحقول تنتظر إدخالك بدل ما نزيّف اقتراحًا (المبدأ ٤).
+ * الحقول تتعبّى من الصورة (A-07): اللون يُقرأ في المتصفح فيشتغل دائمًا،
+ * والفئة والشكل والاسم من مزوّد الرؤية لو كان مفعّلاً. كل حقل **اقتراح قابل
+ * للتعديل**، وما تعبّى منها يبقى فاضيًا بدل ما نخترع له قيمة (المبدأ ٤).
  */
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Camera, Check, Image as ImageIcon, Link2, Upload } from 'lucide-react'
+import { Camera, Image as ImageIcon, Link2, Loader2, Sparkles, Upload } from 'lucide-react'
 import {
   Button,
   ColorSwatchGroup,
@@ -22,13 +23,15 @@ import {
   toast,
 } from '@/shared/components/ui'
 import { CATEGORIES, ITEM_COLORS, categoryById, colorByName, shapesForSlot } from '@/domain/wardrobe'
-import { ACCEPTED_PHOTO_TYPES, MAX_PHOTO_MB, preparePhoto } from '@/infrastructure/rendering'
-import { ItemImage } from '@/shared/components/media/ItemImage'
+import { ImageUploader } from '@/shared/components/media/ImageUploader'
+import { prepareForStorage } from '@/infrastructure/images'
+import { useGarmentAnalysis } from '@/shared/hooks'
+import { cn } from '@/shared/lib'
 import { useWardrobe } from '../store'
 import { useItemPhotos } from '../photos'
 import { useAiModels } from '@/features/ai-model/store'
 import { ROUTES } from '@/shared/config'
-import { cn } from '@/shared/lib'
+import type { FieldSuggestion, ImageCandidate } from '@/domain/images'
 import type { GarmentShape, WardrobeItem } from '@/domain/wardrobe'
 
 type MethodKind = 'file' | 'camera' | 'link'
@@ -46,9 +49,30 @@ const METHODS: {
   { id: 'link', kind: 'link', icon: Link2, title: 'استيراد من رابط', note: 'يدخل «قطع للتجربة»' },
 ]
 
-const STEPS = ['قراءة الصورة', 'تجهيز القصّة', 'تحضير الحقول']
-
 type Draft = Omit<WardrobeItem, 'id' | 'addedAt' | 'favorite'>
+
+/** يطبّق ما قرأه الذكاء على المسودّة. كل قيمة اقتراح، والمستخدمة تعدّل فوقه. */
+function applySuggestion(draft: Draft, suggestion: FieldSuggestion): Draft {
+  const next = { ...draft }
+  if (suggestion.categoryId) next.categoryId = suggestion.categoryId
+  if (suggestion.shape) next.shape = suggestion.shape
+  if (suggestion.colorName && suggestion.colorHex) {
+    next.colorName = suggestion.colorName
+    next.colorHex = suggestion.colorHex
+  }
+  if (suggestion.name) next.name = suggestion.name
+  if (suggestion.brand) next.brand = suggestion.brand
+  return next
+}
+
+/** تسمية عربية للحقول المعبّاة — تُعرض للمستخدمة عشان تعرف وش تغيّر. */
+const FIELD_LABELS: Record<string, string> = {
+  name: 'الاسم',
+  categoryId: 'الفئة',
+  shape: 'الشكل',
+  colorName: 'اللون',
+  brand: 'الماركة',
+}
 
 export function AddItemModal({
   open,
@@ -63,35 +87,27 @@ export function AddItemModal({
   const { wardrobes, addItem } = useWardrobe()
   const setPhoto = useItemPhotos((state) => state.set)
   const gender = useAiModels((state) => state.models[0]?.characteristics.gender) ?? 'female'
-
-  const [phase, setPhase] = useState<'method' | 'processing' | 'review'>('method')
-  const [step, setStep] = useState(0)
-  const [draft, setDraft] = useState<Draft>()
-  const [photo, setPhotoBlob] = useState<Blob>()
-  const [preview, setPreview] = useState<string>()
-  const fileInput = useRef<HTMLInputElement>(null)
+  const [phase, setPhase] = useState<'method' | 'photo' | 'review'>('method')
   const [useCamera, setUseCamera] = useState(false)
+  const [photo, setPhotoCandidate] = useState<ImageCandidate>()
+  const [previewUrl, setPreviewUrl] = useState<string>()
+  const [draft, setDraft] = useState<Draft>()
+
+  // التعبئة تصل من الهوك بعد قراءة الصورة، فتُطبّق على المسودّة مباشرة
+  const analysis = useGarmentAnalysis(gender, (suggestion) =>
+    setDraft((current) => (current ? applySuggestion(current, suggestion) : current)),
+  )
 
   /** الإغلاق يصفّر المودال — من الحدث نفسه، مو من effect. */
   const close = () => {
-    if (preview) URL.revokeObjectURL(preview)
+    analysis.clear()
+    if (previewUrl) URL.revokeObjectURL(previewUrl)
     setPhase('method')
-    setStep(0)
+    setPhotoCandidate(undefined)
+    setPreviewUrl(undefined)
     setDraft(undefined)
-    setPhotoBlob(undefined)
-    setPreview(undefined)
     onClose()
   }
-
-  // المؤقّت هو النظام الخارجي هنا، وكل تغيير حالة يصير داخل نداء المؤقّت
-  useEffect(() => {
-    if (phase !== 'processing') return
-    const timer = setTimeout(
-      () => (step >= STEPS.length ? setPhase('review') : setStep((s) => s + 1)),
-      step >= STEPS.length ? 320 : 420,
-    )
-    return () => clearTimeout(timer)
-  }, [phase, step])
 
   const pickMethod = (kind: MethodKind) => {
     if (kind === 'link') {
@@ -100,37 +116,17 @@ export function AddItemModal({
       return
     }
     setUseCamera(kind === 'camera')
-    fileInput.current?.click()
+    setPhase('photo')
   }
 
-  const onFile = async (file?: File) => {
-    if (!file) return
-    if (file.size > MAX_PHOTO_MB * 1024 * 1024) {
-      toast.error('حجم الصورة أكبر من ' + MAX_PHOTO_MB + ' ميجا.')
-      return
-    }
-
-    let prepared
-    try {
-      prepared = await preparePhoto(file)
-    } catch {
-      toast.error('ما قدرنا نفتح هذي الصورة. جرّبي JPG أو PNG.')
-      return
-    }
-
-    if (preview) URL.revokeObjectURL(preview)
-    setPhotoBlob(prepared.blob)
-    setPreview(URL.createObjectURL(prepared.blob))
-
-    // القطعة موجودة أصلاً؟ نبدّل صورتها فقط ونبقى في المراجعة
-    if (draft) {
-      setPhase('review')
-      return
-    }
-
+  /** المستخدمة وافقت على الصورة — ننتقل للحقول ونبدأ قراءتها. */
+  const acceptPhoto = (candidate: ImageCandidate) => {
     const firstCategory = CATEGORIES.find((c) => c.gender === gender)!
+    if (previewUrl) URL.revokeObjectURL(previewUrl)
+    setPhotoCandidate(candidate)
+    setPreviewUrl(URL.createObjectURL(candidate.blob))
     setDraft({
-      name: file.name.replace(/\.[^.]+$/, '').slice(0, 40),
+      name: candidate.fileName.replace(/\.[^.]+$/, '').slice(0, 40),
       categoryId: firstCategory.id,
       shape: shapesForSlot(firstCategory.slot)[0].id,
       colorHex: ITEM_COLORS[1].hex,
@@ -141,9 +137,10 @@ export function AddItemModal({
       brand: '',
       notes: '',
     })
-    setStep(0)
-    setPhase('processing')
+    setPhase('review')
+    analysis.analyze(candidate.blob)
   }
+
 
   const patch = (next: Partial<Draft>) => setDraft((d) => (d ? { ...d, ...next } : d))
 
@@ -158,8 +155,19 @@ export function AddItemModal({
       toast.error('اكتبي اسم القطعة')
       return
     }
+
     const item = addItem({ ...draft, name: draft.name.trim() })
-    if (photo) await setPhoto(item.id, photo)
+    if (photo) {
+      try {
+        const stored = await prepareForStorage(photo.blob)
+        await setPhoto(item.id, stored.blob)
+      } catch {
+        // القطعة انحفظت بدون صورة — الرسم المتّجه يغطّيها فما تنكسر الشبكة
+        toast.error('حفظنا القطعة، لكن تعذّر حفظ صورتها.')
+        close()
+        return
+      }
+    }
     toast.ok('أضفناها لخزانتك')
     close()
   }
@@ -174,8 +182,8 @@ export function AddItemModal({
       title={
         phase === 'method'
           ? 'أضيفي قطعة لخزانتك'
-          : phase === 'processing'
-            ? 'نجهّز القطعة…'
+          : phase === 'photo'
+            ? 'صورة القطعة'
             : 'راجعي التفاصيل'
       }
       width={phase === 'review' ? 'lg' : 'md'}
@@ -190,18 +198,6 @@ export function AddItemModal({
         )
       }
     >
-      <input
-        ref={fileInput}
-        type="file"
-        accept={ACCEPTED_PHOTO_TYPES}
-        capture={useCamera ? 'environment' : undefined}
-        onChange={(event) => {
-          void onFile(event.target.files?.[0])
-          event.target.value = ''
-        }}
-        className="hidden"
-      />
-
       {phase === 'method' && (
         <div className="grid gap-3 sm:grid-cols-2">
           {METHODS.map(({ id, kind, icon: Icon, title, note }) => (
@@ -218,60 +214,24 @@ export function AddItemModal({
         </div>
       )}
 
-      {phase === 'processing' && (
-        <div>
-          {preview && (
-            <div className="mx-auto mb-6 grid aspect-square max-w-[220px] place-items-center overflow-hidden rounded-md bg-surface">
-              <img src={preview} alt="" className="h-full w-full object-contain" />
-            </div>
-          )}
-          <ul className="flex flex-col">
-            {STEPS.map((label, index) => (
-              <li
-                key={label}
-                className={cn(
-                  'flex items-center gap-3 py-3 text-[12.5px] transition-colors',
-                  index < step ? 'text-ink' : 'text-faint',
-                )}
-              >
-                <span
-                  className={cn(
-                    'grid h-4 w-4 flex-none place-items-center rounded-full border transition-colors',
-                    index < step ? 'border-ink bg-ink' : 'border-line-strong',
-                  )}
-                >
-                  {index < step && (
-                    <Check size={9} strokeWidth={3} aria-hidden className="text-white" />
-                  )}
-                </span>
-                {label}
-              </li>
-            ))}
-          </ul>
-          <div className="mt-4 h-px overflow-hidden bg-line">
-            <div
-              className="h-full bg-ink transition-all duration-500"
-              style={{ width: (step / STEPS.length) * 100 + '%' }}
-            />
-          </div>
-        </div>
+      {phase === 'photo' && (
+        <ImageUploader
+          capture={useCamera}
+          confirmLabel="كمّلي التفاصيل"
+          onConfirm={acceptPhoto}
+          onCancel={() => setPhase('method')}
+          onError={(error) => toast.error(error.message)}
+        />
       )}
 
       {phase === 'review' && draft && (
         <div className="grid gap-7 sm:grid-cols-[200px_1fr]">
           <div>
-            <div className="grid aspect-square place-items-center overflow-hidden rounded-md border border-line bg-surface">
-              {preview ? (
-                <img src={preview} alt="" className="h-full w-full object-contain" />
-              ) : (
-                <ItemImage
-                  item={{ ...draft, name: draft.name || 'قطعة' }}
-                  className="h-[86%] w-[86%]"
-                />
-              )}
+            <div className="grid aspect-square place-items-center overflow-hidden rounded-md border border-line bg-canvas">
+              {previewUrl && <img src={previewUrl} alt="" className="h-full w-full object-contain" />}
             </div>
             <button
-              onClick={() => fileInput.current?.click()}
+              onClick={() => setPhase('photo')}
               className="mt-2 w-full text-[11.5px] text-muted transition-colors hover:text-ink"
             >
               تغيير الصورة
@@ -279,6 +239,12 @@ export function AddItemModal({
           </div>
 
           <div className="flex flex-col gap-4">
+            <AutoFillNotice
+              status={analysis.status}
+              filled={analysis.suggestion?.filled ?? []}
+              visionAvailable={analysis.visionAvailable}
+            />
+
             <Field label="اسم القطعة">
               <TextInput
                 autoFocus
@@ -360,6 +326,58 @@ export function AddItemModal({
         </div>
       )}
     </Modal>
+  )
+}
+
+/** شريط هادئ يقول وش عبّاه الذكاء من الصورة. */
+function AutoFillNotice({
+  status,
+  filled,
+  visionAvailable,
+}: {
+  status: 'idle' | 'reading' | 'done'
+  filled: string[]
+  visionAvailable: boolean
+}) {
+  if (status === 'idle') return null
+
+  const labels = filled.map((field) => FIELD_LABELS[field]).filter(Boolean)
+
+  return (
+    <p
+      role="status"
+      aria-live="polite"
+      className={cn(
+        'flex items-start gap-2 rounded-md border border-line bg-surface px-3.5 py-2.5 text-[11.5px] leading-6',
+        status === 'reading' ? 'text-muted' : 'text-ink',
+      )}
+    >
+      {status === 'reading' ? (
+        <>
+          <Loader2 size={13} strokeWidth={1.6} aria-hidden className="mt-1 flex-none animate-spin" />
+          نقرأ الصورة ونعبّي الحقول…
+        </>
+      ) : (
+        <>
+          <Sparkles size={13} strokeWidth={1.5} aria-hidden className="mt-1 flex-none text-faint" />
+          <span>
+            {labels.length > 0 ? (
+              <>
+                عبّينا من الصورة: <span className="text-muted">{labels.join(' · ')}</span> — راجعيها
+                وعدّلي أي شي.
+              </>
+            ) : (
+              'ما قدرنا نقرأ تفاصيل من الصورة — عبّي الحقول بنفسك.'
+            )}
+            {!visionAvailable && labels.length > 0 && (
+              <span className="block text-faint">
+                التعرّف على الفئة والاسم يحتاج تفعيل مزوّد الرؤية على الخادم.
+              </span>
+            )}
+          </span>
+        </>
+      )}
+    </p>
   )
 }
 

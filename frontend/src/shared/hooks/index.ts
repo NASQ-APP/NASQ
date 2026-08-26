@@ -1,3 +1,7 @@
 export { useLockScroll } from './useLockScroll'
 export { useEscapeKey } from './useEscapeKey'
 export { useOverlayTransition } from './useOverlayTransition'
+export { useBackgroundRemoval } from './useBackgroundRemoval'
+export type { BackgroundRemovalApi, BackgroundRemovalOptions } from './useBackgroundRemoval'
+export { useGarmentAnalysis } from './useGarmentAnalysis'
+export type { AnalysisStatus, GarmentAnalysisApi } from './useGarmentAnalysis'

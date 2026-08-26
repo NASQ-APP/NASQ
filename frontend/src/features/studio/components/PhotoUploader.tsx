@@ -1,15 +1,21 @@
 /**
  * استقبال الصورة الشخصية (M-07 · A-06). الإرشادات ومثال مشروح جنب صندوق الرفع،
  * والفحص يشتغل قبل أي توليد، وزر الحذف متاح في كل لحظة (المبدأ ٥).
+ *
+ * إزالة الخلفية **مطفأة** هنا: هذي صورة شخص مو قطعة، وقصّها يشوّه النتيجة.
+ * نستعمل نفس مكوّن الرفع المشترك عشان تجربة الاختيار والمعاينة واحدة في
+ * التطبيق كله، ونضيف فوقها فحص جودة الصورة الخاص بهذي الشاشة.
  */
-import { useRef, useState } from 'react'
-import { AlertTriangle, Check, Trash2, Upload } from 'lucide-react'
+import { useState } from 'react'
+import { AlertTriangle, Check, Trash2 } from 'lucide-react'
+import { ImageUploader } from '@/shared/components/media/ImageUploader'
 import { PHOTO_GUIDELINES, validatePhoto } from '@/infrastructure/tryon'
 import { modelImageUrl } from '@/infrastructure/rendering'
 import { Button, toast } from '@/shared/components/ui'
 import { useAiModels } from '@/features/ai-model/store'
 import { uid } from '@/shared/lib'
 import type { PhotoValidationResult } from '@/domain/model'
+import type { ImageCandidate } from '@/domain/images'
 
 const exampleImage = modelImageUrl({
   characteristics: {
@@ -29,34 +35,26 @@ const exampleImage = modelImageUrl({
 
 export function PhotoUploader() {
   const { photo, setPhoto, clearPhoto } = useAiModels()
-  const [checking, setChecking] = useState(false)
   const [validation, setValidation] = useState<PhotoValidationResult>()
-  const inputRef = useRef<HTMLInputElement>(null)
 
-  const onFile = async (file?: File) => {
-    if (!file) return
-    setChecking(true)
-    setValidation(undefined)
-    try {
-      const result = await validatePhoto(file)
-      setValidation(result)
-      if (!result.ok) {
-        toast.error('نحتاج صورة أوضح')
-        return
-      }
-      const url = URL.createObjectURL(file)
-      setPhoto({
-        id: uid('photo'),
-        url,
-        fileName: file.name,
-        width: result.meta.width,
-        height: result.meta.height,
-        createdAt: new Date().toISOString(),
-      })
-      toast.ok('جاهزة — نقدر نبدأ')
-    } finally {
-      setChecking(false)
+  /** فحص جودة الصورة يجي بعد موافقة المستخدمة، وقبل أي حفظ. */
+  const accept = async (candidate: ImageCandidate) => {
+    const file = new File([candidate.blob], candidate.fileName, { type: candidate.blob.type })
+    const result = await validatePhoto(file)
+    setValidation(result)
+    if (!result.ok) {
+      toast.error('نحتاج صورة أوضح')
+      return
     }
+    setPhoto({
+      id: uid('photo'),
+      url: URL.createObjectURL(candidate.blob),
+      fileName: candidate.fileName,
+      width: result.meta.width,
+      height: result.meta.height,
+      createdAt: new Date().toISOString(),
+    })
+    toast.ok('جاهزة — نقدر نبدأ')
   }
 
   if (photo) {
@@ -99,14 +97,13 @@ export function PhotoUploader() {
   return (
     <div className="flex flex-col gap-5">
       <div className="grid gap-4 sm:grid-cols-2">
-        <button
-          onClick={() => inputRef.current?.click()}
-          className="flex flex-col items-center justify-center gap-3 rounded-md border border-dashed border-line-strong bg-canvas px-5 py-10 transition-colors hover:border-line-strong"
-        >
-          <Upload size={20} strokeWidth={1.3} className="text-muted" />
-          <span className="text-[13px]">{checking ? 'نفحص الصورة…' : 'ارفعي صورتك'}</span>
-          <span className="text-[11px] text-faint">JPG أو PNG · حتى ١٢ ميجا</span>
-        </button>
+        <ImageUploader
+          backgroundRemoval={false}
+          hint="اسحبي صورتك هنا، أو اختاري من جهازك"
+          confirmLabel="استخدمي هذي الصورة"
+          onConfirm={accept}
+          onError={(error) => toast.error(error.message)}
+        />
         <div className="overflow-hidden rounded-md border border-line bg-surface">
           <img src={exampleImage} alt="مثال لصورة مناسبة" className="h-[200px] w-full object-contain" />
           <p className="border-t border-line bg-canvas px-3 py-2 text-center text-[10.5px] text-faint">
@@ -114,14 +111,6 @@ export function PhotoUploader() {
           </p>
         </div>
       </div>
-
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/jpeg,image/png,image/webp"
-        className="hidden"
-        onChange={(e) => onFile(e.target.files?.[0])}
-      />
 
       <div>
         <p className="eyebrow mb-3">عشان تطلع النتيجة أفضل</p>

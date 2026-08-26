@@ -110,8 +110,8 @@ export function SettingsPage() {
         <p className="eyebrow mb-4">بيانات التطبيق</p>
         <div className="flex flex-col divide-y divide-line border-y border-line">
           <Row
-            title="إرجاع الخزانة التجريبية"
-            note="يرجّع القطع والخزائن الأصلية اللي جت مع التطبيق."
+            title="إرجاع الخزائن الافتراضية"
+            note="يحذف قطعك ويرجّع الخزائن الخمس فاضية زي أول مرة."
             action={
               <Button variant="secondary" size="sm" onClick={() => setConfirm('reset')}>
                 <RotateCcw size={13} strokeWidth={1.5} />
@@ -121,7 +121,7 @@ export function SettingsPage() {
           />
           <Row
             title="تفريغ الخزانة"
-            note="يحذف كل القطع ويخليك تبدئين بخزانتك أنتِ من الصفر."
+            note="يحذف كل القطع ويبقي خزانة واحدة فقط."
             action={
               <Button variant="danger" size="sm" onClick={() => setConfirm('clear')}>
                 <Trash2 size={13} strokeWidth={1.5} />
@@ -138,7 +138,7 @@ export function SettingsPage() {
         onConfirm={() => {
           if (confirm === 'reset') {
             resetToSeed()
-            toast.ok('رجّعنا الخزانة التجريبية')
+            toast.ok('رجّعنا الخزائن الافتراضية')
           } else {
             clearAll()
             toast.ok('فرّغنا الخزانة')
@@ -146,10 +146,10 @@ export function SettingsPage() {
           setConfirm(undefined)
         }}
         eyebrow="Confirm"
-        title={confirm === 'reset' ? 'إرجاع الخزانة التجريبية؟' : 'تفريغ الخزانة؟'}
+        title={confirm === 'reset' ? 'إرجاع الخزائن الافتراضية؟' : 'تفريغ الخزانة؟'}
       >
         {confirm === 'reset'
-          ? 'أي قطع أضفتيها بنفسك راح تنحذف وترجع النسخة الأصلية.'
+          ? 'راح تنحذف كل قطعك وترجع الخزائن الخمس فاضية زي أول مرة.'
           : 'راح تنحذف كل القطع من كل الخزائن. إطلالاتك المحفوظة تبقى، بس بتفقد قطعها.'}
       </ConfirmDialog>
     </PageContainer>

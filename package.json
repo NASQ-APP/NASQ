@@ -17,6 +17,7 @@
     "db:stop": "npm run stop --workspace backend",
     "db:reset": "npm run reset --workspace backend",
     "db:types": "npm run types --workspace backend",
-    "functions:serve": "npm run functions:serve --workspace backend"
+    "functions:serve": "npm run functions:serve --workspace backend",
+    "test": "npm run test --workspace frontend"
   }
 }

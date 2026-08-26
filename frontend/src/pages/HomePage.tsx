@@ -44,7 +44,9 @@ export function HomePage() {
           <span className="display text-[40px] sm:text-[48px]">وش ودك تلبسين اليوم؟</span>
         </h1>
         <p className="mt-4 text-[14px] text-muted">
-          خزانتك فيها {owned.length} قطعة موزّعة على {wardrobes.length} خزائن.
+          {owned.length > 0
+            ? `خزانتك فيها ${owned.length} قطعة موزّعة على ${wardrobes.length} خزائن.`
+            : 'خزانتك فاضية — صوّري أول قطعة من دولابك ونبدأ.'}
         </p>
 
         <button

@@ -53,14 +53,31 @@ export const clearPhotos = (): Promise<undefined> =>
 /** يقرأ كل الصور مرة وحدة عند إقلاع التطبيق ويحوّلها لروابط كائن. */
 export async function loadAllPhotos(): Promise<Record<string, string>> {
   if (typeof indexedDB === 'undefined') return {}
+
   try {
-    const keys = await withStore<IDBValidKey[]>('readonly', (store) => store.getAllKeys())
-    const blobs = await withStore<Blob[]>('readonly', (store) => store.getAll())
-    return Object.fromEntries(
-      keys.map((key, index) => [String(key), URL.createObjectURL(blobs[index])]),
-    )
+    const db = await open()
+    return await new Promise<Record<string, string>>((resolve, reject) => {
+      const urls: Record<string, string> = {}
+      // مؤشّر داخل معاملة واحدة: المفتاح وقيمته يُقرآن معًا.
+      // قراءة المفاتيح والقيم في معاملتين منفصلتين تسمح بتعديل بينهما،
+      // فتنزاح المصفوفتان وتنربط صورة القطعة بقطعة ثانية.
+      const request = db.transaction(STORE, 'readonly').objectStore(STORE).openCursor()
+
+      request.addEventListener('success', () => {
+        const cursor = request.result
+        if (!cursor) {
+          resolve(urls)
+          return
+        }
+        if (cursor.value instanceof Blob) {
+          urls[String(cursor.key)] = URL.createObjectURL(cursor.value)
+        }
+        cursor.continue()
+      })
+      request.addEventListener('error', () => reject(request.error))
+    })
   } catch {
-    // التخزين معطّل (تصفّح خاص مثلاً) — التطبيق يشتغل بالرسم المتّجه
+    // التخزين معطّل (تصفّح خاص مثلاً) — التطبيق يشتغل بلا صور
     return {}
   }
 }

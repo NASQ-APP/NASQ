@@ -21,8 +21,12 @@ create index shares_outfit_idx on public.shares (outfit_id);
 
 alter table public.shares enable row level security;
 
+-- الطرفان: الرابط لي، والإطلالة لي كذلك. بدون الشرط الثاني تقدر مستخدمة
+-- تنشئ رابطًا لإطلالة غيرها وتنشرها للعامة — وهذي أخطر ثغرة في النموذج.
 create policy "shares: روابطي" on public.shares
-  for all using (user_id = auth.uid()) with check (user_id = auth.uid());
+  for all
+  using (user_id = auth.uid())
+  with check (user_id = auth.uid() and public.owns_outfit(outfit_id));
 
 -- القراءة العامة تمر من هنا فقط: دالة تُرجّع ما تسمح به إعدادات المشاركة،
 -- بدون فتح جدول الإطلالات لغير أصحابه. تُستدعى من دالة الحافة /share.
