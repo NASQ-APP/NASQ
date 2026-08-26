@@ -1,0 +1,2 @@
+export { DAY_LABELS, packingList } from './types'
+export type { Trip, TripDay } from './types'

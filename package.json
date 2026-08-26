@@ -1,0 +1,22 @@
+{
+  "name": "dulabi",
+  "private": true,
+  "version": "2.1.0",
+  "description": "دولابي الذكي — خزانة ملابس رقمية شخصية مع تجربة افتراضية",
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace frontend",
+    "build": "npm run build --workspace frontend",
+    "preview": "npm run preview --workspace frontend",
+    "lint": "npm run lint --workspace frontend",
+    "typecheck": "npm run typecheck --workspace frontend",
+    "db:start": "npm run start --workspace backend",
+    "db:stop": "npm run stop --workspace backend",
+    "db:reset": "npm run reset --workspace backend",
+    "db:types": "npm run types --workspace backend",
+    "functions:serve": "npm run functions:serve --workspace backend"
+  }
+}

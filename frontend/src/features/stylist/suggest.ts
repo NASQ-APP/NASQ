@@ -1,0 +1,193 @@
+/**
+ * الستايليست يفكّر داخل خزانة المستخدمة وحدها — ما يخترع قطعة ولا يقترح شراء.
+ * ولو الخزانة ما تقدر تجاوب الطلب، يقولها بدل ما يركّب شيئًا من عنده (المبدأ ٢).
+ */
+import { categoryById } from '@/domain/wardrobe'
+import { slotOf } from '@/domain/outfit'
+import type { BodySlot, WardrobeItem } from '@/domain/wardrobe'
+
+export type StylistLook = {
+  title: string
+  reason: string
+  itemIds: string[]
+}
+
+export type StylistAnswer = {
+  message: string
+  looks: StylistLook[]
+  /** قطع مفردة تُقترح لتنسّق مع شيء مختار أصلاً */
+  pieces: string[]
+  /** يظهر لما تكون الخزانة فعلاً ما تغطي الطلب */
+  gap?: string
+}
+
+const NEUTRALS = ['أسود', 'أبيض', 'أبيض مكسور', 'كريمي', 'بيج', 'رمادي', 'فحمي', 'رملي', 'كحلي']
+
+const bySlot = (items: WardrobeItem[], slot: BodySlot) => items.filter((i) => slotOf(i) === slot)
+
+const pick = <T,>(list: T[], index: number): T | undefined =>
+  list.length ? list[index % list.length] : undefined
+
+function assemble(items: WardrobeItem[], variant: number, preferNeutral: boolean): string[] {
+  const pool = preferNeutral
+    ? items.toSorted(
+        (a, b) => Number(NEUTRALS.includes(b.colorName)) - Number(NEUTRALS.includes(a.colorName)),
+      )
+    : items
+
+  const onePiece = bySlot(pool, 'full')
+  const tops = bySlot(pool, 'top')
+  const bottoms = bySlot(pool, 'bottom')
+  const shoes = bySlot(pool, 'shoes')
+  const bags = bySlot(pool, 'bag')
+  const outer = bySlot(pool, 'outer')
+
+  const chosen: (WardrobeItem | undefined)[] = []
+
+  // كل اقتراح ثالث يميل لقطعة كاملة لو كان في الخزانة وحدة
+  if (variant % 3 === 2 && onePiece.length) {
+    chosen.push(pick(onePiece, variant))
+  } else {
+    chosen.push(pick(tops, variant), pick(bottoms, variant))
+  }
+  chosen.push(pick(shoes, variant))
+  if (variant % 2 === 1) chosen.push(pick(bags, variant))
+  if (variant % 3 === 1) chosen.push(pick(outer, variant))
+
+  return chosen.filter(Boolean).map((i) => i!.id)
+}
+
+const has = (text: string, ...keys: string[]) => keys.some((k) => text.includes(k))
+
+export function suggest(
+  question: string,
+  wardrobe: WardrobeItem[],
+  selectedIds: string[] = [],
+): StylistAnswer {
+  const q = question.trim()
+  const items = wardrobe.filter((i) => i.source === 'wardrobe')
+
+  if (!items.length) {
+    return {
+      message: 'خزانتك فاضية لين الحين.',
+      looks: [],
+      pieces: [],
+      gap: 'أضيفي كم قطعة وأقدر أنسّق لك منها.',
+    }
+  }
+
+  const asksPairing = has(q, 'يناسب', 'مع هذي', 'مع هذا', 'وش ألبس مع', 'ينفع مع', 'كمّلي', 'أكملي')
+  const asksLook = has(
+    q,
+    'نسّقي', 'نسقي', 'إطلالة', 'اطلاله', 'جهّزي', 'جهزي', 'خيار ثاني',
+    'جامعة', 'عمل', 'دوام', 'رسمي', 'مناسبة', 'عشاء', 'كاجوال', 'مريح', 'سفر',
+  )
+
+  /* ---- pairing question: what goes with this piece? ---- */
+  // طلب المناسبة الصريح يغلب الاختيار الحالي، وإلا فالسؤال الغامض مع وجود
+  // قطعة مختارة يُقرأ كـ«وش يناسب هذي؟»
+  if (asksPairing || (!asksLook && selectedIds.length)) {
+    const base = items.find((i) => selectedIds.includes(i.id))
+    if (base) {
+      const baseSlot = slotOf(base)
+      const wanted: BodySlot[] =
+        baseSlot === 'top' ? ['bottom', 'shoes', 'outer'] :
+        baseSlot === 'bottom' ? ['top', 'shoes', 'bag'] :
+        baseSlot === 'full' ? ['outer', 'shoes', 'bag'] :
+        ['top', 'bottom']
+
+      const pieces = wanted
+        .flatMap((slot) => bySlot(items, slot).filter((i) => !selectedIds.includes(i.id)).slice(0, 2))
+        .slice(0, 4)
+
+      return {
+        message: pieces.length
+          ? `لقيت لك ${pieces.length} قطع من خزانتك تناسب «${base.name}».`
+          : `ما لقيت شي في خزانتك ينسّق مع «${base.name}».`,
+        looks: [],
+        pieces: pieces.map((p) => p.id),
+        gap: pieces.length ? undefined : 'ينقصك قطعة أساسية بلون محايد.',
+      }
+    }
+  }
+
+  /* ---- occasion-shaped requests ---- */
+  const neutral = has(q, 'جامعة', 'عمل', 'دوام', 'رسمي', 'اجتماع')
+  const relaxed = has(q, 'كاجوال', 'مريح', 'بيت', 'مشوار')
+  const evening = has(q, 'مناسبة', 'عشاء', 'عرس', 'حفلة')
+
+  let scope = items
+  if (evening) {
+    const eveningPieces = items.filter((i) => {
+      const cat = categoryById(i.categoryId)
+      return cat?.slot === 'full' || cat?.slot === 'shoes' || cat?.slot === 'bag'
+    })
+    if (eveningPieces.length >= 3) scope = eveningPieces
+  }
+
+  const looks: StylistLook[] = [0, 1, 2]
+    .map((variant) => ({
+      title: ['LOOK 01', 'LOOK 02', 'LOOK 03'][variant],
+      reason: neutral
+        ? 'ألوان محايدة وقصّات مرتبة — تتحمّل يوم طويل بدون ما تفقد شكلها.'
+        : relaxed
+          ? 'قطع مريحة بدون ما تفقد الترتيب.'
+          : evening
+            ? 'قطعة أساسية أنيقة، والباقي هادئ عشان يبقى التركيز عليها.'
+            : 'مزيج متوازن من خزانتك — ألوان تمشي مع بعض.',
+      itemIds: assemble(scope, variant, neutral),
+    }))
+    .filter((l) => l.itemIds.length >= 2)
+
+  const message = neutral
+    ? 'اخترت لك ثلاث إطلالات هادئة من خزانتك:'
+    : evening
+      ? 'من قطع المناسبات عندك:'
+      : relaxed
+        ? 'إطلالات مريحة من خزانتك:'
+        : 'من خزانتك الحالية، هذي ثلاث إطلالات جاهزة:'
+
+  return {
+    message: looks.length ? message : 'ما قدرت أركّب إطلالة كاملة من خزانتك.',
+    looks,
+    pieces: [],
+    gap: looks.length ? undefined : 'ينقصك قطع أساسية — علوي وسفلي وحذاء على الأقل.',
+  }
+}
+
+/* ---------------- اقتراحات اليوم في الرئيسية ---------------- */
+
+export type DailyLook = StylistLook & {
+  /** معرّف المناسبة من `OCCASIONS` — يُحفظ مع الإطلالة لو جرّبتها */
+  occasionId: string
+  occasionLabel: string
+}
+
+/** ثلاث نوايا ثابتة عشان الاقتراحات تبان مقصودة، مو عشوائية. */
+const DAILY_INTENTS = [
+  { occasionId: 'university', occasionLabel: 'للجامعة', prompt: 'نسّقي لي إطلالة للجامعة' },
+  { occasionId: 'daily', occasionLabel: 'ليوم عادي', prompt: 'إطلالة كاجوال لليوم' },
+  { occasionId: 'event', occasionLabel: 'لمناسبة', prompt: 'إطلالة لمناسبة مسائية' },
+]
+
+/**
+ * اقتراحات «وش ألبس اليوم؟» — إطلالة جاهزة لكل نيّة، كلها من خزانة المستخدمة.
+ * حتمية: نفس الخزانة تعطي نفس الاقتراحات، فما تتقلّب مع كل رسم.
+ */
+export function dailyLooks(wardrobe: WardrobeItem[]): DailyLook[] {
+  return DAILY_INTENTS.flatMap((intent, index) => {
+    const { looks } = suggest(intent.prompt, wardrobe)
+    if (!looks.length) return []
+    // نيّة مختلفة ← تشكيلة مختلفة، عشان الثلاثة ما تتشابه
+    const look = looks[index % looks.length]
+    return [{ ...look, occasionId: intent.occasionId, occasionLabel: intent.occasionLabel }]
+  })
+}
+
+export const QUICK_PROMPTS = [
+  'نسّقي لي إطلالة للجامعة',
+  'وش يناسب القطعة المختارة؟',
+  'إطلالة كاجوال لليوم',
+  'إطلالة لمناسبة مسائية',
+  'عطيني خيار ثاني',
+]

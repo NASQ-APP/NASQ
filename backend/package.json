@@ -1,0 +1,16 @@
+{
+  "name": "@dulabi/backend",
+  "private": true,
+  "version": "2.1.0",
+  "description": "الباك-إند: قاعدة البيانات والـRLS ودوال الحافة",
+  "scripts": {
+    "start": "npx supabase start",
+    "stop": "npx supabase stop",
+    "reset": "npx supabase db reset",
+    "diff": "npx supabase db diff",
+    "push": "npx supabase db push",
+    "types": "npx supabase gen types typescript --local > ../frontend/src/infrastructure/supabase/database.types.ts",
+    "functions:serve": "npx supabase functions serve --no-verify-jwt",
+    "functions:deploy": "npx supabase functions deploy"
+  }
+}

@@ -1,0 +1,19 @@
+/**
+ * قراءة متغيّرات البيئة في مكان واحد ومحوّلة لأنواع صريحة.
+ *
+ * قاعدة أمنية (§17): المتصفح ما يشوف إلا `anon key`. مفتاح `service_role`
+ * ومفاتيح مزوّدي الذكاء تعيش في الباك-إند حصريًا وما تنزل هنا أبدًا.
+ */
+const read = (value: unknown, fallback = ''): string =>
+  typeof value === 'string' && value.length > 0 ? value : fallback
+
+export const env = {
+  /** local = تركيب محلي في المتصفح · backend = مزوّد حقيقي خلف Edge Function */
+  tryOnProvider: read(import.meta.env.VITE_TRYON_PROVIDER, 'local') as 'local' | 'backend',
+  supabaseUrl: read(import.meta.env.VITE_SUPABASE_URL),
+  supabaseAnonKey: read(import.meta.env.VITE_SUPABASE_ANON_KEY),
+  apiBase: read(import.meta.env.VITE_API_BASE, '/api'),
+} as const
+
+/** هل الباك-إند مهيّأ فعلاً؟ الواجهة تشتغل محليًا لو لا. */
+export const hasBackend = (): boolean => Boolean(env.supabaseUrl && env.supabaseAnonKey)

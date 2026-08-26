@@ -1,0 +1,211 @@
+@import 'tailwindcss';
+
+/* ============================================================================
+   دولابي الذكي — نظام التصميم
+   editorial fashion-tech · مينمال أحادي اللون · فاخر وواسع
+   بدون تدرّجات لونية · بدون ظلال كثيفة · بدون إيموجي
+
+   مرآة CSS لملف `theme/tokens.ts`. أي تعديل لون يتم في الملفين معًا.
+   ============================================================================ */
+
+@theme {
+  /* ---------- الألوان ---------- */
+  --color-ink: #0a0a0a;
+  --color-ink-soft: #171717;
+  --color-muted: #777777;
+  --color-faint: #a3a3a3;
+  --color-line: #e7e7e4;
+  --color-line-strong: #dcdcd9;
+  --color-canvas: #ffffff;
+  --color-surface: #f8f8f6;
+  --color-surface-warm: #f4f3f0;
+  --color-stage: #f7f7f5;
+  --color-danger: #8a1f1f;
+
+  /* ---------- الخطوط ---------- */
+  --font-sans: 'IBM Plex Sans Arabic', 'Alexandria', ui-sans-serif, system-ui, sans-serif;
+  --font-heading: 'Alexandria', 'IBM Plex Sans Arabic', ui-sans-serif, system-ui, sans-serif;
+  --font-latin: 'Inter', ui-sans-serif, system-ui, sans-serif;
+
+  /* ---------- الاستدارة ---------- */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
+  /* ---------- الحركة ---------- */
+  --ease-soft: cubic-bezier(0.22, 0.61, 0.36, 1);
+
+  /* ---------- أبعاد القشرة ---------- */
+  --spacing-sidebar: 240px;
+  --spacing-sidebar-collapsed: 68px;
+}
+
+@layer base {
+  *,
+  *::before,
+  *::after {
+    border-color: var(--color-line);
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    font-weight: 400;
+    font-size: 13.5px;
+    line-height: 1.75;
+    background: var(--color-canvas);
+    color: var(--color-ink);
+  }
+
+  /* العناوين: Alexandria · وزن ٣٠٠ · تتبع -0.01em · ارتفاع سطر 1.35 */
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-heading);
+    font-weight: 300;
+    letter-spacing: -0.01em;
+    line-height: 1.35;
+  }
+
+  input,
+  select,
+  textarea,
+  button {
+    font: inherit;
+    color: inherit;
+  }
+
+  ::placeholder {
+    color: var(--color-faint);
+  }
+
+  ::selection {
+    background: var(--color-ink);
+    color: #fff;
+  }
+
+  /* مسار تركيز ظاهر في كل مكان — متطلب X-09 */
+  :focus-visible {
+    outline: 1.5px solid var(--color-ink);
+    outline-offset: 2px;
+  }
+
+  ::-webkit-scrollbar {
+    width: 9px;
+    height: 9px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-line-strong);
+    border-radius: 9px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #cecec9;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer components {
+  /* ---------- سلّم الطباعة ---------- */
+
+  /** تسمية لاتينية صغيرة فوق العنوان */
+  .eyebrow {
+    font-family: var(--font-latin);
+    font-size: 10px;
+    letter-spacing: 0.26em;
+    text-transform: uppercase;
+    font-weight: 500;
+    color: var(--color-faint);
+  }
+
+  /** نص لاتيني متباعد — للأرقام والتسميات */
+  .lat {
+    font-family: var(--font-latin);
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+
+  /** العناوين الكبيرة */
+  .display {
+    font-family: var(--font-heading);
+    font-weight: 300;
+    letter-spacing: -0.01em;
+    line-height: 1.35;
+  }
+
+  /** ارتفاع خفيف عند المرور — الحركة الوحيدة المعتمدة على البطاقات */
+  .lift {
+    transition:
+      transform 320ms var(--ease-soft),
+      border-color 320ms var(--ease-soft),
+      background-color 320ms var(--ease-soft);
+  }
+  .lift:hover {
+    transform: translateY(-2px);
+  }
+
+  /* ---------- هيكل التحميل ---------- */
+  .skeleton {
+    background: linear-gradient(100deg, #f4f4f1 30%, #eaeae6 50%, #f4f4f1 70%);
+    background-size: 220% 100%;
+    animation: shimmer 1.3s infinite;
+  }
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 220% 0;
+  }
+  to {
+    background-position: -20% 0;
+  }
+}
+
+/* ---------- السلايدرات (باني الموديل) ---------- */
+input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 1px;
+  background: var(--color-line-strong);
+  cursor: pointer;
+}
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--color-ink-soft);
+  border: 3px solid #fff;
+  box-shadow: 0 0 0 1px var(--color-ink-soft);
+}
+input[type='range']::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--color-ink-soft);
+  border: 3px solid #fff;
+  box-shadow: 0 0 0 1px var(--color-ink-soft);
+}
