@@ -72,8 +72,6 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
  * التعريف الكامل لكل مسار في `backend/supabase/functions`.
  */
 export const ENDPOINTS = {
-  tryOnStart: '/tryon-start',
-  tryOnStatus: (jobId: string) => `/tryon-status?job_id=${encodeURIComponent(jobId)}`,
   itemsProcess: '/items-process',
   imagesRemoveBackground: '/images-remove-background',
   imagesAnalyze: '/images-analyze',

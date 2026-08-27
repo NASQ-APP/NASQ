@@ -27,10 +27,9 @@ src/
 │   ├── shared/         Gender · BodySlot
 │   ├── wardrobe/       الأنواع · الفئات · الألوان · الأشكال · الفلترة
 │   ├── model/          الموديل والصورة الشخصية
-│   └── outfit/         عقود التجربة · الزاوية · الإكمال المحايد · البرومبت · الأخطاء
+│   └── outfit/         موضع القطعة · قصّة الكاميرا · الإطلالة المحفوظة
 ├── infrastructure/     كل ما يلمس العالم الخارجي
 │   ├── http/           عميل الشبكة + مسارات الباك-إند
-│   ├── tryon/          سجل المزوّدين: محلي · خادم · فحص الصورة
 │   ├── rendering/      رسم الموديل بالـSVG مع طبقات الملابس عليه
 │   └── storage/        مفاتيح التخزين المحلي · هجرة الاسم القديم · صور IndexedDB
 ├── features/           كل ميزة مغلّفة: مكوّناتها ومخزنها وهوكاتها
@@ -100,28 +99,6 @@ src/
 | الطبقات | `Modal` · `Drawer` · `ConfirmDialog` · `Scrim` · `toast` |
 | التخطيط | `AdaptivePanel` · `ResizeHandle` |
 
-## طبقة الذكاء
-
-كل التطبيق يتكلم مع واجهة واحدة: `VirtualTryOnProvider` في
-[`domain/outfit/types.ts`](src/domain/outfit/types.ts).
-
-```
-VITE_TRYON_PROVIDER=local     # تركيب محلي في المتصفح (الافتراضي)
-VITE_TRYON_PROVIDER=backend   # توليد حقيقي خلف Edge Function
-```
-
-تبديل المزوّد **متغيّر بيئة واحد**، ولا مكوّن واجهة يتغيّر.
-**مفاتيح أي مزوّد ما تنزل هنا أبدًا** — تعيش في الباك-إند.
-
-| الملف | يسوي إيش |
-|---|---|
-| `domain/outfit/framing.ts` | اختيار زاوية الكاميرا من القطع المختارة |
-| `domain/outfit/completion.ts` | الإكمال المحايد — قطعة وحدة ما تُعرض على جسم نصف عارٍ |
-| `domain/outfit/prompt.ts` | بناء البرومبت ديناميكيًا |
-| `domain/outfit/errors.ts` | سبعة رموز خطأ بلغة بشر |
-| `infrastructure/tryon/localProvider.ts` | تركيب محلي، وكل نتيجة معلّمة `simulated` |
-| `infrastructure/tryon/backendProvider.ts` | توليد غير متزامن: `jobId` فورًا ثم متابعة |
-| `features/stylist/suggest.ts` | الستايليست: من خزانتك فقط، ويقول وش ناقص |
 
 ## الحالة
 

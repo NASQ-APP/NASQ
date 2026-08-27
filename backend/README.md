@@ -34,8 +34,6 @@ supabase/
 ├── migrations/          الجداول والـRLS — بالترتيب الزمني
 └── functions/
     ├── _shared/         CORS · الأخطاء · البيئة · العميل · البصمة
-    ├── tryon-start/     يبدأ مهمة توليد ويرجّع معرّفها فورًا
-    ├── tryon-status/    حالة المهمة (احتياط لـRealtime)
     ├── images-remove-background/ إزالة خلفية الصورة خلف مفتاح المزوّد
     ├── images-analyze/  تعبئة حقول القطعة من صورتها
     ├── items-process/   معالجة القطعة
@@ -55,7 +53,6 @@ supabase/
 | `closets` · `items` · `item_closets` | الخزائن والقطع والربط بينها |
 | `item_embeddings` | تمثيل متجه لكل قطعة (pgvector) |
 | `outfits` · `outfit_items` · `outfit_closets` | الإطلالات المحفوظة |
-| `render_jobs` | مهام التوليد — تُتابَع عبر Realtime |
 | `trips` · `trip_days` · `trip_day_items` · `trip_packed` | السفر وقائمة الشنطة |
 | `shares` | روابط المشاركة بتوكن |
 | `agent_threads` | محادثات الوكيل |
@@ -99,8 +96,6 @@ supabase/
 ## مسارات الدوال
 
 Supabase يخدم الدوال على `/functions/v1/<اسم المجلد>`، فالمسارات صارت
-`/tryon-start` بدل `/tryon/start` المذكور في §19. مصدر المسارات الوحيد في
-الفرونت-إند: `frontend/src/infrastructure/http/client.ts`.
 
 ## النشر
 

@@ -4,6 +4,7 @@ export type {
   BodyShape,
   HairStyle,
   ModelCharacteristics,
+  ModelSource,
   PhotoIssue,
   PhotoIssueCode,
   PhotoValidationResult,

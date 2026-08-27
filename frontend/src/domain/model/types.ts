@@ -49,6 +49,9 @@ export type AiModel = {
   createdAt: string
 }
 
+/** على وش يُعرض اللبس: موديل محفوظ، أو صورة المستخدمة الشخصية. */
+export type ModelSource = 'model' | 'photo'
+
 /** صورة المستخدمة محفوظة في المتصفح فقط — ما تُرفع لأي مكان في هذي النسخة (§17). */
 export type UserPhoto = {
   id: string

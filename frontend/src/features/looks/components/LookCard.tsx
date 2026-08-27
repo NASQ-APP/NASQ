@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { Camera, Trash2, UserRound, Wand2 } from 'lucide-react'
+import { Trash2, Wand2 } from 'lucide-react'
 import { Badge, Button, toast } from '@/shared/components/ui'
 import { ItemImage } from '@/shared/components/media/ItemImage'
 import { occasionName } from '@/domain/wardrobe'
@@ -24,16 +24,7 @@ export function LookCard({ look }: { look: SavedLook }) {
         <img src={look.resultImageUrl} alt={look.name} className="h-full w-full object-contain p-3" />
         <div className="absolute right-3 top-3 flex gap-1.5">
           <Badge tone="dark">Look #{look.number}</Badge>
-          {look.simulated && <Badge>معاينة</Badge>}
         </div>
-        <span className="absolute left-3 top-3 flex items-center gap-1.5 rounded-full border border-line bg-canvas/90 px-2.5 py-1 text-[10px] text-muted">
-          {look.source === 'photo' ? (
-            <Camera size={11} strokeWidth={1.5} />
-          ) : (
-            <UserRound size={11} strokeWidth={1.5} />
-          )}
-          {look.source === 'photo' ? 'صورتي' : 'موديلي'}
-        </span>
       </div>
 
       <div className="flex flex-1 flex-col p-5">

@@ -8,8 +8,6 @@ const read = (value: unknown, fallback = ''): string =>
   typeof value === 'string' && value.length > 0 ? value : fallback
 
 export const env = {
-  /** local = تركيب محلي في المتصفح · backend = مزوّد حقيقي خلف Edge Function */
-  tryOnProvider: read(import.meta.env.VITE_TRYON_PROVIDER, 'local') as 'local' | 'backend',
   /** إزالة الخلفية: local = خوارزمية في المتصفح · backend = مزوّد خلف الخادم */
   backgroundRemoval: read(import.meta.env.VITE_BACKGROUND_REMOVAL, 'local') as 'local' | 'backend',
   /** الطقس: open-meteo = خدمة مفتوحة بلا مفتاح · off = الميزة مطفأة */

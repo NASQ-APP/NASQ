@@ -9,7 +9,7 @@
 import { useState } from 'react'
 import { AlertTriangle, Check, Trash2 } from 'lucide-react'
 import { ImageUploader } from '@/shared/components/media/ImageUploader'
-import { PHOTO_GUIDELINES, validatePhoto } from '@/infrastructure/tryon'
+import { PHOTO_GUIDELINES, validatePhoto } from '@/infrastructure/model'
 import { modelImageUrl } from '@/infrastructure/rendering'
 import { Button, toast } from '@/shared/components/ui'
 import { useAiModels } from '@/features/ai-model/store'

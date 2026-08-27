@@ -19,8 +19,3 @@ export const optionalEnv = (key: string, fallback = ''): string => Deno.env.get(
 export const SUPABASE_URL = () => requireEnv('SUPABASE_URL')
 export const SERVICE_ROLE_KEY = () => requireEnv('SUPABASE_SERVICE_ROLE_KEY')
 
-/** المزوّد المفعَّل حاليًا واسمه — يُقرأ من البيئة، ما يُذكر في الواجهة. */
-export const TRYON_PROVIDER = () => optionalEnv('TRYON_PROVIDER', 'none')
-
-/** السقف اليومي للتوليد لكل مستخدمة (S-09). */
-export const DAILY_RENDER_LIMIT = () => Number(optionalEnv('DAILY_RENDER_LIMIT', '20'))

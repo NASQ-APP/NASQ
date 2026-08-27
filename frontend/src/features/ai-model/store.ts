@@ -11,8 +11,7 @@ import { modelImageUrl } from '@/infrastructure/rendering'
 import { renderTheme } from '@/theme'
 import { storageKey } from '@/infrastructure/storage'
 import { seedFrom, uid } from '@/shared/lib'
-import type { AiModel, ModelCharacteristics, UserPhoto } from '@/domain/model'
-import type { TryOnSource } from '@/domain/outfit'
+import type { AiModel, ModelCharacteristics, ModelSource, UserPhoto } from '@/domain/model'
 import type { Gender } from '@/domain/wardrobe'
 
 type ModelState = {
@@ -21,7 +20,7 @@ type ModelState = {
   activeModelId?: string
   photo?: UserPhoto
   /** آخر وضع اختارته المستخدمة في الاستوديو */
-  preferredSource: TryOnSource
+  preferredSource: ModelSource
 
   saveModel: (characteristics: ModelCharacteristics, name?: string) => AiModel
   updateModel: (id: string, characteristics: ModelCharacteristics) => void
@@ -32,7 +31,7 @@ type ModelState = {
 
   setPhoto: (photo: UserPhoto) => void
   clearPhoto: () => void
-  setPreferredSource: (source: TryOnSource) => void
+  setPreferredSource: (source: ModelSource) => void
 }
 
 const previewOf = (characteristics: ModelCharacteristics) =>

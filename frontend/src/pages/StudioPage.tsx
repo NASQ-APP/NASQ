@@ -15,18 +15,16 @@ import { StudioHeader } from '@/features/studio/components/StudioHeader'
 import { WardrobePanel } from '@/features/studio/components/WardrobePanel'
 import { CurrentOutfitPanel } from '@/features/studio/components/CurrentOutfitPanel'
 import { CollapsedRail } from '@/features/studio/components/CollapsedRail'
-import { ModelWorkspace, type PreviewMode } from '@/features/studio/components/ModelWorkspace'
+import { ModelWorkspace } from '@/features/studio/components/ModelWorkspace'
 import { SmartSuggestionsStrip } from '@/features/studio/components/SmartSuggestionsStrip'
 import { PhotoUploader } from '@/features/studio/components/PhotoUploader'
 import { StudioMobileBar, type MobileSheet } from '@/features/studio/components/StudioMobileBar'
 import { useStudio } from '@/features/studio/store'
-import { useTryOn } from '@/features/studio/useTryOn'
 import { useWardrobe } from '@/features/wardrobe/store'
 import { useAiModels } from '@/features/ai-model/store'
 import { useLooks } from '@/features/looks/store'
 import { useAppShell } from '@/app/layout'
 import { conflictsWith, sheetPanels, studioLayout, type OutfitSlotId } from '@/domain/studio'
-import { chooseFraming, neutralCompletion, toGarment } from '@/domain/outfit'
 import { OCCASIONS, ownedItems } from '@/domain/wardrobe'
 import {
   Button,
@@ -50,10 +48,8 @@ export function StudioPage() {
   const items = useWardrobe((state) => state.items)
   const models = useAiModels()
   const looks = useLooks()
-  const tryOn = useTryOn()
   const studio = useStudio()
 
-  const [mode, setMode] = useState<PreviewMode>('model')
   const [dragging, setDragging] = useState(false)
   const [conflict, setConflict] = useState<{ candidate: WardrobeItem; clashes: WardrobeItem[] }>()
   const [saveOpen, setSaveOpen] = useState(false)
@@ -106,36 +102,6 @@ export function StudioPage() {
   const model = models.modelFor(gender)
   const photo = models.photo
 
-  const garments = selected.map(toGarment)
-  const { framing } = chooseFraming(garments)
-  const fillers = neutralCompletion(garments, framing)
-
-  /**
-   * بصمة الاختيار وقت توليد المعاينة. تُحفظ في الحالة مو في ref لأنها تُقرأ
-   * أثناء الرسم — وقراءة ref أثناء الرسم تعطي قيمة قديمة بصمت.
-   */
-  const [generatedFor, setGeneratedFor] = useState('')
-  const signature = studio.selection.join('|') + source
-  const stale = Boolean(tryOn.result) && generatedFor !== signature
-
-  const canPreview = selected.length > 0 && (source === 'model' ? Boolean(model) : Boolean(photo))
-
-  const runPreview = async () => {
-    if (!canPreview) {
-      toast.error(source === 'model' ? 'أنشئي موديلك أول.' : 'ارفعي صورتك أول.')
-      return
-    }
-    setMode('preview')
-    const result = await tryOn.run({
-      items: selected,
-      source,
-      model,
-      personImageUrl: photo?.url,
-      gender,
-    })
-    if (result) setGeneratedFor(signature)
-  }
-
   /** الإضافة تمر على فحص التعارض: ما نكدّس قميصين فوق بعض. */
   const pick = (item: WardrobeItem) => {
     if (studio.has(item.id)) {
@@ -168,21 +134,15 @@ export function StudioPage() {
       occasion,
       notes: lookNotes.trim() || undefined,
       itemIds: studio.selection,
-      resultImageUrl: tryOn.result?.resultImageUrl ?? model?.previewImageUrl ?? '',
-      source,
+      resultImageUrl: model?.previewImageUrl ?? '',
       modelId: model?.id,
-      framing,
-      simulated: tryOn.result?.simulated ?? true,
+      framing: 'full',
     })
     toast.ok('حفظنا الإطلالة')
     setSaveOpen(false)
     setLookName('')
     setLookNotes('')
   }
-
-  // ما فيه شي نعاينه: نعرض الموديل بدل لوحة فاضية — مشتق، بلا effect
-  const effectiveMode: PreviewMode =
-    mode === 'preview' && selected.length === 0 && !tryOn.result ? 'model' : mode
 
   return (
     <div className="flex h-[calc(100vh-64px)] min-h-0 flex-col">
@@ -232,28 +192,14 @@ export function StudioPage() {
         {/* ---------------- الموديل ---------------- */}
         <div className="flex min-h-0 flex-col">
           <ModelWorkspace
-            mode={effectiveMode}
-            onModeChange={setMode}
             modelImageUrl={model?.previewImageUrl}
             modelName={model?.name}
             hasModel={source === 'model' ? Boolean(model) : Boolean(photo)}
-            items={selected}
-            result={tryOn.result}
-            stale={stale}
-            busy={tryOn.status === 'processing' || tryOn.status === 'generating'}
-            stage={tryOn.stage}
-            notice={
-              effectiveMode === 'preview' && tryOn.result
-                ? tryOn.result.notice
-                : fillers.length > 0 && selected.length > 0
-                  ? fillers[0].reason
-                  : undefined
-            }
+            notice={selected.length > 0 ? `${selected.length} قطع في إطلالتك.` : undefined}
             dragging={dragging}
             onDropItem={dropItem}
             onEditModel={() => navigate(model ? ROUTES.editModel(model.id) : ROUTES.newModel)}
             onCreateModel={() => navigate(ROUTES.newModel)}
-            onRefreshPreview={runPreview}
           />
 
           {!focusMode && (
