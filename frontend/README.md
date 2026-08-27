@@ -130,8 +130,8 @@ src/
 **ليش IndexedDB مو localStorage:** الصورة عشرات الكيلوبايتات، ومخزن Zustand
 يُكتب كاملاً مع كل تعديل — فحشو الصور فيه يبطّئ كل عملية ويصطدم بسقف التخزين.
 
-الرفع يمر من [`preparePhoto`](src/infrastructure/rendering/imageFile.ts): قص
-مربّع من المنتصف، تصغير إلى ٧٢٠ بكسل، وضغط JPEG. إزالة الخلفية الحقيقية شغل
+الرفع يمر من [`prepareForStorage`](src/infrastructure/images/prepare.ts): قص
+مربّع من المنتصف، تصغير إلى ٧٢٠ بكسل، وترميز WebP (وJPEG لو المتصفح ما يدعمه). إزالة الخلفية الحقيقية شغل
 الخادم في المرحلة ٢ — هنا تجهيز عرض فقط.
 
 عند وصول الخادم: `photoStore.ts` وحده هو اللي يتغيّر لرفع إلى Supabase Storage،

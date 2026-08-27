@@ -21,7 +21,32 @@ export function LookCard({ look }: { look: SavedLook }) {
   return (
     <article className="group flex flex-col overflow-hidden rounded-md border border-line">
       <div className="relative grid h-[300px] place-items-center bg-surface">
-        <img src={look.resultImageUrl} alt={look.name} className="h-full w-full object-contain p-3" />
+        {/*
+          الإطلالة قد تُحفظ بلا صورة — مثلاً قبل ما تنشئ المستخدمة موديلها.
+          نعرض قطعها بدل صورة مكسورة: القطع **هي** الإطلالة، والصورة تمثيل لها.
+        */}
+        {look.resultImageUrl ? (
+          <img
+            src={look.resultImageUrl}
+            alt={look.name}
+            className="h-full w-full object-contain p-3"
+          />
+        ) : (
+          <ul className="flex flex-wrap items-center justify-center gap-2 p-6">
+            {items.slice(0, 4).map(
+              (item) =>
+                item && (
+                  <li
+                    key={item.id}
+                    title={item.name}
+                    className="grid h-20 w-16 place-items-center overflow-hidden rounded-sm bg-canvas"
+                  >
+                    <ItemImage item={item} className="h-[80%] w-[80%]" />
+                  </li>
+                ),
+            )}
+          </ul>
+        )}
         <div className="absolute right-3 top-3 flex gap-1.5">
           <Badge tone="dark">Look #{look.number}</Badge>
         </div>
