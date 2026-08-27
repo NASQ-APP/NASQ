@@ -1,3 +1,5 @@
+export { useMediaQuery } from './useMediaQuery'
+export { useDeviceClass, useIsCompact } from './useDeviceClass'
 export { useLockScroll } from './useLockScroll'
 export { useEscapeKey } from './useEscapeKey'
 export { useOverlayTransition } from './useOverlayTransition'

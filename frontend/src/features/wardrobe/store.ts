@@ -14,6 +14,9 @@ import { stamp, uid } from '@/shared/lib'
 import { useItemPhotos } from './photos'
 import type { Wardrobe, WardrobeItem } from '@/domain/wardrobe'
 
+/** القطع التي أنشأتها المستخدمة داخل التطبيق تحمل بادئة `uid('item')`. */
+const isUserCreated = (id: string): boolean => id.startsWith('item_')
+
 type WardrobeState = {
   wardrobes: Wardrobe[]
   items: WardrobeItem[]
@@ -124,21 +127,43 @@ export const useWardrobe = create<WardrobeState>()(
     }),
     {
       name: storageKey('wardrobe'),
-      version: 1,
+      version: 2,
       /**
        * الإصدار ١: أُزيلت صور خزانة البداية المرفقة. أي قطعة محفوظة تشير
        * لملف في `/wardrobe/` صار مساره ميتًا — نسقط المسار فترجع القطعة
        * للرسم المتّجه بدل ما تطلع صورة مكسورة.
+       *
+       * الإصدار ٢: أُزيلت قطع البداية التجريبية نفسها. التطبيق يبدأ فاضيًا،
+       * لكن من جرّبه قبل هذا التغيير بقيت القطع محفوظة عنده — فنحذفها مرة
+       * وحدة. المعيار: **ما تضيفه المستخدمة يحمل `item_`** (من `uid('item')`)،
+       * وأي معرّف غيره جاء من بيانات العرض. الخزائن تبقى لأنها تنظيم مو ملابس.
        */
       migrate: (persisted, version) => {
         const state = persisted as WardrobeState
-        if (version >= 1) return state
-        return {
-          ...state,
-          items: state.items.map(({ imageUrl, ...item }) =>
-            imageUrl?.startsWith('/wardrobe/') ? item : { ...item, imageUrl },
-          ),
+
+        const withImages =
+          version >= 1
+            ? state
+            : {
+                ...state,
+                items: state.items.map(({ imageUrl, ...item }) =>
+                  imageUrl?.startsWith('/wardrobe/') ? item : { ...item, imageUrl },
+                ),
+              }
+
+        if (version >= 2) return withImages
+
+        const mine = withImages.items.filter((item) => isUserCreated(item.id))
+        const dropped = withImages.items.filter((item) => !isUserCreated(item.id))
+
+        // تنظيف صور القطع المحذوفة بعد ما تستقر الحالة — ما نخلّي ملفات يتيمة
+        if (dropped.length > 0) {
+          queueMicrotask(() => {
+            for (const item of dropped) void useItemPhotos.getState().remove(item.id)
+          })
         }
+
+        return { ...withImages, items: mine }
       },
     },
   ),

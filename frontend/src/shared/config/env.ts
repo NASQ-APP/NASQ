@@ -12,6 +12,8 @@ export const env = {
   tryOnProvider: read(import.meta.env.VITE_TRYON_PROVIDER, 'local') as 'local' | 'backend',
   /** إزالة الخلفية: local = خوارزمية في المتصفح · backend = مزوّد خلف الخادم */
   backgroundRemoval: read(import.meta.env.VITE_BACKGROUND_REMOVAL, 'local') as 'local' | 'backend',
+  /** الطقس: open-meteo = خدمة مفتوحة بلا مفتاح · off = الميزة مطفأة */
+  weatherProvider: read(import.meta.env.VITE_WEATHER_PROVIDER, 'open-meteo') as 'open-meteo' | 'off',
   supabaseUrl: read(import.meta.env.VITE_SUPABASE_URL),
   supabaseAnonKey: read(import.meta.env.VITE_SUPABASE_ANON_KEY),
   apiBase: read(import.meta.env.VITE_API_BASE, '/api'),

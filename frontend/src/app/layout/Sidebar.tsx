@@ -1,9 +1,10 @@
 import { Link } from 'react-router-dom'
-import { PanelLeftClose, PanelLeftOpen, UserRound } from 'lucide-react'
+import { LogIn, PanelLeftClose, PanelLeftOpen, UserRound } from 'lucide-react'
 import { Brand } from './Brand'
 import { NavList } from './NavList'
 import { useSidebar } from './useSidebar'
 import { useAiModels } from '@/features/ai-model/store'
+import { useAuth } from '@/features/auth/store'
 import { useWardrobe } from '@/features/wardrobe/store'
 import { ownedItems } from '@/domain/wardrobe'
 import { ROUTES } from '@/shared/config'
@@ -12,6 +13,7 @@ import { cn } from '@/shared/lib'
 /** شريط جانبي هادئ — هذي أداة شخصية تعيشين فيها، مو واجهة متجر تعبرينها. */
 export function Sidebar() {
   const { collapsed, toggle } = useSidebar()
+  const user = useAuth((state) => state.user)
   const model = useAiModels((state) => state.models[0])
   const items = useWardrobe((state) => state.items)
   const itemCount = ownedItems(items).length
@@ -42,7 +44,7 @@ export function Sidebar() {
 
       <NavList collapsed={collapsed} />
 
-      <div className={cn('border-t border-line', collapsed ? 'p-2' : 'p-3')}>
+      <div className={cn('flex flex-col border-t border-line', collapsed ? 'p-2' : 'p-3')}>
         <Link
           to={ROUTES.models}
           title={collapsed ? (model?.name ?? 'موديلي') : undefined}
@@ -63,6 +65,21 @@ export function Sidebar() {
               <span className="block truncate text-[12.5px]">{model?.name ?? 'موديلي'}</span>
               <span className="lat block text-[9.5px] text-faint">{itemCount} pieces</span>
             </span>
+          )}
+        </Link>
+
+        {/* الحساب اختياري: مدخل هادئ، ما يوقف أحدًا عن دخول دولابه */}
+        <Link
+          to={user ? ROUTES.settings : ROUTES.login}
+          title={collapsed ? (user ? user.name : 'تسجيل الدخول') : undefined}
+          className={cn(
+            'flex items-center gap-3 rounded-md text-muted transition-colors duration-[320ms] ease-soft hover:bg-surface hover:text-ink',
+            collapsed ? 'justify-center p-2.5' : 'px-3 py-2.5',
+          )}
+        >
+          <LogIn size={15} strokeWidth={1.4} aria-hidden className="flex-none" />
+          {!collapsed && (
+            <span className="truncate text-[12.5px]">{user ? user.name : 'تسجيل الدخول'}</span>
           )}
         </Link>
       </div>

@@ -1,9 +1,10 @@
 import { useItemPhotos } from '@/features/wardrobe/photos'
 import { cn } from '@/shared/lib'
+import { ItemSwatch } from './ItemSwatch'
 import type { WardrobeItem } from '@/domain/wardrobe'
 
 /** أقل ما تحتاجه البطاقة لعرض القطعة. */
-export type ItemImageSource = Pick<WardrobeItem, 'name'> & {
+export type ItemImageSource = Pick<WardrobeItem, 'name' | 'colorHex' | 'categoryId'> & {
   id?: string
   imageUrl?: string
 }
@@ -11,10 +12,10 @@ export type ItemImageSource = Pick<WardrobeItem, 'name'> & {
 /**
  * مكان واحد يقرّر شكل القطعة، فكل الشاشات تعرض نفس الصورة.
  *
- * الأولوية: صورة رفعتها المستخدمة ← صورة مرفقة بالقطعة ← سطح فاضي هادئ.
+ * الأولوية: صورة رفعتها المستخدمة ← صورة مرفقة بالقطعة ← كتلة بلون القطعة.
  *
- * ما فيه رسم بديل ولا أيقونة: القطعة بلا صورة تترك مكانها ساكنًا بدل ما نملأ
- * الشبكة بعلامات تشتّت. اسم القطعة تحتها يكفي للتعرّف عليها.
+ * الكتلة اللونية بديل عن المربّع الرمادي الفاضي: تقول لون القطعة وموضعها من
+ * الجسم بلمحة، وتبقى مجرّدة فما توهم إنها شكلها الحقيقي (المبدأ ٤).
  */
 export function ItemImage({
   item,
@@ -28,9 +29,7 @@ export function ItemImage({
   const uploaded = useItemPhotos((state) => (item.id ? state.urls[item.id] : undefined))
   const source = uploaded ?? item.imageUrl
 
-  if (!source) {
-    return <span aria-hidden className={cn('block', className)} />
-  }
+  if (!source) return <ItemSwatch item={item} className={cn('h-full w-full', className)} />
 
   return (
     <img

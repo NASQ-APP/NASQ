@@ -1,13 +1,23 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { RotateCcw, Shield, Trash2 } from 'lucide-react'
-import { Button, ConfirmDialog, Field, PageHeader, TextInput, toast } from '@/shared/components/ui'
+import { LogIn, LogOut, RotateCcw, Shield, Trash2 } from 'lucide-react'
+import {
+  Button,
+  ButtonLink,
+  ConfirmDialog,
+  Field,
+  PageHeader,
+  TextInput,
+  toast,
+} from '@/shared/components/ui'
 import { PageContainer } from '@/shared/components/layout'
 import { useProfile } from '@/features/profile/store'
 import { useWardrobe } from '@/features/wardrobe/store'
 import { useLooks } from '@/features/looks/store'
 import { useTravel } from '@/features/travel/store'
 import { useAiModels } from '@/features/ai-model/store'
+import { useAuth, syncsAcrossDevices } from '@/features/auth/store'
+import { ROUTES } from '@/shared/config'
 
 export function SettingsPage() {
   const profile = useProfile()
@@ -15,6 +25,8 @@ export function SettingsPage() {
   const looks = useLooks((s) => s.looks)
   const trips = useTravel((s) => s.trips)
   const { models, photo, clearPhoto } = useAiModels()
+  const user = useAuth((state) => state.user)
+  const signOut = useAuth((state) => state.signOut)
   const [confirm, setConfirm] = useState<'reset' | 'clear'>()
 
   const stats = [
@@ -104,6 +116,46 @@ export function SettingsPage() {
           <Shield size={14} strokeWidth={1.4} />
           كيف نتعامل مع صورك
         </Link>
+      </section>
+
+      <section>
+        <p className="eyebrow mb-4">الحساب</p>
+        <div className="flex flex-col divide-y divide-line border-y border-line">
+          {user ? (
+            <Row
+              title={user.name}
+              note={
+                syncsAcrossDevices
+                  ? user.email
+                  : `${user.email} · ملف على هذا الجهاز، ما يزامن بين الأجهزة بعد.`
+              }
+              action={
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={async () => {
+                    await signOut()
+                    toast.ok('سجّلنا خروجك')
+                  }}
+                >
+                  <LogOut size={13} strokeWidth={1.5} />
+                  خروج
+                </Button>
+              }
+            />
+          ) : (
+            <Row
+              title="ما عندك حساب"
+              note="الحساب اختياري — دولابك يشتغل بدونه، ويميّزه لك لما تنشئينه."
+              action={
+                <ButtonLink to={ROUTES.login} variant="secondary" size="sm">
+                  <LogIn size={13} strokeWidth={1.5} />
+                  تسجيل الدخول
+                </ButtonLink>
+              }
+            />
+          )}
+        </div>
       </section>
 
       <section>

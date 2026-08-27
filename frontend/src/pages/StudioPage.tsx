@@ -1,523 +1,423 @@
 /**
- * الاستوديو بثلاث لوحات (S-01): «من يلبسها» على جانب، لوحة العرض في الوسط،
- * و«إطلالتك» على الجانب الآخر. ما فيه شي للبيع — المخرج الوحيد إطلالة محفوظة.
+ * استوديو التنسيق.
+ *
+ * ثلاثة أعمدة على شبكة CSS: الخزانة · الموديل · الإطلالة. الجانبان يُطويان
+ * مستقلين، والموديل `1fr` فيبتلع المساحة المتحرّرة تلقائيًا — هو بطل الصفحة.
+ * الطيّ محفوظ، فترجع المستخدمة للاستوديو كما تركته.
+ *
+ * ما فيه سعر ولا شراء: كل القطع من خزانة المستخدمة (المبدأ ١).
  */
 import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
-import {
-  Camera,
-  Check,
-  Download,
-  Info,
-  Plus,
-  RotateCcw,
-  Share2,
-  Sparkles,
-  UserRound,
-  X,
-} from 'lucide-react'
-import { Button, ButtonLink, Card, EmptyState, Field, Modal, Select, TextArea, TextInput, toast } from '@/shared/components/ui'
-import { PageContainer } from '@/shared/components/layout'
-import { ItemImage } from '@/shared/components/media/ItemImage'
-import { OCCASIONS, categoryById } from '@/domain/wardrobe'
-import { useWardrobe, wardrobeById } from '@/features/wardrobe/store'
-import { useStudio } from '@/features/studio/store'
-import { STAGE_LABELS, useTryOn } from '@/features/studio/useTryOn'
-import { ItemPicker } from '@/features/studio/components/ItemPicker'
+import { useNavigate } from 'react-router-dom'
+import { Shirt, Sparkles } from 'lucide-react'
+import { motion } from 'framer-motion'
+import { StudioHeader } from '@/features/studio/components/StudioHeader'
+import { WardrobePanel } from '@/features/studio/components/WardrobePanel'
+import { CurrentOutfitPanel } from '@/features/studio/components/CurrentOutfitPanel'
+import { CollapsedRail } from '@/features/studio/components/CollapsedRail'
+import { ModelWorkspace, type PreviewMode } from '@/features/studio/components/ModelWorkspace'
+import { SmartSuggestionsStrip } from '@/features/studio/components/SmartSuggestionsStrip'
 import { PhotoUploader } from '@/features/studio/components/PhotoUploader'
+import { StudioMobileBar, type MobileSheet } from '@/features/studio/components/StudioMobileBar'
+import { useStudio } from '@/features/studio/store'
+import { useTryOn } from '@/features/studio/useTryOn'
+import { useWardrobe } from '@/features/wardrobe/store'
 import { useAiModels } from '@/features/ai-model/store'
 import { useLooks } from '@/features/looks/store'
 import { useAppShell } from '@/app/layout'
+import { conflictsWith, sheetPanels, studioLayout, type OutfitSlotId } from '@/domain/studio'
 import { chooseFraming, neutralCompletion, toGarment } from '@/domain/outfit'
-import { cn } from '@/shared/lib'
+import { OCCASIONS, ownedItems } from '@/domain/wardrobe'
+import {
+  Button,
+  ConfirmDialog,
+  Field,
+  Modal,
+  Select,
+  TextArea,
+  TextInput,
+  toast,
+} from '@/shared/components/ui'
+import { AdaptivePanel } from '@/shared/components/layout'
+import { useDeviceClass } from '@/shared/hooks'
+import { ROUTES } from '@/shared/config'
 import type { Gender, WardrobeItem } from '@/domain/wardrobe'
 
-const FRAMING_LABEL: Record<string, string> = {
-  full: 'لقطة كاملة للجسم',
-  upper: 'لقطة للجزء العلوي',
-  lower: 'لقطة سفلية تركّز على الحذاء',
-  detail: 'لقطة قريبة على القطعة',
-}
-
 export function StudioPage() {
-  const allItems = useWardrobe((s) => s.items)
-  const studio = useStudio()
+  const navigate = useNavigate()
+  const { openAdd, openStylist } = useAppShell()
+
+  const items = useWardrobe((state) => state.items)
   const models = useAiModels()
   const looks = useLooks()
   const tryOn = useTryOn()
+  const studio = useStudio()
 
-  const { openStylist } = useAppShell()
-  const [pickerOpen, setPickerOpen] = useState(false)
+  const [mode, setMode] = useState<PreviewMode>('model')
+  const [dragging, setDragging] = useState(false)
+  const [conflict, setConflict] = useState<{ candidate: WardrobeItem; clashes: WardrobeItem[] }>()
   const [saveOpen, setSaveOpen] = useState(false)
+  const [previewModeOpen, setPreviewModeOpen] = useState(false)
+  const [sheet, setSheet] = useState<MobileSheet>()
   const [gender, setGender] = useState<Gender>('female')
   const [lookName, setLookName] = useState('')
   const [occasion, setOccasion] = useState<string>(OCCASIONS[0].id)
   const [lookNotes, setLookNotes] = useState('')
 
+  const owned = useMemo(() => ownedItems(items), [items])
+  const selected = useMemo(
+    () =>
+      studio.selection
+        .map((id) => owned.find((item) => item.id === id))
+        .filter((item): item is WardrobeItem => Boolean(item)),
+    [studio.selection, owned],
+  )
+
+  /**
+   * خطة التخطيط: الجهاز يقرّر مكان كل لوحة (مرسّاة أو ورقة)، وقالب الأعمدة
+   * يجي معها. الصفحة ما تسأل عن المقاس في أي مكان آخر.
+   */
+  const device = useDeviceClass()
+  const panels = { wardrobeOpen: studio.wardrobePanelOpen, outfitOpen: studio.outfitPanelOpen }
+  const layout = studioLayout(device, panels)
+  const focusMode = layout.device === 'desktop' && !studio.wardrobePanelOpen && !studio.outfitPanelOpen
+
+  /** اللوحة مفتوحة إمّا لأنها مرسّاة وغير مطوية، أو لأن ورقتها منفتحة. */
+  const wardrobeOpen = layout.wardrobe === 'sheet' ? sheet === 'wardrobe' : studio.wardrobePanelOpen
+  const outfitOpen = layout.outfit === 'sheet' ? sheet === 'outfit' : studio.outfitPanelOpen
+
+  const closePanel = (panel: 'wardrobe' | 'outfit') => {
+    if (layout[panel] === 'sheet') {
+      setSheet(undefined)
+      return
+    }
+    if (panel === 'wardrobe') studio.setWardrobePanel(false)
+    else studio.setOutfitPanel(false)
+  }
+
+  /** فتح الخزانة أيًّا كان مكانها — تستدعيه «استبدال» وشريط الجوال. */
+  const openWardrobe = () => {
+    if (layout.wardrobe === 'sheet') setSheet('wardrobe')
+    else studio.setWardrobePanel(true)
+  }
+
+
   const source = models.preferredSource
   const model = models.modelFor(gender)
   const photo = models.photo
 
-  const items = useMemo(
-    () => studio.selection.map((id) => allItems.find((i) => i.id === id)).filter(Boolean),
-    [studio.selection, allItems],
-  ) as NonNullable<(typeof allItems)[number]>[]
-
-  const garments = items.map(toGarment)
+  const garments = selected.map(toGarment)
   const { framing } = chooseFraming(garments)
   const fillers = neutralCompletion(garments, framing)
 
-  const canGenerate =
-    items.length > 0 && (source === 'model' ? Boolean(model) : Boolean(photo))
+  /**
+   * بصمة الاختيار وقت توليد المعاينة. تُحفظ في الحالة مو في ref لأنها تُقرأ
+   * أثناء الرسم — وقراءة ref أثناء الرسم تعطي قيمة قديمة بصمت.
+   */
+  const [generatedFor, setGeneratedFor] = useState('')
+  const signature = studio.selection.join('|') + source
+  const stale = Boolean(tryOn.result) && generatedFor !== signature
 
-  const generate = async () => {
-    if (!canGenerate) return
-    await tryOn.run({ items, source, model, personImageUrl: photo?.url, gender })
+  const canPreview = selected.length > 0 && (source === 'model' ? Boolean(model) : Boolean(photo))
+
+  const runPreview = async () => {
+    if (!canPreview) {
+      toast.error(source === 'model' ? 'أنشئي موديلك أول.' : 'ارفعي صورتك أول.')
+      return
+    }
+    setMode('preview')
+    const result = await tryOn.run({
+      items: selected,
+      source,
+      model,
+      personImageUrl: photo?.url,
+      gender,
+    })
+    if (result) setGeneratedFor(signature)
+  }
+
+  /** الإضافة تمر على فحص التعارض: ما نكدّس قميصين فوق بعض. */
+  const pick = (item: WardrobeItem) => {
+    if (studio.has(item.id)) {
+      studio.remove(item.id)
+      return
+    }
+    const clashes = conflictsWith(item, selected)
+    if (clashes.length > 0) {
+      setConflict({ candidate: item, clashes })
+      return
+    }
+    studio.add(item.id)
+  }
+
+  const dropItem = (itemId: string) => {
+    const item = owned.find((candidate) => candidate.id === itemId)
+    if (item && !studio.has(item.id)) pick(item)
+  }
+
+  /** «استبدال البنطلون»: يفتح الخزانة — بأي شكل تُعرض — ويقفز لفئة الخانة. */
+  const replaceSlot = (slot: OutfitSlotId) => {
+    openWardrobe()
+    studio.setActiveCategory(slot)
   }
 
   const saveLook = () => {
-    if (!tryOn.result) return
-    const look = looks.save({
-      name: lookName.trim() || `إطلالة ${new Date().toLocaleDateString('ar-SA-u-nu-latn', { day: 'numeric', month: 'long' })}`,
+    if (selected.length === 0) return
+    looks.save({
+      name: lookName.trim() || 'إطلالة بدون اسم',
       occasion,
       notes: lookNotes.trim() || undefined,
-      resultImageUrl: tryOn.result.resultImageUrl,
+      itemIds: studio.selection,
+      resultImageUrl: tryOn.result?.resultImageUrl ?? model?.previewImageUrl ?? '',
       source,
       modelId: model?.id,
-      itemIds: items.map((i) => i.id),
-      framing: tryOn.result.framing,
-      simulated: tryOn.result.simulated,
+      framing,
+      simulated: tryOn.result?.simulated ?? true,
     })
+    toast.ok('حفظنا الإطلالة')
     setSaveOpen(false)
     setLookName('')
     setLookNotes('')
-    toast.ok(`حفظنا الإطلالة #${look.number}`)
   }
 
+  // ما فيه شي نعاينه: نعرض الموديل بدل لوحة فاضية — مشتق، بلا effect
+  const effectiveMode: PreviewMode =
+    mode === 'preview' && selected.length === 0 && !tryOn.result ? 'model' : mode
+
   return (
-    <PageContainer width="full" className="py-8">
-      <header className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="eyebrow">Studio</p>
-          <h1 className="mt-2 text-[30px]">استوديو التنسيق</h1>
-          <p className="mt-2 max-w-[520px] text-[13px] text-muted">
-            اختاري قطعًا من خزائنك وشوفيها على موديلك قبل ما تلبسينها.
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="secondary" onClick={openStylist}>
-            <Sparkles size={14} strokeWidth={1.5} />
-            اسألي دولابي
-          </Button>
-          <ButtonLink to="/looks" variant="ghost">
-            إطلالاتي
-          </ButtonLink>
-        </div>
-      </header>
+    <div className="flex h-[calc(100vh-64px)] min-h-0 flex-col">
+      <StudioHeader
+        focusMode={focusMode}
+        canSave={selected.length > 0}
+        onToggleFocus={studio.toggleFocusMode}
+        onSave={() => setSaveOpen(true)}
+        onClear={studio.clear}
+        onUsePhoto={() => setPreviewModeOpen(true)}
+      />
 
-      <div className="grid gap-8 xl:grid-cols-[330px_1fr_330px]">
-        {/* ---------------- who wears it ---------------- */}
-        <aside className="flex flex-col gap-6">
-          <section className="rounded-md border border-line p-5">
-            <p className="eyebrow mb-3">من يلبسها؟</p>
-            <div className="grid grid-cols-2 gap-2">
-              <SourceTab
-                active={source === 'model'}
-                onClick={() => models.setPreferredSource('model')}
-                icon={<UserRound size={15} strokeWidth={1.4} />}
-                label="موديل دولابي"
-              />
-              <SourceTab
-                active={source === 'photo'}
-                onClick={() => models.setPreferredSource('photo')}
-                icon={<Camera size={15} strokeWidth={1.4} />}
-                label="صورتي"
-              />
-            </div>
+      <motion.div
+        layout
+        animate={{ gridTemplateColumns: layout.columns }}
+        transition={{ duration: 0.28, ease: [0.22, 0.61, 0.36, 1] }}
+        style={{ gridTemplateColumns: layout.columns }}
+        className="grid min-h-0 flex-1"
+      >
+        {/* ---------------- الخزانة ---------------- */}
+        <AdaptivePanel
+          placement={layout.wardrobe}
+          open={wardrobeOpen}
+          onClose={() => closePanel('wardrobe')}
+          eyebrow="Wardrobe"
+          title="خزانتي"
+          rail={
+            <CollapsedRail
+              side="start"
+              label="خزانتي"
+              icon={Shirt}
+              count={owned.length}
+              onOpen={openWardrobe}
+            />
+          }
+        >
+          <WardrobePanel
+            onPick={(item) => {
+              pick(item)
+              if (layout.wardrobe === 'sheet') setSheet(undefined)
+            }}
+            onAddItem={openAdd}
+            onDragStateChange={setDragging}
+          />
+        </AdaptivePanel>
 
-            {source === 'model' ? (
-              <div className="mt-5 flex flex-col gap-4">
-                <div className="flex gap-2">
-                  {(['female', 'male'] as const).map((g) => (
-                    <button
-                      key={g}
-                      onClick={() => setGender(g)}
-                      className={cn(
-                        'h-9 flex-1 rounded-md border text-[12px] transition-colors',
-                        gender === g
-                          ? 'border-ink bg-ink text-white'
-                          : 'border-line text-muted hover:border-line-strong',
-                      )}
-                    >
-                      {g === 'female' ? 'نسائي' : 'رجالي'}
-                    </button>
-                  ))}
-                </div>
+        {/* ---------------- الموديل ---------------- */}
+        <div className="flex min-h-0 flex-col">
+          <ModelWorkspace
+            mode={effectiveMode}
+            onModeChange={setMode}
+            modelImageUrl={model?.previewImageUrl}
+            modelName={model?.name}
+            hasModel={source === 'model' ? Boolean(model) : Boolean(photo)}
+            items={selected}
+            result={tryOn.result}
+            stale={stale}
+            busy={tryOn.status === 'processing' || tryOn.status === 'generating'}
+            stage={tryOn.stage}
+            notice={
+              effectiveMode === 'preview' && tryOn.result
+                ? tryOn.result.notice
+                : fillers.length > 0 && selected.length > 0
+                  ? fillers[0].reason
+                  : undefined
+            }
+            dragging={dragging}
+            onDropItem={dropItem}
+            onEditModel={() => navigate(model ? ROUTES.editModel(model.id) : ROUTES.newModel)}
+            onCreateModel={() => navigate(ROUTES.newModel)}
+            onRefreshPreview={runPreview}
+          />
 
-                {model ? (
-                  <div className="flex items-center gap-4 rounded-md border border-line bg-surface p-3">
-                    <img
-                      src={model.previewImageUrl}
-                      alt={model.name}
-                      className="h-[86px] w-[62px] flex-none object-contain"
-                    />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-[13px]">{model.name}</p>
-                      <p className="mt-0.5 text-[11px] text-faint">
-                        {model.characteristics.heightCm} سم
-                        {model.characteristics.weightKg ? ` · ${model.characteristics.weightKg} كجم` : ''}
-                      </p>
-                      <Link
-                        to="/models"
-                        className="mt-1 inline-block text-[11px] text-muted underline-offset-4 hover:text-ink hover:underline"
-                      >
-                        تعديل الموديل
-                      </Link>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="rounded-md border border-dashed border-line-strong p-5 text-center">
-                    <p className="text-[13px]">
-                      ما عندك موديل {gender === 'female' ? 'نسائي' : 'رجالي'} بعد.
-                    </p>
-                    <p className="mt-1 text-[11.5px] text-muted">
-                      أنشئيه مرة وحدة، ونستخدمه في كل تجربة.
-                    </p>
-                    <ButtonLink to="/models/new" size="sm" className="mt-4">
-                      أنشئي موديلك
-                    </ButtonLink>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="mt-5">
-                <PhotoUploader />
-              </div>
-            )}
-          </section>
-
-          {fillers.length > 0 && items.length > 0 && (
-            <Card as="section" className="p-5">
-              <p className="eyebrow mb-3">إكمال محايد</p>
-              <ul className="flex flex-col gap-2">
-                {fillers.map((f) => (
-                  <li key={f.slot} className="flex items-start gap-2.5 text-[12px] leading-6 text-muted">
-                    <span
-                      className="mt-1.5 h-2.5 w-2.5 flex-none rounded-full border border-line-strong"
-                      style={{ background: f.colorHex }}
-                    />
-                    {f.reason}
-                  </li>
-                ))}
-              </ul>
-              <p className="mt-3 text-[11px] text-faint">
-                القطع المحايدة مو من خزانتك — موجودة عشان الإطلالة تبان كاملة.
-              </p>
-            </Card>
+          {!focusMode && (
+            <SmartSuggestionsStrip
+              height={studio.suggestionsHeight}
+              open={studio.suggestionsOpen}
+              onResize={studio.setSuggestionsHeight}
+              onToggle={studio.toggleSuggestions}
+              onApply={studio.replaceAll}
+              onAskStylist={openStylist}
+            />
           )}
-        </aside>
+        </div>
 
-        {/* ---------------- canvas ---------------- */}
-        <section className="flex flex-col gap-5">
-          <div className="relative grid min-h-[560px] place-items-center overflow-hidden rounded-md border border-line bg-stage">
-            {tryOn.status === 'generating' || tryOn.status === 'processing' ? (
-              <GeneratingState stage={tryOn.stage} />
-            ) : tryOn.status === 'failed' ? (
-              <div className="max-w-[380px] px-6 text-center">
-                <p className="text-[16px]">{tryOn.error?.message}</p>
-                {tryOn.error?.hint && (
-                  <p className="mt-2 text-[12.5px] text-muted">{tryOn.error.hint}</p>
-                )}
-                <Button className="mt-5" onClick={generate}>
-                  جرّبي مرة ثانية
-                </Button>
-              </div>
-            ) : tryOn.result ? (
-              <ResultView
-                url={tryOn.result.resultImageUrl}
-                notice={tryOn.result.notice}
-                sideStrip={source === 'photo' ? items : []}
-              />
-            ) : items.length === 0 ? (
-              <EmptyState
-                title="اختاري قطعة عشان نبدأ."
-                body="أضيفي قطعة أو أكثر من خزائنك، واختاري موديلك أو ارفعي صورتك."
-                action={<Button onClick={() => setPickerOpen(true)}>أضيفي قطعة</Button>}
-              />
-            ) : (
-              <div className="max-w-[420px] px-6 text-center">
-                <Sparkles size={22} strokeWidth={1.2} className="mx-auto text-faint" />
-                <p className="mt-4 text-[17px] font-light">جاهزين نجهّز إطلالتك</p>
-                <p className="mt-2 text-[12.5px] leading-7 text-muted">
-                  {items.length} قطع مختارة · {FRAMING_LABEL[framing]}
-                </p>
-                <Button className="mt-6" size="lg" onClick={generate} disabled={!canGenerate}>
-                  اعرضيها على الموديل
-                </Button>
-                {!canGenerate && (
-                  <p className="mt-3 text-[11.5px] text-faint">اختاري موديلك أو ارفعي صورتك أول.</p>
-                )}
-              </div>
-            )}
-          </div>
+        {/* ---------------- الإطلالة ---------------- */}
+        <AdaptivePanel
+          placement={layout.outfit}
+          open={outfitOpen}
+          onClose={() => closePanel('outfit')}
+          eyebrow="Outfit"
+          title="إطلالتك الحالية"
+          rail={
+            <CollapsedRail
+              side="end"
+              label="إطلالتك"
+              icon={Sparkles}
+              count={selected.length}
+              onOpen={() => studio.setOutfitPanel(true)}
+            />
+          }
+        >
+          <CurrentOutfitPanel
+            items={selected}
+            onReplace={replaceSlot}
+            onAskStylist={openStylist}
+          />
+        </AdaptivePanel>
+      </motion.div>
 
-          {tryOn.result && (
-            <div className="flex flex-wrap gap-2">
-              <Button onClick={() => setSaveOpen(true)}>
-                <Check size={14} strokeWidth={1.6} />
-                احفظي الإطلالة
-              </Button>
-              <Button variant="secondary" onClick={generate}>
-                <RotateCcw size={14} strokeWidth={1.5} />
-                جرّبي مرة ثانية
-              </Button>
-              <Button variant="secondary" onClick={() => setPickerOpen(true)}>
-                غيّري القطع
-              </Button>
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  navigator.clipboard?.writeText(window.location.href)
-                  toast.ok('نسخنا الرابط')
-                }}
-              >
-                <Share2 size={14} strokeWidth={1.5} />
-                مشاركة
-              </Button>
-              <a
-                href={tryOn.result.resultImageUrl}
-                download={`dulabi-look-${tryOn.result.id}.svg`}
-                className="inline-flex h-11 items-center gap-2 rounded-md border border-line px-5 text-[12.5px] transition-colors hover:border-line-strong"
-              >
-                <Download size={14} strokeWidth={1.5} />
-                تنزيل
-              </a>
-            </div>
-          )}
-        </section>
+      <StudioMobileBar
+        sheets={sheetPanels(layout)}
+        active={sheet}
+        wardrobeCount={owned.length}
+        outfitCount={selected.length}
+        onOpen={(next) => setSheet((current) => (current === next ? undefined : next))}
+        onAskStylist={openStylist}
+      />
 
-        {/* ---------------- the look ---------------- */}
-        <aside className="flex flex-col gap-4 rounded-md border border-line p-5">
-          <div className="flex items-center justify-between">
-            <p className="eyebrow">إطلالتك ({items.length})</p>
-            {items.length > 0 && (
+      {/* ---------------- تعارض القطع ---------------- */}
+      <ConfirmDialog
+        open={Boolean(conflict)}
+        onClose={() => setConflict(undefined)}
+        onConfirm={() => {
+          if (!conflict) return
+          studio.replaceWith(
+            conflict.candidate.id,
+            conflict.clashes.map((item) => item.id),
+          )
+          setConflict(undefined)
+        }}
+        eyebrow="Replace"
+        title="عندك قطعة في هذا الموضع"
+        confirmLabel="استبدال"
+        destructive={false}
+      >
+        {conflict
+          ? `«${conflict.clashes[0].name}» موجودة في الإطلالة. تبين نستبدلها بـ«${conflict.candidate.name}»؟`
+          : ''}
+      </ConfirmDialog>
+
+      {/* ---------------- طريقة المعاينة ---------------- */}
+      <Modal
+        open={previewModeOpen}
+        onClose={() => setPreviewModeOpen(false)}
+        eyebrow="Preview"
+        title="طريقة المعاينة"
+        width="md"
+      >
+        <div className="flex flex-col gap-4">
+          <div className="grid gap-2 sm:grid-cols-2">
+            {(
+              [
+                ['model', 'الموديل الخاص بي', 'موديل بمقاساتك، نستخدمه في كل تجربة'],
+                ['photo', 'استخدام صورتي', 'تلبيس القطع على صورتك أنتِ'],
+              ] as const
+            ).map(([value, label, note]) => (
               <button
-                onClick={() => {
-                  studio.clear()
-                  tryOn.reset()
-                }}
-                className="text-[11.5px] text-muted hover:text-ink"
+                key={value}
+                onClick={() => models.setPreferredSource(value)}
+                aria-pressed={source === value}
+                className={`flex flex-col gap-1 rounded-md border p-4 text-right transition-colors ${
+                  source === value ? 'border-ink' : 'border-line hover:border-line-strong'
+                }`}
               >
-                تفريغ
+                <span className="text-[13px]">{label}</span>
+                <span className="text-[11.5px] leading-6 text-faint">{note}</span>
               </button>
-            )}
+            ))}
           </div>
 
-          {items.length === 0 ? (
-            <p className="py-8 text-center text-[12.5px] leading-7 text-muted">
-              ما اخترتي شيء بعد.
-              <br />
-              أضيفي قطعة من خزائنك.
-            </p>
+          {source === 'model' ? (
+            <div className="flex gap-2">
+              {(['female', 'male'] as const).map((value) => (
+                <button
+                  key={value}
+                  onClick={() => setGender(value)}
+                  aria-pressed={gender === value}
+                  className={`h-9 flex-1 rounded-md border text-[12px] transition-colors ${
+                    gender === value ? 'border-ink bg-ink text-white' : 'border-line text-muted'
+                  }`}
+                >
+                  {value === 'female' ? 'نسائي' : 'رجالي'}
+                </button>
+              ))}
+            </div>
           ) : (
-            <ul className="flex flex-col">
-              {items.map((item) => {
-                const wardrobe = wardrobeById(item.wardrobeId)
-                return (
-                  <li
-                    key={item.id}
-                    className="flex items-center gap-3 border-b border-line py-3 last:border-b-0"
-                  >
-                    <ItemImage item={item} className="h-[58px] w-[46px] flex-none rounded bg-surface p-1" />
-                    <div className="min-w-0 flex-1">
-                      <Link to={`/item/${item.id}`} className="block truncate text-[12.5px] hover:underline">
-                        {item.name}
-                      </Link>
-                      <p className="text-[10.5px] text-faint">
-                        {categoryById(item.categoryId)?.name}
-                        {item.source === 'try' ? ' · قطعة تجربة' : wardrobe ? ` · ${wardrobe.name}` : ''}
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => studio.remove(item.id)}
-                      aria-label="إزالة"
-                      className="text-faint transition-colors hover:text-ink"
-                    >
-                      <X size={14} strokeWidth={1.6} />
-                    </button>
-                  </li>
-                )
-              })}
-            </ul>
+            <PhotoUploader />
           )}
+        </div>
+      </Modal>
 
-          <Button variant="secondary" block size="sm" onClick={() => setPickerOpen(true)}>
-            <Plus size={14} strokeWidth={1.5} />
-            أضيفي قطعة
-          </Button>
-          <Button variant="secondary" block size="sm" onClick={openStylist}>
-            <Sparkles size={14} strokeWidth={1.5} />
-            اسألي دولابي
-          </Button>
-        </aside>
-      </div>
-
-      <ItemPicker open={pickerOpen} onClose={() => setPickerOpen(false)} />
-
+      {/* ---------------- حفظ الإطلالة ---------------- */}
       <Modal
         open={saveOpen}
         onClose={() => setSaveOpen(false)}
-        eyebrow="Save look"
+        eyebrow="Save"
         title="حفظ الإطلالة"
-        width="md"
+        width="sm"
         footer={
           <div className="flex gap-3">
-            <Button onClick={saveLook}>حفظ</Button>
+            <Button onClick={saveLook}>حفظ الإطلالة</Button>
             <Button variant="secondary" onClick={() => setSaveOpen(false)}>
               إلغاء
             </Button>
           </div>
         }
       >
-        <div className="grid gap-6 sm:grid-cols-[170px_1fr]">
-          <div className="grid aspect-[3/4] place-items-center rounded-md bg-stage">
-            {tryOn.result && (
-              <img
-              src={tryOn.result.resultImageUrl}
-              alt=""
-              className="h-[92%] object-contain mix-blend-multiply"
+        <div className="flex flex-col gap-4">
+          <Field label="اسم الإطلالة">
+            <TextInput
+              autoFocus
+              value={lookName}
+              onChange={(event) => setLookName(event.target.value)}
+              placeholder="إطلالة الجامعة"
             />
-            )}
-          </div>
-          <div className="flex flex-col gap-4">
-            <Field label="اسم الإطلالة">
-              <TextInput
-                value={lookName}
-                onChange={(e) => setLookName(e.target.value)}
-                placeholder="أبيض على أسود"
-              />
-            </Field>
-            <Field label="المناسبة">
-              <Select value={occasion} onChange={(e) => setOccasion(e.target.value)}>
-                {OCCASIONS.map((o) => (
-                  <option key={o.id} value={o.id}>
-                    {o.name}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-            <Field label="ملاحظات (اختياري)">
-              <TextArea value={lookNotes} onChange={(e) => setLookNotes(e.target.value)} />
-            </Field>
-          </div>
+          </Field>
+          <Field label="المناسبة">
+            <Select value={occasion} onChange={(event) => setOccasion(event.target.value)}>
+              {OCCASIONS.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.name}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label="ملاحظة (اختياري)">
+            <TextArea
+              value={lookNotes}
+              onChange={(event) => setLookNotes(event.target.value)}
+              placeholder="مثلًا: تنفع لأول يوم دوام"
+            />
+          </Field>
         </div>
       </Modal>
-    </PageContainer>
-  )
-}
-
-/* ---------------- pieces ---------------- */
-
-function SourceTab({
-  active,
-  onClick,
-  icon,
-  label,
-}: {
-  active: boolean
-  onClick: () => void
-  icon: React.ReactNode
-  label: string
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={cn(
-        'flex h-11 items-center justify-center gap-2 rounded-md border text-[12.5px] transition-colors',
-        active ? 'border-ink bg-ink text-white' : 'border-line text-muted hover:border-line-strong hover:text-ink',
-      )}
-    >
-      {icon}
-      {label}
-    </button>
-  )
-}
-
-function GeneratingState({ stage }: { stage?: string }) {
-  const activeIndex = STAGE_LABELS.findIndex((s) => s.id === stage)
-  return (
-    <div className="w-[300px]">
-      <p className="mb-6 text-center text-[15px] font-light">نجهّز إطلالتك…</p>
-      <ul className="flex flex-col gap-1">
-        {STAGE_LABELS.map((s, i) => {
-          const done = activeIndex > i
-          const current = activeIndex === i
-          return (
-            <li
-              key={s.id}
-              className={cn(
-                'flex items-center gap-3 py-2 text-[12.5px] transition-colors',
-                done || current ? 'text-ink' : 'text-faint',
-              )}
-            >
-              <span
-                className={cn(
-                  'grid h-4 w-4 flex-none place-items-center rounded-full border transition-colors',
-                  done ? 'border-ink bg-ink' : current ? 'border-ink' : 'border-line-strong',
-                )}
-              >
-                {done && <Check size={9} strokeWidth={3} className="text-white" />}
-              </span>
-              {s.label}
-            </li>
-          )
-        })}
-      </ul>
-      <div className="mt-6 h-px w-full overflow-hidden bg-line">
-        <div
-          className="h-full bg-ink transition-all duration-500"
-          style={{ width: `${((activeIndex + 1) / STAGE_LABELS.length) * 100}%` }}
-        />
-      </div>
-    </div>
-  )
-}
-
-function ResultView({
-  url,
-  notice,
-  sideStrip,
-}: {
-  url: string
-  notice?: string
-  sideStrip: Pick<WardrobeItem, 'id' | 'shape' | 'colorHex' | 'name'>[]
-}) {
-  return (
-    <div className="flex h-full w-full flex-col">
-      <div className="flex flex-1 items-center justify-center gap-6 p-6">
-        <img
-          src={url}
-          alt="نتيجة التجربة"
-          className="max-h-[520px] max-w-full object-contain mix-blend-multiply"
-        />
-        {sideStrip.length > 0 && (
-          <div className="flex flex-col gap-3">
-            {sideStrip.map((item) => (
-              <ItemImage
-                key={item.id}
-                item={item}
-                className="h-[92px] w-[74px] rounded-md border border-line bg-canvas p-1"
-              />
-            ))}
-          </div>
-        )}
-      </div>
-      {notice && (
-        <p className="flex items-start gap-2 border-t border-line bg-canvas px-5 py-3 text-[11.5px] leading-6 text-muted">
-          <Info size={13} strokeWidth={1.5} className="mt-1 flex-none" />
-          {notice}
-        </p>
-      )}
     </div>
   )
 }

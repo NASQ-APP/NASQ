@@ -31,4 +31,6 @@ export const ROUTES = {
   editModel: (id: string) => `/models/${id}`,
   settings: '/settings',
   privacy: '/privacy',
+  login: '/login',
+  signUp: '/signup',
 } as const

@@ -9,6 +9,7 @@ import { useLooks } from '@/features/looks/store'
 import { useProfile } from '@/features/profile/store'
 import { useAiModels } from '@/features/ai-model/store'
 import { DailySuggestions, QUICK_PROMPTS } from '@/features/stylist'
+import { WeatherLine } from '@/features/weather'
 import { useAppShell } from '@/app/layout'
 import { APP, ROUTES } from '@/shared/config'
 
@@ -38,6 +39,10 @@ export function HomePage() {
             month: 'long',
           })}
         </p>
+
+        {/* الجو سياق للقرار — والمنسّق يقرأ نفس القراءة لاحقًا */}
+        <WeatherLine />
+
         <h1 className="mt-4 text-[36px] sm:text-[42px]">
           {greeting()}، {name}.
           <br />

@@ -4,11 +4,13 @@ import { ROUTES } from '@/shared/config'
 import { CreateModelPage } from '@/pages/CreateModelPage'
 import { HomePage } from '@/pages/HomePage'
 import { ItemPage } from '@/pages/ItemPage'
+import { LoginPage } from '@/pages/LoginPage'
 import { LooksPage } from '@/pages/LooksPage'
 import { ModelsPage } from '@/pages/ModelsPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { PrivacyPage } from '@/pages/PrivacyPage'
 import { SettingsPage } from '@/pages/SettingsPage'
+import { SignUpPage } from '@/pages/SignUpPage'
 import { StudioPage } from '@/pages/StudioPage'
 import { TravelPage } from '@/pages/TravelPage'
 import { TripPage } from '@/pages/TripPage'
@@ -17,6 +19,9 @@ import { WardrobePage } from '@/pages/WardrobePage'
 import { WardrobesPage } from '@/pages/WardrobesPage'
 
 export const router = createBrowserRouter([
+  // صفحتا الحساب بلا قشرة: ما فيهما شريط جانبي ولا بحث
+  { path: ROUTES.login, element: <LoginPage /> },
+  { path: ROUTES.signUp, element: <SignUpPage /> },
   {
     element: <AppShell />,
     children: [

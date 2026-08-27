@@ -1,14 +1,33 @@
+/**
+ * خزانة السفر — قائمة الرحلات.
+ *
+ * كل بطاقة تقول أين وصلت الرحلة، لا اسمها وتاريخها فقط: نسبة الأيام المخطّطة،
+ * ونقطة لكل يوم، ولمحة من قطع الشنطة. القطع كلها من خزانة المستخدمة (المبدأ ١).
+ */
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
 import { Plane, Plus } from 'lucide-react'
-import { Button, Field, TextInput, Modal, PageHeader, EmptyState, toast } from '@/shared/components/ui'
+import {
+  Button,
+  EmptyState,
+  Field,
+  Modal,
+  PageHeader,
+  TextInput,
+  toast,
+} from '@/shared/components/ui'
 import { PageContainer } from '@/shared/components/layout'
+import { TripCard } from '@/features/travel/components'
 import { useTravel } from '@/features/travel/store'
-import { packingList } from '@/domain/travel'
+import { useWardrobe } from '@/features/wardrobe/store'
 import { clamp } from '@/shared/lib'
+
+const MIN_DAYS = 1
+const MAX_DAYS = 14
 
 export function TravelPage() {
   const { trips, createTrip } = useTravel()
+  const wardrobe = useWardrobe((state) => state.items)
+
   const [open, setOpen] = useState(false)
   const [city, setCity] = useState('')
   const [latin, setLatin] = useState('')
@@ -26,11 +45,13 @@ export function TravelPage() {
       cityLatin: latin.trim() || city.trim(),
       from: from.trim() || '—',
       to: to.trim() || '—',
-      dayCount: clamp(dayCount, 1, 14),
+      dayCount: clamp(dayCount, MIN_DAYS, MAX_DAYS),
     })
     setOpen(false)
     setCity('')
     setLatin('')
+    setFrom('')
+    setTo('')
     toast.ok('أنشأنا الرحلة — وزّعي إطلالات الأيام')
   }
 
@@ -42,7 +63,7 @@ export function TravelPage() {
         description="خطّطي إطلالة كل يوم من خزائنك، وقائمة الشنطة تتولّد لحالها."
         action={
           <Button onClick={() => setOpen(true)}>
-            <Plus size={14} strokeWidth={1.6} />
+            <Plus size={14} strokeWidth={1.6} aria-hidden />
             رحلة جديدة
           </Button>
         }
@@ -56,36 +77,10 @@ export function TravelPage() {
           action={<Button onClick={() => setOpen(true)}>رحلة جديدة</Button>}
         />
       ) : (
-        <div className="flex flex-col gap-5">
-          {trips.map((trip) => {
-            const packed = packingList(trip)
-            return (
-              <Link
-                key={trip.id}
-                to={`/travel/${trip.id}`}
-                className="overflow-hidden rounded-md border border-line transition-colors hover:border-line-strong"
-              >
-                <div className="flex flex-wrap items-start justify-between gap-5 p-6">
-                  <div>
-                    <p className="lat text-[10px] text-faint">{trip.days.length} days</p>
-                    <h2 className="lat mt-2 text-[20px] tracking-[0.16em]">{trip.cityLatin}</h2>
-                    <p className="mt-1 text-[13px] text-muted">
-                      {trip.city} · {trip.from} — {trip.to}
-                    </p>
-                  </div>
-                  <span className="lat text-[11px] text-faint">{packed.length} pieces</span>
-                </div>
-                <div className="flex border-t border-line">
-                  {trip.days.slice(0, 7).map((d) => (
-                    <div key={d.day} className="flex-1 border-l border-line px-3 py-3 text-center last:border-l-0">
-                      <p className="lat text-[9px] tracking-[0.2em] text-faint">Day {d.day}</p>
-                      <p className="mt-0.5 text-[12px]">{d.label}</p>
-                    </div>
-                  ))}
-                </div>
-              </Link>
-            )
-          })}
+        <div className="grid gap-4 lg:grid-cols-2">
+          {trips.map((trip) => (
+            <TripCard key={trip.id} trip={trip} wardrobe={wardrobe} />
+          ))}
         </div>
       )}
 
@@ -107,27 +102,46 @@ export function TravelPage() {
         <div className="flex flex-col gap-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="الوجهة">
-              <TextInput autoFocus value={city} onChange={(e) => setCity(e.target.value)} placeholder="لندن" />
+              <TextInput
+                autoFocus
+                value={city}
+                onChange={(event) => setCity(event.target.value)}
+                placeholder="لندن"
+              />
             </Field>
-            <Field label="Latin">
-              <TextInput value={latin} onChange={(e) => setLatin(e.target.value)} placeholder="London" />
+            <Field label="بالإنجليزية">
+              <TextInput
+                value={latin}
+                onChange={(event) => setLatin(event.target.value)}
+                placeholder="London"
+              />
             </Field>
           </div>
+
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="من">
-              <TextInput value={from} onChange={(e) => setFrom(e.target.value)} placeholder="12 ديسمبر" />
+              <TextInput
+                value={from}
+                onChange={(event) => setFrom(event.target.value)}
+                placeholder="١٢ ديسمبر"
+              />
             </Field>
             <Field label="إلى">
-              <TextInput value={to} onChange={(e) => setTo(e.target.value)} placeholder="18 ديسمبر" />
+              <TextInput
+                value={to}
+                onChange={(event) => setTo(event.target.value)}
+                placeholder="١٨ ديسمبر"
+              />
             </Field>
           </div>
-          <Field label="عدد الأيام">
+
+          <Field label="عدد الأيام" hint="من يوم إلى أربعة عشر">
             <TextInput
               type="number"
-              min={1}
-              max={14}
+              min={MIN_DAYS}
+              max={MAX_DAYS}
               value={dayCount}
-              onChange={(e) => setDayCount(Number(e.target.value))}
+              onChange={(event) => setDayCount(Number(event.target.value))}
             />
           </Field>
         </div>
