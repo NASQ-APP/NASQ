@@ -70,6 +70,15 @@ export type WardrobeItem = {
 
   /** صورة القطعة الحقيقية. لو ما وُجدت، تُرسم من `shape` و`colorHex`. */
   imageUrl?: string
+  /** بقية صور المنتج عند المتجر — تقدر المستخدمة تختار منها بدل الافتراضية */
+  images?: string[]
+  /**
+   * هل في `imageUrl` عارضة من المتجر؟
+   * البطاقة ما تعرض صورة فيها شخص — ترسم القطعة من شكلها ولونها بدلها.
+   */
+  imageHasModel?: boolean
+  /** اختارت المستخدمة هذي الصورة بنفسها، فقرارها يسبق الفحص التلقائي */
+  imageChosenByUser?: boolean
 
   /** فاضية لقطع التجربة */
   wardrobeId: string | null
@@ -83,6 +92,8 @@ export type WardrobeItem = {
   /** للقطع المستوردة فقط */
   storeId?: string
   sourceLink?: string
+  /** سعر القطعة عند المتجر — معلومة تساعد على القرار، مب عرض بيع */
+  price?: string
 
   addedAt: string
 }

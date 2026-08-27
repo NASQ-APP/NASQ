@@ -9,6 +9,7 @@ import { Drawer, Button, toast } from '@/shared/components/ui'
 import { ItemImage } from '@/shared/components/media/ItemImage'
 import { itemById, useWardrobe } from '@/features/wardrobe/store'
 import { useStudio } from '@/features/studio/store'
+import { useStyleProfile } from '@/features/inspiration/store'
 import { QUICK_PROMPTS, suggest, type StylistAnswer } from './suggest'
 import { cn, uid } from '@/shared/lib'
 
@@ -17,6 +18,8 @@ type Turn = { id: string; question: string; answer?: StylistAnswer }
 export function StylistDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
   const items = useWardrobe((s) => s.items)
   const studio = useStudio()
+  // ذوقها من «إلهامي» يرجّح ألوان الاقتراح — بلا إلهام يبقى السلوك كما هو
+  const style = useStyleProfile()
   const navigate = useNavigate()
   const [turns, setTurns] = useState<Turn[]>([])
   const [term, setTerm] = useState('')
@@ -37,7 +40,7 @@ export function StylistDrawer({ open, onClose }: { open: boolean; onClose: () =>
     setThinking(true)
     // the delay is the stylist reading the wardrobe, not a fake progress bar
     setTimeout(() => {
-      const answer = suggest(q, items, studio.selection)
+      const answer = suggest(q, items, studio.selection, style)
       setTurns((t) => t.map((turn) => (turn.id === id ? { ...turn, answer } : turn)))
       setThinking(false)
     }, 620)

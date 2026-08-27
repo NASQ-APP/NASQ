@@ -10,6 +10,7 @@
  */
 import { NEUTRAL_SHAPE, TryOnFailure, buildTryOnPrompt } from '@/domain/outfit'
 import { modelImageUrl } from '@/infrastructure/rendering'
+import { garmentCutout } from '@/infrastructure/rendering/cutout'
 import { renderTheme } from '@/theme'
 import type { RenderGarment } from '@/infrastructure/rendering'
 import type {
@@ -33,18 +34,40 @@ const wait = (ms: number, signal?: AbortSignal) =>
 const isFillableSlot = (slot: string): slot is keyof typeof NEUTRAL_SHAPE =>
   slot === 'top' || slot === 'bottom' || slot === 'shoes'
 
-function toRenderGarments(request: VirtualTryOnRequest): RenderGarment[] {
+/** الطبقات اللي تُقصّ فيها صورة القطعة. البقية تبقى على اللون والشكل. */
+const PHOTO_SLOTS = new Set(['top', 'bottom', 'full', 'outer'])
+
+/**
+ * يجهّز القطع للراسم.
+ *
+ * القطعة اللي لها صورة حقيقية تُقصّ من خلفيتها وتتحوّل لرابط بيانات، لأن
+ * الـSVG ما يقدر يجلب صورة خارجية. لو فشل التجهيز — صورة ما تُقرأ، خلفية مب
+ * سادة — ترجع القطعة للتعبئة باللون بدل ما تختفي.
+ */
+async function toRenderGarments(request: VirtualTryOnRequest): Promise<RenderGarment[]> {
   const fillers: RenderGarment[] = request.neutralFillers.map((filler) => ({
     slot: filler.slot,
     colorHex: filler.colorHex,
     shape: isFillableSlot(filler.slot) ? NEUTRAL_SHAPE[filler.slot] : undefined,
     neutral: true,
   }))
-  const selected: RenderGarment[] = request.selectedItems.map((garment) => ({
-    slot: garment.slot,
-    colorHex: garment.colorHex,
-    shape: garment.shape,
-  }))
+
+  const selected: RenderGarment[] = await Promise.all(
+    request.selectedItems.map(async (garment) => {
+      const cutout =
+        garment.imageUrl && PHOTO_SLOTS.has(garment.slot)
+          ? await garmentCutout(garment.imageUrl)
+          : undefined
+      return {
+        slot: garment.slot,
+        shape: garment.shape,
+        // لون القطعة من صورتها أدقّ من اللون المستنتج من اسمها عند المتجر
+        colorHex: cutout?.tint ?? garment.colorHex,
+        imageUrl: cutout?.url,
+      }
+    }),
+  )
+
   return [...fillers, ...selected]
 }
 
@@ -95,7 +118,7 @@ export const localTryOnProvider: VirtualTryOnProvider = {
       id,
       resultImageUrl: modelImageUrl({
         characteristics: request.characteristics,
-        garments: toRenderGarments(request),
+        garments: await toRenderGarments(request),
         framing: request.framing,
         background: renderTheme.background,
       }),

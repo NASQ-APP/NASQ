@@ -31,6 +31,7 @@ export const toGarment = (item: WardrobeItem): TryOnGarment => ({
   colorHex: item.colorHex,
   shape: item.shape,
   name: item.name,
+  imageUrl: item.imageUrl,
 })
 
 /**

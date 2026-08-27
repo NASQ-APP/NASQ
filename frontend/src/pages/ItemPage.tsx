@@ -5,6 +5,7 @@ import { Button, ButtonLink, Field, Select, Modal, SectionHeader, EmptyState, to
 import { PageContainer } from '@/shared/components/layout'
 import { ItemImage } from '@/shared/components/media/ItemImage'
 import { ItemPhotoPicker } from '@/features/wardrobe/components/ItemPhotoPicker'
+import { ItemImagePicker } from '@/features/wardrobe/components/ItemImagePicker'
 import { categoryById, occasionName } from '@/domain/wardrobe'
 import { sourceById } from '@/features/try-pieces/sources'
 import { ItemGrid } from '@/features/wardrobe/components/ItemGrid'
@@ -88,9 +89,17 @@ export function ItemPage() {
       </nav>
 
       <div className="grid gap-14 lg:grid-cols-[1.05fr_1fr]">
-        <div className="relative grid aspect-square place-items-center overflow-hidden rounded-md border border-line bg-surface">
-          <ItemImage item={item} className="h-[86%] w-[86%]" />
-          <ItemPhotoPicker itemId={item.id} className="absolute bottom-4 left-4" />
+        <div>
+          <div className="relative grid aspect-square place-items-center overflow-hidden rounded-md border border-line bg-surface">
+            <ItemImage item={item} className="h-[86%] w-[86%]" />
+            <ItemPhotoPicker itemId={item.id} className="absolute bottom-4 left-4" />
+          </div>
+          <ItemImagePicker
+            itemId={item.id}
+            images={item.images ?? []}
+            current={item.imageUrl}
+            className="mt-6"
+          />
         </div>
 
         <div>

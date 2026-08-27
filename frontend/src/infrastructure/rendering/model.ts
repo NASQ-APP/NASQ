@@ -143,90 +143,163 @@ export type RenderGarment = {
   slot: BodySlot
   colorHex: string
   shape?: GarmentShape
+  /**
+   * صورة القطعة الحقيقية، **كرابط بيانات**.
+   *
+   * الـSVG يُعرض داخل `<img>`، وهناك ما يُسمح له بجلب مورد خارجي — فالصورة
+   * لازم تكون مضمّنة. تُجهَّز في `cutout.ts` قبل ما تصل هنا.
+   */
+  imageUrl?: string
   /** حشو الإكمال المحايد — يُرسم سادة عشان ما يُقرأ كقطعة من الخزانة */
   neutral?: boolean
 }
 
+/**
+ * قطعة ملابس كمسارات، مب كـSVG جاهز.
+ *
+ * نفس المسارات تُستعمل مرتين: تُعبّأ باللون لما ما فيه صورة، أو تصير قناعًا
+ * تُقصّ داخله صورة القطعة. فما فيه هندستان تتفرّقان.
+ */
+type Parts = {
+  /** حدود القطعة على الجسم */
+  shapes: string[]
+  /** حدود المساحة اللي تُرسم فيها الصورة */
+  box: { x: number; y: number; width: number; height: number }
+  /** خطوط تفاصيل تُرسم فوق القطعة (خط الرقبة مثلًا) */
+  detail?: string
+}
+
 const LONG_SLEEVE: GarmentShape[] = ['shirt', 'sweater', 'hoodie', 'jacket', 'coat', 'blazer', 'abaya', 'thobe', 'blouse']
 
-function sleeve(g: Geometry, side: -1 | 1, long: boolean, color: string, stroke: string) {
+function sleevePath(g: Geometry, side: -1 | 1, long: boolean): string {
   const sx = g.cx + side * (g.shoulderHalf + 2)
   const endY = long ? g.hipY + 26 : g.chestY + 26
   const endX = g.cx + side * (g.hipHalf + (long ? 18 : 26))
   const width = long ? g.armHalf + 6 : g.armHalf + 12
-  return `<path d="M${sx},${g.shoulderY - 6}
+  return `M${sx},${g.shoulderY - 6}
     Q${sx + side * 18},${(g.chestY + endY) / 2} ${endX},${endY}
     L${endX - side * width * 1.6},${endY}
-    Q${sx + side * 2},${(g.chestY + endY) / 2 - 6} ${sx - side * width * 1.3},${g.shoulderY - 2} Z"
-    fill="${color}" stroke="${stroke}"/>`
+    Q${sx + side * 2},${(g.chestY + endY) / 2 - 6} ${sx - side * width * 1.3},${g.shoulderY - 2} Z`
 }
 
-function topOverlay(g: Geometry, item: RenderGarment, hemY: number) {
+/**
+ * يحوّل المسارات إلى SVG: باللون، أو بصورة القطعة مقصوصة داخلها.
+ *
+ * الصورة تُرسم داخل القناع فقط، فتبقى الأذرع والبشرة والشعر ظاهرة تحتها ولا
+ * تصير مستطيلًا ملصوقًا. و`slice` تخلي الصورة تملأ المساحة بدل ما تترك فراغًا.
+ */
+function paint(item: RenderGarment, parts: Parts, id: string): string {
+  const stroke = item.neutral ? 'rgba(0,0,0,.08)' : 'rgba(0,0,0,.12)'
+  const outline = parts.shapes.map((d) => `<path d="${d}"/>`).join('')
+
+  if (!item.imageUrl) {
+    const filled = parts.shapes
+      .map((d) => `<path d="${d}" fill="${item.colorHex}" stroke="${stroke}"/>`)
+      .join('')
+    return filled + (parts.detail ?? '')
+  }
+
+  const { x, y, width, height } = parts.box
+  return `<defs><clipPath id="${id}">${outline}</clipPath></defs>
+    <g clip-path="url(#${id})">
+      <rect x="${x}" y="${y}" width="${width}" height="${height}" fill="${item.colorHex}"/>
+      <image href="${item.imageUrl}" x="${x}" y="${y}" width="${width}" height="${height}"
+        preserveAspectRatio="xMidYMid slice"/>
+    </g>
+    <g fill="none" stroke="${stroke}">${outline}</g>
+    ${parts.detail ?? ''}`
+}
+
+function topParts(g: Geometry, item: RenderGarment, hemY: number): Parts {
   const stroke = item.neutral ? 'rgba(0,0,0,.08)' : 'rgba(0,0,0,.12)'
   const long = item.shape ? LONG_SLEEVE.includes(item.shape) : false
   const hemHalf = g.hipHalf * 0.94
-  return [
-    sleeve(g, -1, long, item.colorHex, stroke),
-    sleeve(g, 1, long, item.colorHex, stroke),
-    `<path d="${torsoOutline(g, hemY, hemHalf)}" fill="${item.colorHex}" stroke="${stroke}"/>`,
-    `<path d="M${g.cx - 22},${g.shoulderY - 8} q22,26 44,0" fill="none" stroke="${stroke}"/>`,
-  ].join('')
+  const reach = g.hipHalf + (long ? 18 : 26) + g.armHalf + 12
+  return {
+    shapes: [sleevePath(g, -1, long), sleevePath(g, 1, long), torsoOutline(g, hemY, hemHalf)],
+    box: {
+      x: g.cx - reach,
+      y: g.shoulderY - 10,
+      width: reach * 2,
+      height: hemY - g.shoulderY + 12,
+    },
+    detail: `<path d="M${g.cx - 22},${g.shoulderY - 8} q22,26 44,0" fill="none" stroke="${stroke}"/>`,
+  }
 }
 
-function bottomOverlay(g: Geometry, item: RenderGarment) {
-  const stroke = item.neutral ? 'rgba(0,0,0,.08)' : 'rgba(0,0,0,.12)'
+function bottomParts(g: Geometry, item: RenderGarment): Parts {
   const shape = item.shape ?? 'pants'
   const waistY = g.hipY - 22
 
   if (shape === 'skirt') {
-    return `<path d="M${g.cx - g.hipHalf},${waistY} H${g.cx + g.hipHalf}
-      L${g.cx + g.hipHalf + 34},${g.kneeY + 20} H${g.cx - g.hipHalf - 34} Z"
-      fill="${item.colorHex}" stroke="${stroke}"/>`
+    const hemY = g.kneeY + 20
+    const half = g.hipHalf + 34
+    return {
+      shapes: [
+        `M${g.cx - g.hipHalf},${waistY} H${g.cx + g.hipHalf}
+         L${g.cx + half},${hemY} H${g.cx - half} Z`,
+      ],
+      box: { x: g.cx - half, y: waistY, width: half * 2, height: hemY - waistY },
+    }
   }
+
   const hemY = shape === 'shorts' ? g.kneeY - 40 : g.ankleY - 6
   const legHalf = shape === 'shorts' ? g.thighHalf + 8 : g.calfHalf + 14
-  return `<path d="M${g.cx - g.hipHalf},${waistY} H${g.cx + g.hipHalf}
-    L${g.cx + legHalf + 12},${hemY} H${g.cx + 6}
-    L${g.cx},${g.crotchY + 40} L${g.cx - 6},${hemY} H${g.cx - legHalf - 12} Z"
-    fill="${item.colorHex}" stroke="${stroke}"/>`
+  const half = Math.max(g.hipHalf, legHalf + 12)
+  return {
+    shapes: [
+      `M${g.cx - g.hipHalf},${waistY} H${g.cx + g.hipHalf}
+       L${g.cx + legHalf + 12},${hemY} H${g.cx + 6}
+       L${g.cx},${g.crotchY + 40} L${g.cx - 6},${hemY} H${g.cx - legHalf - 12} Z`,
+    ],
+    box: { x: g.cx - half, y: waistY, width: half * 2, height: hemY - waistY },
+  }
 }
 
-function fullOverlay(g: Geometry, item: RenderGarment) {
-  const stroke = item.neutral ? 'rgba(0,0,0,.08)' : 'rgba(0,0,0,.12)'
+function fullParts(g: Geometry, item: RenderGarment): Parts {
   const shape = item.shape ?? 'dress'
   const hemY = shape === 'abaya' || shape === 'thobe' ? g.ankleY : g.kneeY + 90
   const flare = shape === 'abaya' || shape === 'thobe' ? 52 : 40
   const long = LONG_SLEEVE.includes(shape)
-  return [
-    sleeve(g, -1, long, item.colorHex, stroke),
-    sleeve(g, 1, long, item.colorHex, stroke),
-    `<path d="M${g.cx - g.shoulderHalf},${g.shoulderY}
-      Q${g.cx - g.chestHalf - 4},${g.chestY} ${g.cx - g.waistHalf},${g.waistY}
-      L${g.cx - g.hipHalf - flare},${hemY} H${g.cx + g.hipHalf + flare}
-      L${g.cx + g.waistHalf},${g.waistY}
-      Q${g.cx + g.chestHalf + 4},${g.chestY} ${g.cx + g.shoulderHalf},${g.shoulderY}
-      Q${g.cx},${g.shoulderY - 16} ${g.cx - g.shoulderHalf},${g.shoulderY} Z"
-      fill="${item.colorHex}" stroke="${stroke}"/>`,
-  ].join('')
+  const half = Math.max(g.hipHalf + flare, g.hipHalf + (long ? 18 : 26) + g.armHalf + 12)
+  return {
+    shapes: [
+      sleevePath(g, -1, long),
+      sleevePath(g, 1, long),
+      `M${g.cx - g.shoulderHalf},${g.shoulderY}
+       Q${g.cx - g.chestHalf - 4},${g.chestY} ${g.cx - g.waistHalf},${g.waistY}
+       L${g.cx - g.hipHalf - flare},${hemY} H${g.cx + g.hipHalf + flare}
+       L${g.cx + g.waistHalf},${g.waistY}
+       Q${g.cx + g.chestHalf + 4},${g.chestY} ${g.cx + g.shoulderHalf},${g.shoulderY}
+       Q${g.cx},${g.shoulderY - 16} ${g.cx - g.shoulderHalf},${g.shoulderY} Z`,
+    ],
+    box: {
+      x: g.cx - half,
+      y: g.shoulderY - 18,
+      width: half * 2,
+      height: hemY - g.shoulderY + 20,
+    },
+  }
 }
 
-function outerOverlay(g: Geometry, item: RenderGarment) {
-  const stroke = 'rgba(0,0,0,.12)'
+function outerParts(g: Geometry, item: RenderGarment): Parts {
   const shape = item.shape ?? 'jacket'
   const hemY = shape === 'coat' || shape === 'abaya' ? g.kneeY + 60 : g.hipY + 40
-  const long = true
+  const half = g.hipHalf + 18 + g.armHalf + 12
   const panel = (side: -1 | 1) =>
-    `<path d="M${g.cx + side * g.shoulderHalf},${g.shoulderY}
-      Q${g.cx + side * (g.chestHalf + 8)},${g.chestY} ${g.cx + side * (g.waistHalf + 10)},${g.waistY}
-      L${g.cx + side * (g.hipHalf + 8)},${hemY} L${g.cx + side * 6},${hemY}
-      L${g.cx + side * 10},${g.shoulderY + 26} Z"
-      fill="${item.colorHex}" stroke="${stroke}"/>`
-  return [
-    sleeve(g, -1, long, item.colorHex, stroke),
-    sleeve(g, 1, long, item.colorHex, stroke),
-    panel(-1),
-    panel(1),
-  ].join('')
+    `M${g.cx + side * g.shoulderHalf},${g.shoulderY}
+     Q${g.cx + side * (g.chestHalf + 8)},${g.chestY} ${g.cx + side * (g.waistHalf + 10)},${g.waistY}
+     L${g.cx + side * (g.hipHalf + 8)},${hemY} L${g.cx + side * 6},${hemY}
+     L${g.cx + side * 10},${g.shoulderY + 26} Z`
+  return {
+    shapes: [sleevePath(g, -1, true), sleevePath(g, 1, true), panel(-1), panel(1)],
+    box: {
+      x: g.cx - half,
+      y: g.shoulderY - 10,
+      width: half * 2,
+      height: hemY - g.shoulderY + 12,
+    },
+  }
 }
 
 function shoesOverlay(g: Geometry, item: RenderGarment) {
@@ -331,16 +404,18 @@ export function renderModelSvg({
 
   const ordered = SLOT_ORDER.flatMap((slot) => garments.filter((x) => x.slot === slot))
   const clothes = ordered
-    .map((item) => {
+    .map((item, index) => {
+      /* الصورة الحقيقية تُقصّ داخل هذي الطبقات فقط. الحذاء والحقيبة
+         والإكسسوار مساحاتهم صغيرة، وقصّ صورة منتج فيها يطلع مشوّهًا. */
       switch (item.slot) {
         case 'top':
-          return topOverlay(g, item, g.hipY + (item.shape === 'sweater' ? 18 : 6))
+          return paint(item, topParts(g, item, g.hipY + (item.shape === 'sweater' ? 18 : 6)), `c${index}`)
         case 'bottom':
-          return bottomOverlay(g, item)
+          return paint(item, bottomParts(g, item), `c${index}`)
         case 'full':
-          return fullOverlay(g, item)
+          return paint(item, fullParts(g, item), `c${index}`)
         case 'outer':
-          return outerOverlay(g, item)
+          return paint(item, outerParts(g, item), `c${index}`)
         case 'shoes':
           return shoesOverlay(g, item)
         case 'bag':

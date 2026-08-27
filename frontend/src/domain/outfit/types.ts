@@ -20,6 +20,11 @@ export type TryOnGarment = {
   colorHex: string
   shape: GarmentShape
   name: string
+  /**
+   * صورة القطعة الحقيقية عند المتجر، لو وُجدت.
+   * وجودها يعني إن التلبيس يعرض القماش نفسه بدل شكل مملوء باللون.
+   */
+  imageUrl?: string
 }
 
 /**
