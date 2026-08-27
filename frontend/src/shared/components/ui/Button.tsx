@@ -38,6 +38,23 @@ export function Button({
   return <button className={styles({ variant, size, block }, className)} {...props} />
 }
 
+/**
+ * رابط خارجي بشكل الزر.
+ *
+ * `<a>` حقيقي، مب `window.open`: مانع النوافذ المنبثقة في المتصفح يوقف
+ * `window.open` بخصائص نافذة، والرابط الحقيقي يفتح تبويبًا عاديًا ويشتغل معه
+ * الضغط بالزر الأوسط و«فتح في تبويب جديد».
+ */
+export function ButtonAnchor({
+  variant,
+  size,
+  block,
+  className,
+  ...props
+}: ComponentProps<'a'> & StyleProps) {
+  return <a className={styles({ variant, size, block }, className)} {...props} />
+}
+
 /** نفس الزر لكن كرابط تنقّل — يمنع تكرار الأنماط بين `<button>` و`<Link>`. */
 export function ButtonLink({
   variant,

@@ -2,7 +2,7 @@
  * مكتبة المكوّنات المشتركة.
  * كل شاشة تستورد من هنا فقط — فتغيير مكوّن يسري على التطبيق كله دفعة وحدة.
  */
-export { Button, ButtonLink } from './Button'
+export { Button, ButtonAnchor, ButtonLink } from './Button'
 export type { ButtonVariant, ButtonSize } from './Button'
 export { IconButton } from './IconButton'
 export { Chip } from './Chip'

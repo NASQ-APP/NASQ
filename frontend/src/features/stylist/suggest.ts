@@ -4,7 +4,9 @@
  */
 import { categoryById } from '@/domain/wardrobe'
 import { slotOf } from '@/domain/outfit'
+import { EMPTY_STYLE_PROFILE } from '@/domain/style/types'
 import type { BodySlot, WardrobeItem } from '@/domain/wardrobe'
+import type { UserStyleProfile } from '@/domain/style/types'
 
 export type StylistLook = {
   title: string
@@ -28,8 +30,25 @@ const bySlot = (items: WardrobeItem[], slot: BodySlot) => items.filter((i) => sl
 const pick = <T,>(list: T[], index: number): T | undefined =>
   list.length ? list[index % list.length] : undefined
 
-function assemble(items: WardrobeItem[], variant: number, preferNeutral: boolean): string[] {
-  const pool = preferNeutral
+/**
+ * ترتيب القطع قبل التركيب.
+ *
+ * لو عند المستخدمة إلهامات محفوظة، ألوانها تتقدّم — فالإطلالة تطلع بذوقها هي
+ * مب بقاعدة عامة. وبلا إلهام يبقى السلوك القديم كما هو تمامًا.
+ */
+function assemble(
+  items: WardrobeItem[],
+  variant: number,
+  preferNeutral: boolean,
+  style: UserStyleProfile = EMPTY_STYLE_PROFILE,
+): string[] {
+  const liked = new Set(style.colors.map((c) => c.name))
+  const byTaste = (a: WardrobeItem, b: WardrobeItem) =>
+    Number(liked.has(b.colorName)) - Number(liked.has(a.colorName))
+
+  const pool = liked.size
+    ? items.toSorted(byTaste)
+    : preferNeutral
     ? items.toSorted(
         (a, b) => Number(NEUTRALS.includes(b.colorName)) - Number(NEUTRALS.includes(a.colorName)),
       )
@@ -75,6 +94,8 @@ export function suggest(
   question: string,
   wardrobe: WardrobeItem[],
   selectedIds: string[] = [],
+  /** ذوق المستخدمة من صفحة «إلهامي» — يرجّح الألوان، وما يخترع قطعًا */
+  style: UserStyleProfile = EMPTY_STYLE_PROFILE,
 ): StylistAnswer {
   const q = question.trim()
   const items = wardrobe.filter((i) => i.source === 'wardrobe')
@@ -137,14 +158,16 @@ export function suggest(
   const looks: StylistLook[] = [0, 1, 2]
     .map((variant) => ({
       title: ['LOOK 01', 'LOOK 02', 'LOOK 03'][variant],
-      reason: neutral
+      reason: style.colors.length
+        ? `قريبة من إلهامك: ${style.colors.slice(0, 2).map((c) => c.name).join(' و')}.`
+        : neutral
         ? 'ألوان محايدة وقصّات مرتبة — تتحمّل يوم طويل بدون ما تفقد شكلها.'
         : relaxed
           ? 'قطع مريحة بدون ما تفقد الترتيب.'
           : evening
             ? 'قطعة أساسية أنيقة، والباقي هادئ عشان يبقى التركيز عليها.'
             : 'مزيج متوازن من خزانتك — ألوان تمشي مع بعض.',
-      itemIds: assemble(scope, variant, neutral),
+      itemIds: assemble(scope, variant, neutral, style),
     }))
     .filter((l) => l.itemIds.length >= 2)
 
