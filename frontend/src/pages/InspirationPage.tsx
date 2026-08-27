@@ -18,7 +18,8 @@ import {
   toast,
 } from '@/shared/components/ui'
 import { PageContainer } from '@/shared/components/layout'
-import { ACCEPTED_PHOTO_TYPES, MAX_PHOTO_MB, preparePhoto } from '@/infrastructure/rendering'
+import { ACCEPT_ATTRIBUTE, validateImageFile } from '@/domain/images'
+import { prepareForStorage } from '@/infrastructure/images'
 import { useItemPhotos } from '@/features/wardrobe/photos'
 import { useInspiration, useStyleProfile } from '@/features/inspiration/store'
 import { inspirationAnalyzer } from '@/features/inspiration/analyze'
@@ -63,12 +64,13 @@ export function InspirationPage() {
 
   const onFile = async (file?: File) => {
     if (!file) return
-    if (file.size > MAX_PHOTO_MB * 1024 * 1024) {
-      toast.error(`حجم الصورة أكبر من ${MAX_PHOTO_MB} ميجا.`)
+    const invalid = validateImageFile(file)
+    if (invalid) {
+      toast.error(invalid.message)
       return
     }
     try {
-      const prepared = await preparePhoto(file)
+      const prepared = await prepareForStorage(file)
       const url = URL.createObjectURL(prepared.blob)
       await save(url, { source: 'upload' }, prepared.blob)
       URL.revokeObjectURL(url)
@@ -136,7 +138,7 @@ export function InspirationPage() {
         <input
           ref={fileInput}
           type="file"
-          accept={ACCEPTED_PHOTO_TYPES}
+          accept={ACCEPT_ATTRIBUTE}
           className="hidden"
           onChange={(event) => {
             void onFile(event.target.files?.[0])

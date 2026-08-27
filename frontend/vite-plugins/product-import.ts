@@ -9,7 +9,7 @@
  * مثل معاينة الرابط في تطبيقات المحادثة، مب سحبًا جماعيًا.
  */
 import type { Plugin } from 'vite'
-import { DEV_IMAGE_PATH, DEV_IMPORT_PATH, DEV_PAGE_IMAGE_PATH } from './import-path'
+import { DEV_IMAGE_PATH, DEV_IMPORT_PATH, DEV_PAGE_IMAGE_PATH } from './import-path.ts'
 
 export { DEV_IMAGE_PATH, DEV_IMPORT_PATH, DEV_PAGE_IMAGE_PATH }
 
