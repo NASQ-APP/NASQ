@@ -2,6 +2,7 @@ import { ItemCard } from './ItemCard'
 import { ItemCardSkeleton } from '@/shared/components/ui'
 import { cn } from '@/shared/lib'
 import type { WardrobeItem } from '@/domain/wardrobe'
+import { Reveal, RevealItem } from '@/shared/components/motion'
 
 /** شبكة القطع — عرضان: شبكي واسع ومضغوط (W-04). */
 export function ItemGrid({
@@ -33,10 +34,12 @@ export function ItemGrid({
   }
 
   return (
-    <div className={grid}>
-      {items?.map((item) => (
-        <ItemCard key={item.id} item={item} />
+    <Reveal className={grid}>
+      {items?.map((item, index) => (
+        <RevealItem key={item.id} index={index}>
+          <ItemCard item={item} />
+        </RevealItem>
       ))}
-    </div>
+    </Reveal>
   )
 }

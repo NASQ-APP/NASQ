@@ -21,7 +21,9 @@ const SIZES: Record<ButtonSize, string> = {
 
 const BASE =
   'inline-flex items-center justify-center whitespace-nowrap rounded-md border font-medium ' +
-  'transition-all duration-[320ms] ease-soft disabled:opacity-40 disabled:pointer-events-none'
+  'transition-all duration-[320ms] ease-soft disabled:opacity-40 disabled:pointer-events-none ' +
+  // انضغاطة خفيفة عند النقر — ردّ لمسي يقول إن النقرة وصلت
+  'active:scale-[0.97] motion-reduce:active:scale-100'
 
 type StyleProps = { variant?: ButtonVariant; size?: ButtonSize; block?: boolean }
 

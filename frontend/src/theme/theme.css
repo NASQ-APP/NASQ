@@ -163,6 +163,50 @@
   }
 }
 
+/* ---------------------------------------------------------------------------
+   الحركة.
+
+   قاعدة السلامة: **الحالة الطبيعية ظاهرة**. الحركة تبدأ من حالة محوّلة وتنتهي
+   عند الطبيعية، فلو ما اشتغلت أصلاً — جافاسكربت متعطّل، أو متصفح قديم، أو
+   تبويب في الخلفية — يبقى المحتوى مرئيًا. العكس (البدء من `opacity:0`) يترك
+   الصفحة بيضاء عند أي عطل.
+   --------------------------------------------------------------------------- */
+
+/** دخول الصفحة: ارتفاع خفيف وتلاشٍ */
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+/** ظهور البطاقة داخل الشبكة */
+@keyframes reveal-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+@layer components {
+  .page-in {
+    animation: page-in 320ms var(--ease-soft) both;
+  }
+
+  .reveal-in {
+    /* التأخير يجي من `--reveal-delay` لكل عنصر — التتابع بلا جافاسكربت */
+    animation: reveal-in 360ms var(--ease-soft) both;
+    animation-delay: var(--reveal-delay, 0ms);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .page-in,
+    .reveal-in {
+      animation: none;
+    }
+  }
+}
+
 @keyframes toast-in {
   from {
     opacity: 0;

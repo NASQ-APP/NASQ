@@ -2,7 +2,7 @@
  * قراءة استعلام وسائط داخل React.
  *
  * `useSyncExternalStore` بدل `useEffect + setState`: القيمة تُقرأ وقت الرسم
- * فما يومض التخطيط بمقاس خاطئ في أول إطار، والاشتراك ينظّف نفسه.
+ * فما يومض التخطيط بقيمة خاطئة في أول إطار، والاشتراك ينظّف نفسه.
  */
 import { useCallback, useSyncExternalStore } from 'react'
 
@@ -24,6 +24,5 @@ export function useMediaQuery(query: string): boolean {
     [query],
   )
 
-  // اللقطة على الخادم: نفترض الجوال — أصغر تخطيط ما ينكسر لو كبر
   return useSyncExternalStore(subscribe, read, () => false)
 }
