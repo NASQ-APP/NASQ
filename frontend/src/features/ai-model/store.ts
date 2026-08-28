@@ -29,6 +29,10 @@ type ModelState = {
   setActive: (id: string) => void
   modelFor: (gender: Gender) => AiModel | undefined
 
+  /** الموديل الجاهز المختار — يُحفظ فما تعيد المستخدمة الاختيار كل مرة */
+  readyModelId?: string
+  setReadyModel: (id?: string) => void
+
   setPhoto: (photo: UserPhoto) => void
   clearPhoto: () => void
   setPreferredSource: (source: ModelSource) => void
@@ -102,6 +106,8 @@ export const useAiModels = create<ModelState>()(
         return forGender.find((m) => m.isDefault) ?? forGender[0]
       },
 
+      setReadyModel: (readyModelId) => set({ readyModelId }),
+
       setPhoto: (photo) => set({ photo }),
       clearPhoto: () =>
         set((state) => {
@@ -116,6 +122,7 @@ export const useAiModels = create<ModelState>()(
       partialize: (state) => ({
         models: state.models,
         activeModelId: state.activeModelId,
+        readyModelId: state.readyModelId,
         preferredSource: state.preferredSource,
       }),
     },

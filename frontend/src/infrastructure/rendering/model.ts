@@ -429,7 +429,15 @@ export function renderModelSvg({
     .join('')
 
   const vb = viewBoxFor(framing, focusSlot)
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vb}" preserveAspectRatio="xMidYMid meet">
+  /**
+   * `width` و`height` صريحان.
+   *
+   * بدونهما ما يكون للـSVG مقاس جوهري، فيفترض المتصفح ٣٠٠×١٥٠ (نسبة ٢:١)
+   * بينما المحتوى ٤٢٠:٩٠٠ — فيطلع الموديل مشوّهًا أو مقصوصًا داخل `<img>`.
+   * الرقمان يُشتقّان من `viewBox` نفسه فما ينفصلان عنه.
+   */
+  const [, , vbWidth, vbHeight] = vb.split(' ')
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vb}" width="${vbWidth}" height="${vbHeight}" preserveAspectRatio="xMidYMid meet">
     <rect x="-200" y="-200" width="1200" height="1600" fill="${background}"/>
     <ellipse cx="${g.cx}" cy="${g.footY + 14}" rx="${g.hipHalf + 60}" ry="11" fill="${renderTheme.shadow}"/>
     <g transform="translate(${g.cx},${g.footY + 10}) scale(1,${g.heightScale.toFixed(3)}) translate(${-g.cx},${-(g.footY + 10)})"

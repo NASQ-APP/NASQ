@@ -11,3 +11,5 @@ export type {
   SkinTone,
   UserPhoto,
 } from './types'
+export { READY_MODELS, readyModelById, readyModelFor } from './presets'
+export type { ReadyModel } from './presets'
