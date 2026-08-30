@@ -8,7 +8,7 @@
 import { useMemo, useState } from 'react'
 import { ChevronDown, ChevronUp, MessageCircleMore, Sparkles } from 'lucide-react'
 import { colorPairingFor, suggest } from '@/features/stylist'
-import { useStyleProfile } from '@/features/inspiration/store'
+import { useStyleProfile } from '@/features/try-pieces/taste'
 import { ItemImage } from '@/shared/components/media/ItemImage'
 import { ResizeHandle } from '@/shared/components/layout'
 import { colorByName, ownedItems } from '@/domain/wardrobe'

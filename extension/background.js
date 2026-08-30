@@ -22,8 +22,10 @@ async function writeQueue(queue) {
 }
 
 /**
- * يضيف قطعة أو إلهامًا للطابور.
- * `kind` يفصل بينهما، فيعرف نَسَق وين يوديه: قطع التجربة أو صفحة إلهامي.
+ * يضيف قطعة للطابور.
+ *
+ * وجهة واحدة: قطع التجربة. `nasaq:inspire` باقٍ لأن نسخة قديمة من الإضافة قد
+ * تكون لسا مركّبة عند المستخدمة — يدخل نفس الطابور بدل ما يضيع.
  */
 async function enqueue(kind, data) {
   const queue = await readQueue()
@@ -45,7 +47,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         return
       }
       if (message?.type === 'nasaq:inspire') {
-        sendResponse(await enqueue('inspiration', message.inspiration))
+        sendResponse(await enqueue('inspiration', message.inspiration ?? message.product))
         return
       }
       if (message?.type === 'nasaq:pull') {
