@@ -47,7 +47,7 @@ export function SignUpPage() {
       return
     }
     toast.ok('أهلًا فيك — جهّزنا دولابك')
-    navigate(ROUTES.welcome)
+    navigate(ROUTES.home)
   })
 
   return (

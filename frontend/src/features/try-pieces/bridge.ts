@@ -7,18 +7,14 @@
  *
  * محتوى الرسالة جاي من صفحة متجر ما نملكها، فنتعامل معه كبيانات غير موثوقة:
  * نقرأ الحقول المعروفة فقط، ونتحقق من أنواعها وأطوالها وروابطها.
- *
- * **قطعة بنترست تنتظر قرار المستخدمة.** بنترست ما تنشر فئة، والاسم غالبًا
- * تعليق مب اسم منتج — فلو خمّنّاها سقطت على أول فئة في القائمة بلا سبب.
- * نوقفها في `pending` ونسأل، والإضافة ما تصير إلا بعد اختيارها.
  */
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { useWardrobe } from '@/features/wardrobe/store'
 import { toast } from '@/shared/components/ui'
 import { CATEGORIES, ITEM_COLORS, categoryById, shapesForSlot } from '@/domain/wardrobe'
 import { useInspiration } from '@/features/inspiration/store'
 import { inspirationAnalyzer } from '@/features/inspiration/analyze'
-import { productFromRaw, type ImportedProduct, type RawProduct } from './import'
+import { productFromRaw, type RawProduct } from './import'
 import { sourceById } from './sources'
 
 const EXTENSION = 'nasaq-extension'
@@ -72,14 +68,10 @@ function toRaw(value: unknown): RawProduct | undefined {
  * يركّب المستقبِل على مستوى التطبيق، فأي صفحة مفتوحة تستقبل القطعة.
  * بدون إضافة مركّبة ما يصير شي — الاستيراد باللصق يبقى كما هو.
  */
-/** قطعة وصلت وتنتظر فئة — نعرضها للمستخدمة واحدة واحدة. */
-export type PendingPiece = { product: ImportedProduct; storeName?: string }
-
-export function useStoreBridge() {
+export function useStoreBridge(): void {
   const addItem = useWardrobe((s) => s.addItem)
   const addInspiration = useInspiration((s) => s.add)
   const handled = useRef(new Set<string>())
-  const [pending, setPending] = useState<PendingPiece[]>([])
 
   useEffect(() => {
     const onMessage = (event: MessageEvent) => {
@@ -140,17 +132,9 @@ export function useStoreBridge() {
           return
         }
 
-        const store = sourceById(product.storeId)
-
-        /* بلا فئة موثوقة ما نخمّن — نسأل. بنترست الحالة الوحيدة اليوم. */
-        if (product.storeId === 'pinterest') {
-          setPending((queue) => [...queue, { product, storeName: store?.name }])
-          ack()
-          return
-        }
-
         const categoryId = product.categoryId ?? CATEGORIES[0].id
         const slot = categoryById(categoryId)?.slot ?? 'top'
+        const store = sourceById(product.storeId)
 
         addItem({
           name: product.name ?? `قطعة من ${store?.name ?? 'متجر خارجي'}`,
@@ -180,37 +164,4 @@ export function useStoreBridge() {
 
     return () => window.removeEventListener('message', onMessage)
   }, [addItem, addInspiration])
-
-  /** تختار المستخدمة الفئة، فتدخل القطعة الخزانة بها. */
-  const choose = (categoryId: string) => {
-    const next = pending[0]
-    if (!next) return
-    const slot = categoryById(categoryId)?.slot ?? 'top'
-    const { product } = next
-
-    addItem({
-      name: product.name ?? `قطعة من ${next.storeName ?? 'بنترست'}`,
-      categoryId,
-      shape: product.shape ?? shapesForSlot(slot)[0].id,
-      colorHex: product.colorHex ?? ITEM_COLORS[0].hex,
-      colorName: product.colorName ?? ITEM_COLORS[0].name,
-      imageUrl: product.imageUrl,
-      images: product.images,
-      imageHasModel: product.imageHasModel,
-      brand: product.brand,
-      price: product.price,
-      wardrobeId: null,
-      source: 'try',
-      storeId: product.storeId,
-      sourceLink: product.sourceLink,
-    })
-
-    toast.ok(`أضفنا ${product.name} لقطع التجربة`)
-    setPending((queue) => queue.slice(1))
-  }
-
-  /** تتجاهلها — ما تدخل الخزانة، وما نحفظ منها شيئًا. */
-  const dismiss = () => setPending((queue) => queue.slice(1))
-
-  return { pending: pending[0], waiting: pending.length, choose, dismiss }
 }

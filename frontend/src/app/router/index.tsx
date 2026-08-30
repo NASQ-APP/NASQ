@@ -11,7 +11,6 @@ import { NotFoundPage } from '@/pages/NotFoundPage'
 import { PrivacyPage } from '@/pages/PrivacyPage'
 import { SettingsPage } from '@/pages/SettingsPage'
 import { SignUpPage } from '@/pages/SignUpPage'
-import { WelcomePage } from '@/pages/WelcomePage'
 import { StudioPage } from '@/pages/StudioPage'
 import { TravelPage } from '@/pages/TravelPage'
 import { TripPage } from '@/pages/TripPage'
@@ -24,7 +23,6 @@ export const router = createBrowserRouter([
   // صفحتا الحساب بلا قشرة: ما فيهما شريط جانبي ولا بحث
   { path: ROUTES.login, element: <LoginPage /> },
   { path: ROUTES.signUp, element: <SignUpPage /> },
-  { path: ROUTES.welcome, element: <WelcomePage /> },
   {
     element: <AppShell />,
     children: [
