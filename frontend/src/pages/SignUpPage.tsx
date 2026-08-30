@@ -11,8 +11,9 @@ import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { ArrowLeft, Info } from 'lucide-react'
 import { AuthLayout } from '@/features/auth/components/AuthLayout'
+import { Compartment, WardrobeFrame, shelfField } from '@/features/auth/components/WardrobeFrame'
 import { useAuth, syncsAcrossDevices } from '@/features/auth/store'
-import { Button, Field, TextInput, toast } from '@/shared/components/ui'
+import { Button, TextInput, toast } from '@/shared/components/ui'
 import { PasswordInput, PasswordMeter } from '@/shared/components/ui/PasswordInput'
 import { passwordStrength, signUpSchema, type SignUpValues } from '@/domain/auth'
 import { ROUTES } from '@/shared/config'
@@ -64,40 +65,54 @@ export function SignUpPage() {
       }
     >
       <form onSubmit={onSubmit} noValidate className="flex flex-col gap-5">
-        <Field label="الاسم" error={errors.name?.message}>
-          <TextInput
-            autoFocus
-            autoComplete="name"
-            placeholder="ليانا"
-            aria-invalid={Boolean(errors.name)}
-            {...register('name')}
-          />
-        </Field>
+        <WardrobeFrame>
+          <Compartment label="الاسم" shelfLabel="رفّ الاسم" error={errors.name?.message}>
+            <TextInput
+              autoFocus
+              autoComplete="name"
+              className={shelfField}
+              placeholder="روان"
+              aria-invalid={Boolean(errors.name)}
+              {...register('name')}
+            />
+          </Compartment>
 
-        <Field label="البريد الإلكتروني" error={errors.email?.message}>
-          <TextInput
-            type="email"
-            inputMode="email"
-            autoComplete="email"
-            dir="ltr"
-            className="text-left"
-            placeholder="you@example.com"
-            aria-invalid={Boolean(errors.email)}
-            {...register('email')}
-          />
-        </Field>
+          <Compartment
+            label="البريد الإلكتروني"
+            shelfLabel="رفّ الإيميل"
+            error={errors.email?.message}
+          >
+            <TextInput
+              type="email"
+              inputMode="email"
+              autoComplete="email"
+              dir="ltr"
+              className={`${shelfField} text-left`}
+              placeholder="you@example.com"
+              aria-invalid={Boolean(errors.email)}
+              {...register('email')}
+            />
+          </Compartment>
 
-        <Field label="كلمة المرور" error={errors.password?.message}>
-          <PasswordInput
-            autoComplete="new-password"
-            dir="ltr"
-            className="text-left"
-            aria-invalid={Boolean(errors.password)}
-            {...register('password')}
-          />
-        </Field>
-
-        <PasswordMeter score={strength.score} label={strength.label} />
+          <Compartment
+            label="كلمة المرور"
+            shelfLabel="رفّ كلمة المرور"
+            error={errors.password?.message}
+            last
+          >
+            <PasswordInput
+              autoComplete="new-password"
+              dir="ltr"
+              className={`${shelfField} pl-11! text-left`}
+              placeholder="••••••••"
+              aria-invalid={Boolean(errors.password)}
+              {...register('password')}
+            />
+            <span className="mt-3 block">
+              <PasswordMeter score={strength.score} label={strength.label} />
+            </span>
+          </Compartment>
+        </WardrobeFrame>
 
         <Button type="submit" size="lg" block disabled={busy}>
           {busy ? 'ننشئ حسابك…' : 'أنشئي الحساب'}
