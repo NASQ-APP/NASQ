@@ -43,6 +43,16 @@ async function withStore<T>(
 export const savePhoto = (itemId: string, blob: Blob): Promise<IDBValidKey> =>
   withStore('readwrite', (store) => store.put(blob, itemId))
 
+/** يقرأ بلوب قطعة وحدة — تحتاجه التجربة الافتراضية لتركيب المراجع. */
+export const readPhoto = async (itemId: string): Promise<Blob | undefined> => {
+  try {
+    const value = await withStore<unknown>('readonly', (store) => store.get(itemId))
+    return value instanceof Blob ? value : undefined
+  } catch {
+    return undefined
+  }
+}
+
 export const deletePhoto = (itemId: string): Promise<undefined> =>
   withStore('readwrite', (store) => store.delete(itemId))
 

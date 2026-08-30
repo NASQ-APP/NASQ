@@ -5,7 +5,7 @@
  * هادئة، وزر الحفظ الأساسي.
  */
 import { useState } from 'react'
-import { ChevronRight, Focus, Images, MoreHorizontal, Trash2, UserRound } from 'lucide-react'
+import { ChevronRight, Focus, Images, MoreHorizontal, Save, Trash2, UserRound } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Button } from '@/shared/components/ui'
 import { ROUTES } from '@/shared/config'
@@ -13,6 +13,7 @@ import { ROUTES } from '@/shared/config'
 export function StudioHeader({
   focusMode,
   canSave,
+  selectedCount,
   onToggleFocus,
   onSave,
   onClear,
@@ -20,6 +21,7 @@ export function StudioHeader({
 }: {
   focusMode: boolean
   canSave: boolean
+  selectedCount: number
   onToggleFocus: () => void
   onSave: () => void
   onClear: () => void
@@ -34,8 +36,8 @@ export function StudioHeader({
   ]
 
   return (
-    <header className="flex flex-none items-center justify-between gap-3 border-b border-line px-5 py-3">
-      <div className="flex items-center gap-2">
+    <header className="flex flex-none items-center justify-between gap-3 border-b border-line bg-canvas px-3 py-3 sm:px-5">
+      <div className="flex min-w-0 items-center gap-3">
         <Link
           to={ROUTES.home}
           aria-label="رجوع للرئيسية"
@@ -43,13 +45,25 @@ export function StudioHeader({
         >
           <ChevronRight size={16} strokeWidth={1.5} aria-hidden />
         </Link>
-        <h1 className="text-[15px]">استوديو التنسيق</h1>
+        <div className="min-w-0">
+          <div className="flex items-center gap-2.5">
+            <h1 className="truncate text-[16px] sm:text-[17px]">استوديو التنسيق</h1>
+            {selectedCount > 0 && (
+              <span className="hidden rounded-full bg-surface px-2 py-0.5 text-[10.5px] text-muted sm:inline">
+                {selectedCount} {selectedCount === 1 ? 'قطعة' : 'قطع'}
+              </span>
+            )}
+          </div>
+          <p className="mt-0.5 hidden text-[11px] text-faint md:block">
+            اختاري القطع، عاينيها على الموديل، ثم احفظي إطلالتك.
+          </p>
+        </div>
       </div>
 
       <div className="relative flex items-center gap-2">
         <Link
           to={ROUTES.looks}
-          className="hidden items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[11.5px] text-muted transition-colors hover:bg-surface hover:text-ink sm:inline-flex"
+          className="hidden h-9 items-center gap-1.5 rounded-md px-3 text-[11.5px] text-muted transition-colors hover:bg-surface hover:text-ink md:inline-flex"
         >
           <Images size={13} strokeWidth={1.5} aria-hidden />
           إطلالاتي
@@ -83,7 +97,9 @@ export function StudioHeader({
         )}
 
         <Button size="sm" onClick={onSave} disabled={!canSave}>
-          حفظ الإطلالة
+          <Save size={13} strokeWidth={1.5} aria-hidden />
+          <span className="hidden sm:inline">حفظ الإطلالة</span>
+          <span className="sm:hidden">حفظ</span>
         </Button>
       </div>
     </header>

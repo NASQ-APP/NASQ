@@ -8,7 +8,6 @@
  * ما فيه سعر ولا شراء: كل القطع من خزانة المستخدمة (المبدأ ١).
  */
 import { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { Shirt, Sparkles } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { StudioHeader } from '@/features/studio/components/StudioHeader'
@@ -17,18 +16,22 @@ import { CurrentOutfitPanel } from '@/features/studio/components/CurrentOutfitPa
 import { CollapsedRail } from '@/features/studio/components/CollapsedRail'
 import { ModelWorkspace } from '@/features/studio/components/ModelWorkspace'
 import { SmartSuggestionsStrip } from '@/features/studio/components/SmartSuggestionsStrip'
-import { PhotoUploader } from '@/features/studio/components/PhotoUploader'
+import { ModelPicker, type ModelChoice } from '@/features/studio/components/ModelPicker'
+import { AdjustModelDrawer } from '@/features/studio/components/AdjustModelDrawer'
 import { StudioMobileBar, type MobileSheet } from '@/features/studio/components/StudioMobileBar'
 import { useStudio } from '@/features/studio/store'
+import { useTryOn } from '@/features/studio/useTryOn'
+import { garmentReferences, referenceFromUrl } from '@/features/studio/references'
+import { READY_MODELS, readyModelById } from '@/domain/model'
+import type { BodyParameters } from '@/domain/tryon'
 import { useWardrobe } from '@/features/wardrobe/store'
 import { useAiModels } from '@/features/ai-model/store'
 import { useLooks } from '@/features/looks/store'
 import { useAppShell } from '@/app/layout'
-import { conflictsWith, sheetPanels, studioLayout, type OutfitSlotId } from '@/domain/studio'
+import { sheetPanels, studioLayout, type OutfitSlotId } from '@/domain/studio'
 import { OCCASIONS, ownedItems } from '@/domain/wardrobe'
 import {
   Button,
-  ConfirmDialog,
   Field,
   Modal,
   Select,
@@ -38,11 +41,15 @@ import {
 } from '@/shared/components/ui'
 import { AdaptivePanel } from '@/shared/components/layout'
 import { useDeviceClass } from '@/shared/hooks'
-import { ROUTES } from '@/shared/config'
-import type { Gender, WardrobeItem } from '@/domain/wardrobe'
+import type { WardrobeItem } from '@/domain/wardrobe'
+
+/** يبلّغ الخطأ بالعربي بدل ما يُبتلع — الفشل الصامت يترك المستخدمة تخمّن. */
+const report = (error?: { message: string; hint?: string }) => {
+  if (!error) return
+  toast.error(error.hint ? `${error.message} ${error.hint}` : error.message)
+}
 
 export function StudioPage() {
-  const navigate = useNavigate()
   const { openAdd, openStylist } = useAppShell()
 
   const items = useWardrobe((state) => state.items)
@@ -51,14 +58,27 @@ export function StudioPage() {
   const studio = useStudio()
 
   const [dragging, setDragging] = useState(false)
-  const [conflict, setConflict] = useState<{ candidate: WardrobeItem; clashes: WardrobeItem[] }>()
   const [saveOpen, setSaveOpen] = useState(false)
-  const [previewModeOpen, setPreviewModeOpen] = useState(false)
   const [sheet, setSheet] = useState<MobileSheet>()
-  const [gender, setGender] = useState<Gender>('female')
   const [lookName, setLookName] = useState('')
   const [occasion, setOccasion] = useState<string>(OCCASIONS[0].id)
   const [lookNotes, setLookNotes] = useState('')
+
+  /**
+   * حالة التجربة.
+   *
+   * الصورة المولّدة وصورة المستخدمة تبقيان في ذاكرة React لا في localStorage:
+   * الأولى ضخمة، والثانية شخصية — وحفظ الشخصي بلا داعٍ خطر لا ميزة (§19).
+   * القياسات وحدها تُحفظ لأنها أرقام غير حسّاسة.
+   */
+  const tryOn = useTryOn()
+  const [modelChoice, setModelChoice] = useState<ModelChoice>('ready')
+  const [modelPickerOpen, setModelPickerOpen] = useState(false)
+  const [adjustOpen, setAdjustOpen] = useState(false)
+  const [adaptedModel, setAdaptedModel] = useState<string>()
+  const [generatedLook, setGeneratedLook] = useState<string>()
+  /** بصمة الاختيار الذي وُلّدت منه الصورة الحالية — بها نعرف إن الصورة قدمت. */
+  const [lookSignature, setLookSignature] = useState<string>()
 
   const owned = useMemo(() => ownedItems(items), [items])
   const selected = useMemo(
@@ -68,6 +88,15 @@ export function StudioPage() {
         .filter((item): item is WardrobeItem => Boolean(item)),
     [studio.selection, owned],
   )
+
+  /**
+   * الصورة المولّدة قديمة إذا تغيّر الاختيار بعدها.
+   *
+   * ما نعيد التوليد تلقائيًا: كل توليد يكلّف وقتًا ومالاً، فربطه بكل ضغطة
+   * إضافة أو حذف يحرق الاثنين على صور ما طلبتها. نعلّمها ونترك القرار لها.
+   */
+  const selectionSignature = studio.selection.join('|')
+  const lookStale = Boolean(generatedLook) && lookSignature !== selectionSignature
 
   /**
    * خطة التخطيط: الجهاز يقرّر مكان كل لوحة (مرسّاة أو ورقة)، وقالب الأعمدة
@@ -98,23 +127,106 @@ export function StudioPage() {
   }
 
 
-  const source = models.preferredSource
-  const model = models.modelFor(gender)
   const photo = models.photo
+  const readyModel = readyModelById(models.readyModelId ?? '') ?? READY_MODELS[0]
 
-  /** الإضافة تمر على فحص التعارض: ما نكدّس قميصين فوق بعض. */
-  const pick = (item: WardrobeItem) => {
-    if (studio.has(item.id)) {
-      studio.remove(item.id)
-      return
+  /**
+   * صورة الشخص المرسلة للمزوّد، بترتيب الأولوية:
+   * الموديل المعدّل ← الموديل الجاهز ← صورة المستخدمة.
+   */
+  const personImageUrl =
+    modelChoice === 'photo' ? photo?.url : (adaptedModel ?? readyModel.imageUrl)
+
+  const hasModel = Boolean(personImageUrl)
+  const modelLabel = modelChoice === 'photo' ? 'صورتك' : readyModel.name
+
+  /** يجمع مراجع القطع من IndexedDB — القطعة بلا صورة تُسقَط لا تُرسل باسمها. */
+  const collectGarments = async () => {
+    const garments = await garmentReferences(selected)
+    if (garments.length === 0) {
+      toast.error('القطع المختارة ما لها صور. أضيفي صورة للقطعة من صفحتها.')
+      return undefined
     }
-    const clashes = conflictsWith(item, selected)
-    if (clashes.length > 0) {
-      setConflict({ candidate: item, clashes })
-      return
+    if (garments.length < selected.length) {
+      toast.ok(`${selected.length - garments.length} قطع بلا صور — تخطّيناها.`)
     }
-    studio.add(item.id)
+    return garments
   }
+
+  const generateLook = async () => {
+    if (!personImageUrl) {
+      toast.error('اختاري موديلاً أو ارفعي صورتك أول.')
+      return
+    }
+    const person = await referenceFromUrl(personImageUrl)
+    if (!person) {
+      toast.error('ما قدرنا نقرأ صورة الموديل.')
+      return
+    }
+    const garments = await collectGarments()
+    if (!garments) return
+
+    const { result, error } = await tryOn.run({
+      personImage: person,
+      garments,
+      bodyParameters: studio.bodyParameters,
+    })
+    if (result) {
+      setGeneratedLook(result.image)
+      // البصمة تُلتقط من إغلاق هذا العرض، فهي اختيار لحظة الطلب لا لحظة الرد
+      setLookSignature(selectionSignature)
+    }
+    report(error)
+  }
+
+  const regenerate = async () => {
+    if (!personImageUrl) return
+    const person = await referenceFromUrl(personImageUrl)
+    if (!person) return
+    const garments = await collectGarments()
+    if (!garments) return
+
+    const { result, error } = await tryOn.regenerate({
+      personImage: person,
+      garments,
+      previousLook: generatedLook,
+      bodyParameters: studio.bodyParameters,
+    })
+    if (result) {
+      setGeneratedLook(result.image)
+      setLookSignature(selectionSignature)
+    }
+    report(error)
+  }
+
+  const applyAdjustment = async (parameters: BodyParameters, refinement?: string) => {
+    studio.setBodyParameters(parameters)
+    // التعديل يبني على الموديل المعدّل السابق إن وُجد، فالتحسينات تتراكم
+    const base = await referenceFromUrl(adaptedModel ?? readyModel.imageUrl)
+    if (!base) return
+
+    const { result, error } = await tryOn.adaptModel({
+      baseImage: base,
+      bodyParameters: parameters,
+      refinement,
+    })
+    if (result) {
+      setAdaptedModel(result.image)
+      setGeneratedLook(undefined)
+      setAdjustOpen(false)
+      toast.ok('عدّلنا الموديل')
+    }
+    report(error)
+  }
+
+  /**
+   * الاختيار حرّ بلا قيد: ضغطة تضيف وضغطة تشيل، وأي عدد على أي موضع.
+   *
+   * كنّا نمنع قطعتين على موضع واحد، والمنع كان يقرّر عن المستخدمة: الطبقات
+   * حقيقية (قميص تحت كنزة)، ومن تبي تشوف تركيبة غريبة تشوفها. الصورة المولّدة
+   * هي الحكم لا قاعدة مكتوبة عندنا.
+   */
+  const pick = (item: WardrobeItem) => studio.toggle(item.id)
 
   const dropItem = (itemId: string) => {
     const item = owned.find((candidate) => candidate.id === itemId)
@@ -134,8 +246,8 @@ export function StudioPage() {
       occasion,
       notes: lookNotes.trim() || undefined,
       itemIds: studio.selection,
-      resultImageUrl: model?.previewImageUrl ?? '',
-      modelId: model?.id,
+      resultImageUrl: generatedLook ?? '',
+      modelId: modelChoice === 'photo' ? undefined : readyModel.id,
       framing: 'full',
     })
     toast.ok('حفظنا الإطلالة')
@@ -145,14 +257,15 @@ export function StudioPage() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-64px)] min-h-0 flex-col">
+    <div className="flex h-[calc(100vh-64px)] min-h-0 flex-col bg-surface">
       <StudioHeader
         focusMode={focusMode}
         canSave={selected.length > 0}
+        selectedCount={selected.length}
         onToggleFocus={studio.toggleFocusMode}
         onSave={() => setSaveOpen(true)}
         onClear={studio.clear}
-        onUsePhoto={() => setPreviewModeOpen(true)}
+        onUsePhoto={() => setModelPickerOpen(true)}
       />
 
       <motion.div
@@ -160,7 +273,7 @@ export function StudioPage() {
         animate={{ gridTemplateColumns: layout.columns }}
         transition={{ duration: 0.28, ease: [0.22, 0.61, 0.36, 1] }}
         style={{ gridTemplateColumns: layout.columns }}
-        className="grid min-h-0 flex-1"
+        className="grid min-h-0 flex-1 gap-2 p-2 sm:gap-3 sm:p-3"
       >
         {/* ---------------- الخزانة ---------------- */}
         <AdaptivePanel
@@ -169,9 +282,9 @@ export function StudioPage() {
           onClose={() => closePanel('wardrobe')}
           eyebrow="Wardrobe"
           title="خزانتي"
+          className="h-full overflow-hidden rounded-lg border border-line bg-canvas"
           rail={
             <CollapsedRail
-              side="start"
               label="خزانتي"
               icon={Shirt}
               count={owned.length}
@@ -180,6 +293,7 @@ export function StudioPage() {
           }
         >
           <WardrobePanel
+            showHeader={layout.wardrobe !== 'sheet'}
             onPick={(item) => {
               pick(item)
               if (layout.wardrobe === 'sheet') setSheet(undefined)
@@ -190,26 +304,41 @@ export function StudioPage() {
         </AdaptivePanel>
 
         {/* ---------------- الموديل ---------------- */}
-        <div className="flex min-h-0 flex-col">
+        <div className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-line bg-canvas">
           <ModelWorkspace
-            modelImageUrl={model?.previewImageUrl}
-            modelName={model?.name}
-            hasModel={source === 'model' ? Boolean(model) : Boolean(photo)}
-            notice={selected.length > 0 ? `${selected.length} قطع في إطلالتك.` : undefined}
+            modelImageUrl={personImageUrl}
+            modelName={modelLabel}
+            hasModel={hasModel}
+            generatedLook={generatedLook}
+            stale={lookStale}
+            busy={tryOn.status === 'working'}
+            stage={tryOn.stage}
+            itemCount={selected.length}
             dragging={dragging}
             onDropItem={dropItem}
-            onEditModel={() => navigate(model ? ROUTES.editModel(model.id) : ROUTES.newModel)}
-            onCreateModel={() => navigate(ROUTES.newModel)}
+            onChooseModel={() => setModelPickerOpen(true)}
+            onGenerate={generateLook}
+            onRegenerate={regenerate}
+            onSaveLook={() => setSaveOpen(true)}
+            onStartOver={() => {
+              setGeneratedLook(undefined)
+              tryOn.reset()
+            }}
           />
 
           {!focusMode && (
             <SmartSuggestionsStrip
               height={studio.suggestionsHeight}
               open={studio.suggestionsOpen}
+              selectedIds={studio.selection}
               onResize={studio.setSuggestionsHeight}
               onToggle={studio.toggleSuggestions}
-              onApply={studio.replaceAll}
+              onApply={(itemIds) => {
+                studio.replaceAll(itemIds)
+                toast.ok('جهّزنا لك الإطلالة في الاستوديو')
+              }}
               onAskStylist={openStylist}
+              onAddItem={openAdd}
             />
           )}
         </div>
@@ -221,9 +350,9 @@ export function StudioPage() {
           onClose={() => closePanel('outfit')}
           eyebrow="Outfit"
           title="إطلالتك الحالية"
+          className="h-full overflow-hidden rounded-lg border border-line bg-canvas"
           rail={
             <CollapsedRail
-              side="end"
               label="إطلالتك"
               icon={Sparkles}
               count={selected.length}
@@ -232,6 +361,7 @@ export function StudioPage() {
           }
         >
           <CurrentOutfitPanel
+            showHeader={layout.outfit !== 'sheet'}
             items={selected}
             onReplace={replaceSlot}
             onAskStylist={openStylist}
@@ -248,78 +378,43 @@ export function StudioPage() {
         onAskStylist={openStylist}
       />
 
-      {/* ---------------- تعارض القطع ---------------- */}
-      <ConfirmDialog
-        open={Boolean(conflict)}
-        onClose={() => setConflict(undefined)}
-        onConfirm={() => {
-          if (!conflict) return
-          studio.replaceWith(
-            conflict.candidate.id,
-            conflict.clashes.map((item) => item.id),
-          )
-          setConflict(undefined)
-        }}
-        eyebrow="Replace"
-        title="عندك قطعة في هذا الموضع"
-        confirmLabel="استبدال"
-        destructive={false}
-      >
-        {conflict
-          ? `«${conflict.clashes[0].name}» موجودة في الإطلالة. تبين نستبدلها بـ«${conflict.candidate.name}»؟`
-          : ''}
-      </ConfirmDialog>
-
-      {/* ---------------- طريقة المعاينة ---------------- */}
+      {/* ---------------- اختيار الموديل ---------------- */}
       <Modal
-        open={previewModeOpen}
-        onClose={() => setPreviewModeOpen(false)}
-        eyebrow="Preview"
-        title="طريقة المعاينة"
-        width="md"
+        open={modelPickerOpen}
+        onClose={() => setModelPickerOpen(false)}
+        eyebrow="Model"
+        title="على مين تبين نجرب الإطلالة؟"
+        width="lg"
       >
-        <div className="flex flex-col gap-4">
-          <div className="grid gap-2 sm:grid-cols-2">
-            {(
-              [
-                ['model', 'الموديل الخاص بي', 'موديل بمقاساتك، نستخدمه في كل تجربة'],
-                ['photo', 'استخدام صورتي', 'تلبيس القطع على صورتك أنتِ'],
-              ] as const
-            ).map(([value, label, note]) => (
-              <button
-                key={value}
-                onClick={() => models.setPreferredSource(value)}
-                aria-pressed={source === value}
-                className={`flex flex-col gap-1 rounded-md border p-4 text-right transition-colors ${
-                  source === value ? 'border-ink' : 'border-line hover:border-line-strong'
-                }`}
-              >
-                <span className="text-[13px]">{label}</span>
-                <span className="text-[11.5px] leading-6 text-faint">{note}</span>
-              </button>
-            ))}
-          </div>
-
-          {source === 'model' ? (
-            <div className="flex gap-2">
-              {(['female', 'male'] as const).map((value) => (
-                <button
-                  key={value}
-                  onClick={() => setGender(value)}
-                  aria-pressed={gender === value}
-                  className={`h-9 flex-1 rounded-md border text-[12px] transition-colors ${
-                    gender === value ? 'border-ink bg-ink text-white' : 'border-line text-muted'
-                  }`}
-                >
-                  {value === 'female' ? 'نسائي' : 'رجالي'}
-                </button>
-              ))}
-            </div>
-          ) : (
-            <PhotoUploader />
-          )}
-        </div>
+        <ModelPicker
+          choice={modelChoice}
+          readyModelId={models.readyModelId ?? READY_MODELS[0].id}
+          hasPhoto={Boolean(photo)}
+          onChooseReady={(id) => {
+            setModelChoice('ready')
+            models.setReadyModel(id)
+            // الموديل المعدّل يخص موديلاً بعينه، فتبديل الموديل يُسقطه
+            setAdaptedModel(undefined)
+            setGeneratedLook(undefined)
+          }}
+          onChoosePhoto={() => {
+            setModelChoice('photo')
+            setGeneratedLook(undefined)
+          }}
+          onAdjust={() => {
+            setModelPickerOpen(false)
+            setAdjustOpen(true)
+          }}
+        />
       </Modal>
+
+      <AdjustModelDrawer
+        open={adjustOpen}
+        value={studio.bodyParameters ?? {}}
+        busy={tryOn.status === 'working'}
+        onClose={() => setAdjustOpen(false)}
+        onApply={applyAdjustment}
+      />
 
       {/* ---------------- حفظ الإطلالة ---------------- */}
       <Modal

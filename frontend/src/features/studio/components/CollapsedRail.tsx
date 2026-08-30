@@ -5,29 +5,20 @@
  * الكامل يخلي المستخدمة تدوّر كيف ترجّعها.
  */
 import type { ComponentType } from 'react'
-import { cn } from '@/shared/lib'
 
 export function CollapsedRail({
-  side,
   label,
   icon: Icon,
   count,
   onOpen,
 }: {
-  /** أي حافة يلتصق بها الشريط — يحدّد الحدّ الفاصل */
-  side: 'start' | 'end'
   label: string
   icon: ComponentType<{ size?: number; strokeWidth?: number }>
   count?: number
   onOpen: () => void
 }) {
   return (
-    <div
-      className={cn(
-        'flex h-full flex-col items-center gap-3 bg-canvas py-4',
-        side === 'start' ? 'border-l border-line' : 'border-r border-line',
-      )}
-    >
+    <div className="flex h-full flex-col items-center gap-3 bg-canvas py-4">
       <button
         onClick={onOpen}
         aria-label={label}

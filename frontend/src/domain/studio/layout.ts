@@ -13,7 +13,7 @@ import type { DeviceClass } from '@/domain/shared/device'
 /** عرض الشريط المطوي — يكفي لأيقونة وزر فتح. */
 export const RAIL_WIDTH = 56
 /** عرض اللوحة المفتوحة على سطح المكتب. */
-export const PANEL_WIDTH = 320
+export const PANEL_WIDTH = 288
 
 export type PanelState = {
   wardrobeOpen: boolean
@@ -40,7 +40,7 @@ export function toggleFocus(panels: PanelState, previous: PanelState): PanelStat
 }
 
 /** عرض اللوحة على الشاشات المتوسطة — أضيق عشان يبقى للموديل نصيب. */
-export const PANEL_WIDTH_COMPACT = 280
+export const PANEL_WIDTH_COMPACT = 272
 
 /** كيف تُعرض اللوحة: مرسّاة في الشبكة، أو ورقة تنفتح فوق المحتوى. */
 export type PanelPlacement = 'docked' | 'sheet'
