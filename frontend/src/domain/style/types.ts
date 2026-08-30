@@ -5,6 +5,7 @@
  * بصري يفهم منه الستايليست ذوقها. ما يُلبس ولا يُنسّق ولا يُشترى.
  */
 import type { ItemColor } from '@/domain/wardrobe'
+import type { Gender } from '@/domain/shared/types'
 
 /** من وين جاء الإلهام. */
 export type InspirationSource = 'upload' | 'pinterest' | 'link'
@@ -74,3 +75,41 @@ export const STYLE_TAGS = [
   'مينيمال',
   'ستريت',
 ] as const
+
+
+/* ---------------------- التعارف الأول ---------------------- */
+
+/** ما تختاره المستخدمة لتتجنّبه — قيد صارم، مب تفضيلًا. */
+export type AvoidRule = 'short' | 'tight' | 'sleeveless' | 'boldColor' | 'heels'
+
+export const AVOID_RULES: { id: AvoidRule; name: string }[] = [
+  { id: 'short', name: 'قصير' },
+  { id: 'tight', name: 'ضيّق' },
+  { id: 'sleeveless', name: 'بدون أكمام' },
+  { id: 'boldColor', name: 'ألوان قوية' },
+  { id: 'heels', name: 'كعب' },
+]
+
+/**
+ * ما صرّحت به المستخدمة في التعارف الأول. **يُخزَّن** — لأنه قرارها هي، ولا
+ * يمكن اشتقاقه من سلوكها.
+ */
+export type DeclaredStyle = {
+  gender?: Gender
+  colors: ItemColor[]
+  tags: string[]
+  contexts: string[]
+  avoid: AvoidRule[]
+  /** ملاحظة حرّة — سياق ليّن، ما يتجاوز القيود */
+  note?: string
+  confidence: number
+  completedAt?: string
+}
+
+export const EMPTY_DECLARED: DeclaredStyle = {
+  colors: [],
+  tags: [],
+  contexts: [],
+  avoid: [],
+  confidence: 0,
+}
