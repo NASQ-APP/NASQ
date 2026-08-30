@@ -13,8 +13,14 @@ import { ImageProcessingError } from './backgroundRemoval'
 
 /** أقصى ضلع للصورة المرسلة للخادم. */
 const MAX_UPLOAD_EDGE = 1600
-/** ضلع النسخة المحفوظة للعرض. */
-const STORAGE_EDGE = 720
+/**
+ * ضلع النسخة المحفوظة للعرض.
+ *
+ * كان ٧٢٠ فتطلع القطعة ناعمة الحواف: صفحة القطعة تعرضها في مربّع يقارب ٤٥٠
+ * بكسل CSS، والشاشات اليوم بكثافة ٢× أو ٣× — يعني تحتاج ٩٠٠ إلى ١٣٥٠ بكسل
+ * حقيقيًا. ٧٢٠ تُمدّ فوق حجمها فتبان غير واضحة.
+ */
+const STORAGE_EDGE = 1440
 const JPEG_QUALITY = 0.9
 const WEBP_QUALITY = 0.92
 
@@ -38,6 +44,12 @@ function draw(width: number, height: number): CanvasRenderingContext2D {
   canvas.height = height
   const context = canvas.getContext('2d')
   if (!context) return unreadable()
+
+  /* التصغير الافتراضي في الـcanvas يأخذ عيّنات متباعدة، فتتكسّر الخيوط
+     والحواف الدقيقة عند النزول من ٣٠٠٠ بكسل. الجودة العالية تقرأ الجوار
+     كاملاً فتبقى القطعة حادّة. */
+  context.imageSmoothingEnabled = true
+  context.imageSmoothingQuality = 'high'
   return context
 }
 
