@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
-import { ChevronLeft, Grid3x3, Heart, Plus, Rows3, Trash2 } from 'lucide-react'
+import { ChevronLeft, GalleryHorizontal, Grid3x3, Heart, Plus, Rows3, Trash2 } from 'lucide-react'
 import {
   Button,
   ButtonLink,
@@ -16,6 +16,7 @@ import { PageContainer } from '@/shared/components/layout'
 import { SLOT_FILTERS, filterItems } from '@/domain/wardrobe'
 import { AddItemModal } from '@/features/wardrobe/components/AddItemModal'
 import { ItemGrid } from '@/features/wardrobe/components/ItemGrid'
+import { WardrobeRails } from '@/features/wardrobe/components/WardrobeRails'
 import { useWardrobe } from '@/features/wardrobe/store'
 import { slotOf } from '@/domain/outfit'
 import { cn, formatDate } from '@/shared/lib'
@@ -26,7 +27,7 @@ export function WardrobePage() {
   const { wardrobes, items, deleteWardrobe } = useWardrobe()
   const [addOpen, setAddOpen] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
-  const [view, setView] = useState<'grid' | 'compact'>('grid')
+  const [view, setView] = useState<'rails' | 'grid' | 'compact'>('rails')
 
   const wardrobe = wardrobes.find((w) => w.id === id)
   const slot = params.get('slot') ?? 'all'
@@ -112,6 +113,7 @@ export function WardrobePage() {
           value={view}
           onChange={setView}
           options={[
+            { value: 'rails', label: 'عرض الدولاب', icon: GalleryHorizontal },
             { value: 'grid', label: 'عرض شبكي', icon: Grid3x3 },
             { value: 'compact', label: 'عرض مضغوط', icon: Rows3 },
           ]}
@@ -124,6 +126,8 @@ export function WardrobePage() {
           body="أضيفي أول قطعة لهذي الخزانة وابدئي التنسيق."
           action={<Button onClick={() => setAddOpen(true)}>إضافة قطعة</Button>}
         />
+      ) : view === 'rails' ? (
+        <WardrobeRails items={visible} />
       ) : (
         <ItemGrid items={visible} compact={view === 'compact'} />
       )}

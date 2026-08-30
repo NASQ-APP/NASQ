@@ -12,7 +12,7 @@
  * «قديمة» وتنتظر أمرًا صريحًا. التوليد يكلّف وقتًا ومالاً، فربطه بكل ضغطة
  * يحرق الاثنين على تجربة ما طلبتها المستخدمة.
  */
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import {
   Bookmark,
   Loader2,
@@ -41,6 +41,31 @@ import type { TryOnStage } from '@/domain/tryon'
  * الموضع المطلق يقيس على الحاوية ذات الارتفاع المحدّد بدل الصف، و`object-contain`
  * يترك النسبة سليمة. والحشو يمنع القوام من لمس الحواف.
  */
+/**
+ * تصحيح إطار صور الموديلات الجاهزة.
+ *
+ * الملفّان مقصوصان بشكل مختلف: جسم البنت يملأ ٨٢٪ من ارتفاع صورتها وتحته فراغ
+ * ٨٫٤٪، وجسم الولد يملأ ٩٣٪ وتحته ٣٫٦٪ فقط. فمع `object-contain` واحد يطلع
+ * الولد أكبر وأوطى منها.
+ *
+ * `scale` يصغّره لإحساس حجمها، و`y` يعيد رجوله على خطّ المنصّة بعد التصغير —
+ * لأن التصغير حول المركز يرفع القدمين.
+ *
+ * التصحيح على الأصل لا على العرض: لو انصلحت الصور نفسها يُشال السطر.
+ */
+/**
+ * حدود التكبير — مكان واحد يخدم الأزرار والقرص.
+ *
+ * الأدنى ١ لا أقل: المقاس الأصلي هو الصورة كاملة داخل اللوحة، والتصغير تحته
+ * ما يكشف شيئًا جديدًا — يترك فراغًا حول المشهد ليس إلا.
+ */
+const ZOOM_MIN = 1
+const ZOOM_MAX = 2.5
+
+const FRAME_FIT: Record<string, { scale: number; y: number }> = {
+  '/models/male-base.png': { scale: 0.88, y: 0.9 },
+}
+
 const STAGE_IMAGE =
   'absolute inset-0 z-[1] h-full w-full object-contain p-4 ' +
   // صور الموديل والنتيجة خلفيتها بيضاء صمّاء، فعلى أرضية رمادية تُقرأ
@@ -84,6 +109,98 @@ export function ModelWorkspace({
 }) {
   const [over, setOver] = useState(false)
   const [zoom, setZoom] = useState(1)
+  /**
+   * إزاحة المشهد داخل اللوحة.
+   *
+   * محدودة بما كشفه التقريب على كل محور: عند ١× ما فيه شيء مخفي فما فيه
+   * تنقّل، وكل ما قرّبتِ اتّسع المدى بقدر ما فاض عن الإطار. فما تنسحب الصورة
+   * خارج اللوحة ويبقى فراغ.
+   */
+  const [pan, setPan] = useState({ x: 0, y: 0 })
+  /** أثناء اللمس نلغي الانتقال — التنعيم يخلّي الصورة تتأخّر خلف الإصبع. */
+  const [interacting, setInteracting] = useState(false)
+
+  /**
+   * القرص بإصبعين.
+   *
+   * نتتبّع المؤشّرات النشطة: إصبعان يعطيان مسافة، ونسبة تغيّرها هي نسبة
+   * التكبير. المراجع لا الحالة — الحركة تصل عشرات المرات في الثانية.
+   */
+  const stageRef = useRef<HTMLDivElement>(null)
+  const pointers = useRef(new Map<number, { x: number; y: number }>())
+  const pinch = useRef<{ distance: number; zoom: number } | null>(null)
+
+  /** السحب بإصبع واحد — يحرّك المشهد في كل الاتجاهات. */
+  const grab = useRef<{ x: number; y: number; from: { x: number; y: number } } | null>(null)
+
+  const clampZoom = (value: number) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, value))
+
+  /** أقصى إزاحة على محور: نصف ما فاض عن اللوحة بعد التقريب — وصفر عند ١×. */
+  const clampPan = (value: { x: number; y: number }, scale: number) => {
+    const box = stageRef.current
+    const limitX = Math.max(0, ((box?.clientWidth ?? 0) * (scale - 1)) / 2)
+    const limitY = Math.max(0, ((box?.clientHeight ?? 0) * (scale - 1)) / 2)
+    return {
+      x: Math.min(limitX, Math.max(-limitX, value.x)),
+      y: Math.min(limitY, Math.max(-limitY, value.y)),
+    }
+  }
+
+  /** تغيير التقريب يعيد ضبط الإزاحة معه، وإلا بقيت خارج الحدّ بعد الإبعاد. */
+  const applyZoom = (next: number) => {
+    const scale = clampZoom(next)
+    setZoom(scale)
+    setPan((current) => clampPan(current, scale))
+  }
+
+  const onStagePointerDown = (event: React.PointerEvent) => {
+    pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY })
+    setInteracting(true)
+
+    if (pointers.current.size === 1) {
+      grab.current = { x: event.clientX, y: event.clientY, from: pan }
+      return
+    }
+    if (pointers.current.size === 2) {
+      // الإصبع الثاني ينقل الحركة من سحب إلى قرص
+      grab.current = null
+      const [a, b] = [...pointers.current.values()]
+      pinch.current = { distance: Math.hypot(a.x - b.x, a.y - b.y), zoom }
+    }
+  }
+
+  const onStagePointerMove = (event: React.PointerEvent) => {
+    if (!pointers.current.has(event.pointerId)) return
+    pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY })
+
+    const held = grab.current
+    if (pointers.current.size === 1 && held) {
+      setPan(
+        clampPan(
+          {
+            x: held.from.x + (event.clientX - held.x),
+            y: held.from.y + (event.clientY - held.y),
+          },
+          zoom,
+        ),
+      )
+      return
+    }
+
+    const start = pinch.current
+    if (pointers.current.size !== 2 || !start || start.distance === 0) return
+    const [a, b] = [...pointers.current.values()]
+    applyZoom((start.zoom * Math.hypot(a.x - b.x, a.y - b.y)) / start.distance)
+  }
+
+  const onStagePointerUp = (event: React.PointerEvent) => {
+    pointers.current.delete(event.pointerId)
+    if (pointers.current.size < 2) pinch.current = null
+    if (pointers.current.size === 0) {
+      grab.current = null
+      setInteracting(false)
+    }
+  }
 
   const [tone, setTone] = useState<LightTone>('warm')
 
@@ -116,6 +233,7 @@ export function ModelWorkspace({
 
       {/* ---------------- اللوحة ---------------- */}
       <div
+        ref={stageRef}
         onDragOver={(event) => {
           if (!event.dataTransfer.types.includes(DRAG_MIME)) return
           event.preventDefault()
@@ -129,8 +247,14 @@ export function ModelWorkspace({
           const id = event.dataTransfer.getData(DRAG_MIME)
           if (id) onDropItem(id)
         }}
+        onPointerDown={onStagePointerDown}
+        onPointerMove={onStagePointerMove}
+        onPointerUp={onStagePointerUp}
+        onPointerCancel={onStagePointerUp}
+        onPointerLeave={onStagePointerUp}
         className={cn(
-          'relative mx-5 grid min-h-0 flex-1 place-items-center overflow-hidden rounded-md',
+          // touch-none يمنع المتصفّح من ابتلاع القرص لتكبير الصفحة نفسها
+          'relative mx-5 grid min-h-0 flex-1 cursor-grab touch-none place-items-center overflow-hidden rounded-md active:cursor-grabbing',
           // أرضية الاستوديو. الدائرة البيضاء تحت الموديل هي المنصّة، فالتباين
           // بينهما هو اللي يرسم المكان. والوضع الأبيض يحتاج أرضية أغمق لأن
           // سطوع الضوء نسبي — ما يميّز الأبيض إلا فرقه عمّا تحته.
@@ -141,8 +265,46 @@ export function ModelWorkspace({
           dragging && !over && 'ring-1 ring-line-strong',
         )}
       >
-        {/* طقم الاستوديو خلف كل شيء — منصّة وإضاءة، بلا لف */}
-        {(hasModel || generatedLook) && !busy && <StudioSet tone={tone} />}
+        {/*
+          طبقة المشهد — تتكبّر كصورة واحدة: المنصّة والإضاءة والموديل معًا، لا
+          الموديل وحده. الأرضية تبقى برّاها فما تتمدّد حدودها مع التكبير.
+        */}
+        {!busy && (hasModel || generatedLook) && (
+          <div
+            className={cn(
+              'absolute inset-0',
+              // الطبقة تحمل لون الأرضية بنفسها: الـ transform يصنع سياق تراص
+              // جديد، و mix-blend-multiply يمزج داخل سياقه فقط — فبلا هذي
+              // الخلفية تطلع خلفية صورة الموديل البيضاء مستطيلاً ظاهرًا.
+              tone === 'white' ? 'bg-studio-floor-dim' : 'bg-studio-floor',
+              // بلا انتقال أثناء القرص — التنعيم يخلّي الإصبع يسبق الصورة
+              !interacting && 'transition-transform duration-[250ms] ease-soft',
+            )}
+            style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }}
+          >
+            <StudioSet tone={tone} />
+
+            {generatedLook ? (
+              <img
+                src={generatedLook}
+                alt="إطلالتك المولّدة"
+                className={cn(STAGE_IMAGE, 'transition-opacity duration-[250ms] ease-soft', stale && 'opacity-55')}
+              />
+            ) : (
+              <img
+                src={modelImageUrl}
+                alt={modelName ?? 'موديلك'}
+                className={STAGE_IMAGE}
+                style={{
+                  transform: (() => {
+                    const fit = FRAME_FIT[modelImageUrl ?? ''] ?? { scale: 1, y: 0 }
+                    return `scale(${fit.scale}) translateY(${fit.y}%)`
+                  })(),
+                }}
+              />
+            )}
+          </div>
+        )}
 
         {dragging && (
           <p
@@ -155,36 +317,16 @@ export function ModelWorkspace({
           </p>
         )}
 
-        {busy ? (
-          <GenerationStages stage={stage} />
-        ) : generatedLook ? (
-          <>
-            <img
-              src={generatedLook}
-              alt="إطلالتك المولّدة"
-              className={cn(
-                STAGE_IMAGE,
-                'transition-[transform,opacity] duration-[250ms] ease-soft',
-                // الخفوت يقول «هذي مو النتيجة الحالية» قبل ما تُقرأ أي كلمة
-                stale && 'opacity-55',
-              )}
-              style={{ transform: `scale(${zoom})` }}
-            />
-            {/* تلميح السحب يسكن نفس الموضع، فما نعرض الاثنين معًا */}
-            {stale && !dragging && (
-              <p className="absolute top-5 rounded-full border border-line bg-canvas/95 px-4 py-1.5 text-[11.5px] text-muted backdrop-blur-sm">
-                غيّرتِ القطع — الصورة من الاختيار السابق
-              </p>
-            )}
-          </>
-        ) : hasModel ? (
-          <img
-            src={modelImageUrl}
-            alt={modelName ?? 'موديلك'}
-            className={cn(STAGE_IMAGE, 'transition-transform duration-[250ms] ease-soft')}
-            style={{ transform: `scale(${zoom})` }}
-          />
-        ) : (
+        {/* تلميح «الصورة قديمة» يسكن موضع تلميح السحب، فما نعرض الاثنين معًا */}
+        {generatedLook && stale && !dragging && !busy && (
+          <p className="absolute top-5 z-10 rounded-full border border-line bg-canvas/95 px-4 py-1.5 text-[11.5px] text-muted backdrop-blur-sm">
+            غيّرتِ القطع — الصورة من الاختيار السابق
+          </p>
+        )}
+
+        {busy && <GenerationStages stage={stage} />}
+
+        {!busy && !hasModel && !generatedLook && (
           <div className="flex max-w-[320px] flex-col items-center gap-4 text-center">
             <UserRound size={28} strokeWidth={1.1} aria-hidden className="text-faint" />
             <p className="text-[14px]">ما اخترتِ موديلاً بعد.</p>
@@ -203,9 +345,16 @@ export function ModelWorkspace({
           <div className="absolute bottom-4 left-4 flex flex-col overflow-hidden rounded-md border border-line bg-canvas/90 backdrop-blur-sm">
             {(
               [
-                [Plus, 'تكبير', () => setZoom((z) => Math.min(1.6, z + 0.15))],
-                [Minus, 'تصغير', () => setZoom((z) => Math.max(0.7, z - 0.15))],
-                [RotateCcw, 'إعادة الضبط', () => setZoom(1)],
+                [Plus, 'تكبير', () => applyZoom(zoom + 0.15)],
+                [Minus, 'تصغير', () => applyZoom(zoom - 0.15)],
+                [
+                  RotateCcw,
+                  'إعادة الضبط',
+                  () => {
+                    setZoom(1)
+                    setPan({ x: 0, y: 0 })
+                  },
+                ],
               ] as const
             ).map(([Icon, label, action]) => (
               <button
