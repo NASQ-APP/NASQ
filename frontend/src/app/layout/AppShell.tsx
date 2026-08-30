@@ -54,7 +54,6 @@ export function AppShell() {
             onTermChange={setTerm}
             onSearch={runSearch}
             onOpenNav={() => setNavOpen(true)}
-            onOpenStylist={openStylist}
             onOpenAdd={openAdd}
           />
           <main className="flex-1">

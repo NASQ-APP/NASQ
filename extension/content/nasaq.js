@@ -1,5 +1,5 @@
 /**
- * تسليم القطع المنتظرة لدولابي.
+ * تسليم القطع المنتظرة لنَسَق.
  *
  * ما نكتب في `localStorage` مباشرة: حالة التطبيق محمولة في الذاكرة، والكتابة
  * من ورا ظهره ما تحدّث الواجهة وتقدر تفسد المحفوظ. نرسلها رسالة، والتطبيق
@@ -8,8 +8,8 @@
  * ما نحذف قطعة من الطابور إلا بعد تأكيد التطبيق استلامها.
  */
 
-const SOURCE = 'dulabi-extension'
-const APP = 'dulabi-app'
+const SOURCE = 'nasaq-extension'
+const APP = 'nasaq-app'
 
 let delivering = false
 
@@ -17,7 +17,7 @@ async function deliver() {
   if (delivering) return
   delivering = true
   try {
-    const reply = await chrome.runtime.sendMessage({ type: 'dulabi:pull' })
+    const reply = await chrome.runtime.sendMessage({ type: 'nasaq:pull' })
     for (const entry of reply?.items ?? []) {
       window.postMessage(
         { source: SOURCE, type: entry.kind ?? 'product', id: entry.id, data: entry.data ?? entry.product },
@@ -40,7 +40,7 @@ window.addEventListener('message', (event) => {
   if (data.type === 'ready') void deliver()
 
   if (data.type === 'ack' && Array.isArray(data.ids) && data.ids.length > 0) {
-    void chrome.runtime.sendMessage({ type: 'dulabi:ack', ids: data.ids })
+    void chrome.runtime.sendMessage({ type: 'nasaq:ack', ids: data.ids })
   }
 })
 

@@ -17,8 +17,8 @@ import { inspirationAnalyzer } from '@/features/inspiration/analyze'
 import { productFromRaw, type RawProduct } from './import'
 import { sourceById } from './sources'
 
-const EXTENSION = 'dulabi-extension'
-const APP = 'dulabi-app'
+const EXTENSION = 'nasaq-extension'
+const APP = 'nasaq-app'
 
 const str = (value: unknown, max: number): string | undefined => {
   if (typeof value !== 'string') return undefined

@@ -1,8 +1,8 @@
 {
-  "name": "dulabi",
+  "name": "nasaq",
   "private": true,
   "version": "2.1.0",
-  "description": "دولابي الذكي — خزانة ملابس رقمية شخصية مع تجربة افتراضية",
+  "description": "نَسَق | NASAQ — من خزانتك، نصنع طَلّتك. خزانة ملابس رقمية شخصية مع تجربة افتراضية",
   "workspaces": [
     "frontend",
     "backend"

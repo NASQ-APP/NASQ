@@ -7,6 +7,7 @@
  */
 import { Shirt, Sparkles, Wand2 } from 'lucide-react'
 import { cn } from '@/shared/lib'
+import { APP } from '@/shared/config'
 import type { LucideIcon } from 'lucide-react'
 
 export type MobileSheet = 'wardrobe' | 'outfit' | undefined
@@ -74,7 +75,7 @@ export function StudioMobileBar({
         className="flex min-h-12 flex-1 flex-col items-center justify-center gap-1 rounded-md text-[11px] text-muted transition-colors hover:bg-surface hover:text-ink"
       >
         <Wand2 size={17} strokeWidth={1.5} aria-hidden />
-        دولابي
+        {APP.shortName}
       </button>
     </nav>
   )

@@ -29,7 +29,9 @@ export function HomePage() {
   const owned = items.filter((i) => i.source === 'wardrobe')
 
   return (
-    <PageContainer>
+    <PageContainer className="relative isolate overflow-x-clip">
+      <div className="home-wardrobe-bg" aria-hidden="true" />
+      <div className="relative z-10">
       {/* ---------------- hero ---------------- */}
       <section className="mb-14 max-w-[760px]">
         <p className="eyebrow">
@@ -138,7 +140,7 @@ export function HomePage() {
           <EmptyState
             title="ما فيه إطلالات بعد."
             body="ابدئي التنسيق من خزانتك واحفظي أول إطلالة."
-            action={<Button onClick={openStylist}>اسألي دولابي</Button>}
+            action={<Button onClick={openStylist}>اسألي {APP.shortName}</Button>}
           />
         ) : (
           <div className="grid grid-cols-2 gap-5 md:grid-cols-3 xl:grid-cols-4">
@@ -148,7 +150,7 @@ export function HomePage() {
           </div>
         )}
       </section>
-
+      </div>
     </PageContainer>
   )
 }

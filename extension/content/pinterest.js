@@ -2,7 +2,7 @@
  * زر «أضيفيها لإلهامي» داخل بنترست.
  *
  * الإلهام مب منتجًا: ما فيه سعر ولا متجر ولا شراء. نرسل صورة اللوك ورابط
- * الـPin فقط، ودولابي يقرأ ألوانها ويبني منها ذوق المستخدمة.
+ * الـPin فقط، ونَسَق يقرأ ألوانها ويبني منها ذوق المستخدمة.
  *
  * نقرأ الصفحة اللي فتحتها هي، ولا نلمس بيانات دخولها ولا نقرأ إلا عند الضغط.
  */
@@ -35,7 +35,7 @@ function readInspiration() {
 
 /* -------------------------------- الزر -------------------------------- */
 
-const HOST_ID = 'dulabi-inspire-host'
+const HOST_ID = 'nasaq-inspire-host'
 
 const STYLE = `
   :host { all: initial; }
@@ -101,7 +101,7 @@ async function send(button) {
   button.disabled = true
   setLabel(button, 'نرسلها…')
   try {
-    const reply = await chrome.runtime.sendMessage({ type: 'dulabi:inspire', inspiration })
+    const reply = await chrome.runtime.sendMessage({ type: 'nasaq:inspire', inspiration })
     if (!reply?.ok) throw new Error(reply?.reason ?? 'failed')
     setLabel(button, reply.duplicate ? 'مضافة من قبل' : 'أُضيفت لإلهامك', 'done')
   } catch {

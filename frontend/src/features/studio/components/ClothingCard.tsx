@@ -11,7 +11,7 @@ import { ItemImage } from '@/shared/components/media/ItemImage'
 import { cn } from '@/shared/lib'
 import type { WardrobeItem } from '@/domain/wardrobe'
 
-export const DRAG_MIME = 'application/x-dulabi-item'
+export const DRAG_MIME = 'application/x-nasaq-item'
 
 export function ClothingCard({
   item,

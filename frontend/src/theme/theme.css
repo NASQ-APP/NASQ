@@ -1,7 +1,7 @@
 @import 'tailwindcss';
 
 /* ============================================================================
-   دولابي الذكي — نظام التصميم
+   نَسَق — نظام التصميم
    editorial fashion-tech · مينمال أحادي اللون · فاخر وواسع
    بدون تدرّجات لونية · بدون ظلال كثيفة · بدون إيموجي
 
@@ -155,6 +155,89 @@
     transform: translateY(-2px);
   }
 
+  @keyframes patternDrift {
+    from {
+      background-position: 0 0;
+    }
+    to {
+      background-position: 260px 260px;
+    }
+  }
+
+  .home-wardrobe-bg {
+    position: absolute;
+    z-index: 0;
+    inset: 0 -20px auto;
+    height: 760px;
+    pointer-events: none;
+    background-image: url('/garments-pattern.svg');
+    background-size: 260px 260px;
+    opacity: 0.095;
+    animation: patternDrift 90s linear infinite;
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 10%, #000 44%, transparent 100%);
+    mask-image: linear-gradient(to bottom, transparent 0%, #000 10%, #000 44%, transparent 100%);
+  }
+
+  @media (max-width: 767px) {
+    .home-wardrobe-bg {
+      height: 720px;
+      opacity: 0.085;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .home-wardrobe-bg {
+      animation: none !important;
+    }
+  }
+
+  .wardrobe-emerging-bg {
+    --wardrobe-opacity: 0.22;
+    --wardrobe-x: 0px;
+    --wardrobe-y: 0px;
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    overflow: hidden;
+    opacity: var(--wardrobe-opacity);
+    transition: opacity 160ms linear;
+  }
+
+  .wardrobe-emerging-bg::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: url('/wardrobe-emerging.svg');
+    background-repeat: no-repeat;
+    background-position: left bottom;
+    background-size: min(52vw, 720px) auto;
+    transform: translate3d(var(--wardrobe-x), var(--wardrobe-y), 0);
+    transform-origin: left bottom;
+    transition: transform 260ms cubic-bezier(0.16, 1, 0.3, 1);
+    animation: wardrobe-emerge 720ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  @keyframes wardrobe-emerge {
+    from {
+      clip-path: inset(0 28% 0 0);
+      transform: translate3d(-34px, 10px, 0);
+    }
+  }
+
+  @media (max-width: 767px) {
+    .wardrobe-emerging-bg::before {
+      background-size: 520px auto;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .wardrobe-emerging-bg::before {
+      animation: none;
+      transition: none;
+    }
+  }
+
   /* ---------- هيكل التحميل ---------- */
   .skeleton {
     background: linear-gradient(100deg, #f4f4f1 30%, #eaeae6 50%, #f4f4f1 70%);
@@ -253,3 +336,23 @@ input[type='range']::-moz-range-thumb {
   border: 3px solid #fff;
   box-shadow: 0 0 0 1px var(--color-ink-soft);
 }
+
+/* ---------- خلفية صفحة الخزائن ---------- */
+/*
+  الرسم يخفت للأعلى بقناع تدرّجي: أعلى الصفحة يحمل العنوان والأزرار، ورسمة
+  خلف نصّ تُتعب القراءة. القناع ثابت لا يعتمد على جافاسكربت، فالخلفية تبقى
+  مضبوطة حتى لو ما اشتغلت أي حركة.
+*/
+
+/*
+  الخفوت مربوط بالتمرير: الرسمة كاملة عند رأس الصفحة، وتذوب شوي شوي كلما
+  نزلتِ، وترجع كلما صعدتِ. الزينة تستقبلك ثم تفسح المكان للمحتوى.
+
+  القيمة تجي من `--backdrop-visibility` اللي يحدّثها المكوّن مع التمرير. جرّبنا
+  `animation-timeline: scroll()` أولاً — أنظف وبلا جافاسكربت — لكنه لا يعمل في
+  كل بيئة عرض رغم أن `CSS.supports` يقول العكس، فلا نبني عليه ما لا نستطيع
+  التحقق منه.
+
+  والقيمة الافتراضية `1`: لو ما اشتغل أي جافاسكربت تظهر الخلفية كاملة، لا
+  مختفية. الحالة الطبيعية دائمًا هي الحالة المرئية.
+*/

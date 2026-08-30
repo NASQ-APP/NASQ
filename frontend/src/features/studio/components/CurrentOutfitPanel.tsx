@@ -14,6 +14,7 @@ import { Button } from '@/shared/components/ui'
 import { useStudio } from '../store'
 import { useWardrobe } from '@/features/wardrobe/store'
 import { cn } from '@/shared/lib'
+import { APP } from '@/shared/config'
 import type { OutfitSlotId } from '@/domain/studio'
 import type { WardrobeItem } from '@/domain/wardrobe'
 
@@ -180,7 +181,7 @@ export function CurrentOutfitPanel({
       <div className={cn('flex flex-none flex-col gap-2 border-t border-line p-3')}>
         <Button variant="secondary" size="sm" block onClick={onAskStylist}>
           <Sparkles size={13} strokeWidth={1.5} aria-hidden />
-          اسألي دولابي
+          اسألي {APP.shortName}
         </Button>
         {items.length > 0 && (
           <button

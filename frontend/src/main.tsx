@@ -1,12 +1,11 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { App } from './app/App'
-import { LEGACY_STORES, migrateLegacyStorage } from './infrastructure/storage'
 import { useItemPhotos } from './features/wardrobe/photos'
 import './theme/theme.css'
 
-// هجرة بيانات الاسم القديم قبل ما تُقرأ المخازن (X-05)
-migrateLegacyStorage([...LEGACY_STORES])
+// هجرة مفاتيح الاسم القديم تصير في `persistConfig` نفسه — لازم تسبق إنشاء
+// المخازن، ونداؤها من هنا يجي بعد `import { App }` فيتأخر عنها.
 
 // صور القطع المرفوعة تُقرأ من IndexedDB مرة وحدة، فتصير متاحة لكل بطاقة فورًا
 void useItemPhotos.getState().hydrate()
