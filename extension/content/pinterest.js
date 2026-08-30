@@ -1,8 +1,9 @@
 /**
- * زر «أضيفيها لإلهامي» داخل بنترست.
+ * زر «أضيفيها لقطع التجربة» داخل بنترست.
  *
- * الإلهام مب منتجًا: ما فيه سعر ولا متجر ولا شراء. نرسل صورة اللوك ورابط
- * الـPin فقط، ونَسَق يقرأ ألوانها ويبني منها ذوق المستخدمة.
+ * وجهة واحدة: **قطع تحت التجربة**، عبر نفس مسار المتاجر (`nasaq:add`).
+ * كان فيه مسار ثانٍ يودّي الصورة لصفحة «إلهامي» — أُلغي، لأن صفحة القطع صارت
+ * المكان الوحيد لكل ما يُستورد.
  *
  * نقرأ الصفحة اللي فتحتها هي، ولا نلمس بيانات دخولها ولا نقرأ إلا عند الضغط.
  */
@@ -18,29 +19,60 @@ function pinImage() {
     const src = img.currentSrc || img.src
     if (!/pinimg\.com/i.test(src)) continue
     const area = box.width * box.height
-    if (!best || area > best.area) best = { src, area }
+    if (!best || area > best.area) best = { src, alt: img.alt || '', area }
   }
-  return best?.src
+  return best
 }
 
 /** صفحة Pin واحد، مب الرئيسية ولا لوحة كاملة. */
 const onPinPage = () => /^\/pin\//i.test(location.pathname)
 
-function readInspiration() {
+const meta = (property) =>
+  document.querySelector(`meta[property="${property}"]`)?.content?.trim() ?? ''
+
+/**
+ * اسم القطعة من نصوص الصفحة.
+ *
+ * بنترست ما فيها اسم منتج — فيها عنوان Pin أو وصف أو نص بديل للصورة. ناخذ
+ * أوضحها ونمرّره كما هو: التطبيق يقرأ منه الفئة **لو** كانت فيه كلمة واضحة،
+ * وإلا تبقى الفئة «غير محددة». ما نخترع اسمًا ولا نخمّن نوع القطعة.
+ */
+function pinName(alt) {
+  const title = document.title.replace(/\s*[|\-–—]\s*Pinterest.*$/i, '').trim()
+  const candidates = [meta('og:title'), document.querySelector('h1')?.textContent, alt, title]
+  for (const value of candidates) {
+    const clean = (value ?? '').replace(/\s{2,}/g, ' ').trim()
+    if (clean) return clean.slice(0, 200)
+  }
+  return ''
+}
+
+/** القطعة بشكل `product` نفسه اللي ترسله صفحات المتاجر. */
+function readPiece() {
   if (!onPinPage()) return undefined
-  const imageUrl = pinImage()
-  if (!imageUrl) return undefined
-  return { imageUrl, sourceLink: location.href.split('?')[0] }
+  const image = pinImage()
+  if (!image) return undefined
+  const name = pinName(image.alt)
+  if (!name) return undefined
+
+  return {
+    storeId: 'pinterest',
+    sourceLink: location.href.split('?')[0],
+    name,
+    imageUrl: image.src,
+    images: [image.src],
+  }
 }
 
 /* -------------------------------- الزر -------------------------------- */
 
-const HOST_ID = 'nasaq-inspire-host'
+const HOST_ID = 'nasaq-piece-host'
 
 const STYLE = `
   :host { all: initial; }
   .bar {
     position: fixed; inset-block-end: 20px; inset-inline-end: 20px; z-index: 2147483647;
+    display: flex; gap: 10px; align-items: center;
     font-family: system-ui, -apple-system, "Segoe UI", sans-serif; direction: rtl;
   }
   button {
@@ -58,7 +90,20 @@ const STYLE = `
 
 let host
 
-function mountButton() {
+/** زر واحد: أيقونة، تسمية، وما يرسله عند الضغط. */
+function makeButton({ mark, label, className, read, type, key }) {
+  const button = document.createElement('button')
+  button.type = 'button'
+  if (className) button.className = className
+  button.innerHTML = `<span class="mark"></span><span class="label"></span>`
+  button.querySelector('.mark').textContent = mark
+  button.querySelector('.label').textContent = label
+  button.dataset.idle = label
+  button.addEventListener('click', () => void send(button, { read, type, key, className }))
+  return button
+}
+
+function mountButtons() {
   if (host && document.body.contains(host)) return
   host = document.createElement('div')
   host.id = HOST_ID
@@ -69,46 +114,50 @@ function mountButton() {
 
   const bar = document.createElement('div')
   bar.className = 'bar'
+  bar.append(
+    makeButton({
+      mark: '+',
+      label: 'أضيفيها لقطع التجربة',
+      read: readPiece,
+      type: 'nasaq:add',
+      key: 'product',
+    }),
+  )
 
-  const button = document.createElement('button')
-  button.type = 'button'
-  button.innerHTML = '<span class="mark">♥</span><span class="label">أضيفيها لإلهامي</span>'
-  button.addEventListener('click', () => void send(button))
-
-  bar.append(button)
   shadow.append(style, bar)
   document.body.append(host)
 }
 
-function unmountButton() {
+function unmountButtons() {
   host?.remove()
   host = undefined
 }
 
-function setLabel(button, label, state) {
+function setLabel(button, label, state, base) {
   button.querySelector('.label').textContent = label
-  button.className = state ?? ''
+  button.className = [base, state].filter(Boolean).join(' ')
 }
 
-async function send(button) {
-  const inspiration = readInspiration()
-  if (!inspiration) {
-    setLabel(button, 'ما قدرنا نقرأ الصورة', 'failed')
-    setTimeout(() => setLabel(button, 'أضيفيها لإلهامي'), 2600)
+async function send(button, { read, type, key, className }) {
+  const idle = button.dataset.idle
+  const payload = read()
+  if (!payload) {
+    setLabel(button, 'ما قدرنا نقرأ الصورة', 'failed', className)
+    setTimeout(() => setLabel(button, idle, undefined, className), 2600)
     return
   }
 
   button.disabled = true
-  setLabel(button, 'نرسلها…')
+  setLabel(button, 'نرسلها…', undefined, className)
   try {
-    const reply = await chrome.runtime.sendMessage({ type: 'nasaq:inspire', inspiration })
+    const reply = await chrome.runtime.sendMessage({ type, [key]: payload })
     if (!reply?.ok) throw new Error(reply?.reason ?? 'failed')
-    setLabel(button, reply.duplicate ? 'مضافة من قبل' : 'أُضيفت لإلهامك', 'done')
+    setLabel(button, reply.duplicate ? 'مضافة من قبل' : 'وصلت لدولابك', 'done', className)
   } catch {
-    setLabel(button, 'ما وصلت — أعيدي المحاولة', 'failed')
+    setLabel(button, 'ما وصلت — أعيدي المحاولة', 'failed', className)
   } finally {
     button.disabled = false
-    setTimeout(() => setLabel(button, 'أضيفيها لإلهامي'), 2600)
+    setTimeout(() => setLabel(button, idle, undefined, className), 2600)
   }
 }
 
@@ -117,10 +166,13 @@ let lastUrl = ''
 let ticks = 0
 
 function refresh() {
-  if (readInspiration()) mountButton()
-  else unmountButton()
+  if (onPinPage() && pinImage()) mountButtons()
+  else unmountButtons()
   lastUrl = location.href
 }
+
+/* علامة تحميل: أسرع طريقة تتأكدين فيها إن السكربت حُقن فعلًا في الصفحة. */
+console.info('[نَسَق] بنترست — السكربت شغّال')
 
 refresh()
 setInterval(() => {
