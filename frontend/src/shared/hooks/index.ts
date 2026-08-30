@@ -1,3 +1,4 @@
+export { useReducedMotion } from './useReducedMotion'
 export { useMediaQuery } from './useMediaQuery'
 export { useDeviceClass, useIsCompact } from './useDeviceClass'
 export { useLockScroll } from './useLockScroll'

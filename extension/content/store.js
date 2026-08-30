@@ -1,5 +1,5 @@
 /**
- * زر «إضافة إلى دولابي» داخل صفحة المنتج.
+ * زر «إضافة إلى نَسَق» داخل صفحة المنتج.
  *
  * يشتغل على صفحة المتجر بعد ما يبنيها الجافاسكربت، فيقرأ الصفحة اللي تشوفها
  * المستخدمة فعلًا. هذا يحل ما عجز عنه القارئ في الخادم: زارا وعلي إكسبرس
@@ -255,7 +255,7 @@ function readProduct() {
 
 /* -------------------------------- الزر -------------------------------- */
 
-const HOST_ID = 'dulabi-add-host'
+const HOST_ID = 'nasaq-add-host'
 
 const STYLE = `
   :host { all: initial; }
@@ -292,7 +292,7 @@ function mountButton() {
 
   const button = document.createElement('button')
   button.type = 'button'
-  button.innerHTML = '<span class="mark">◆</span><span class="label">إضافة إلى دولابي</span>'
+  button.innerHTML = '<span class="mark">◆</span><span class="label">إضافة إلى نَسَق</span>'
   button.addEventListener('click', () => void send(button))
 
   bar.append(button)
@@ -314,21 +314,21 @@ async function send(button) {
   const product = readProduct()
   if (!product) {
     setLabel(button, 'ما قدرنا نقرأ القطعة', 'failed')
-    setTimeout(() => setLabel(button, 'إضافة إلى دولابي'), 2600)
+    setTimeout(() => setLabel(button, 'إضافة إلى نَسَق'), 2600)
     return
   }
 
   button.disabled = true
   setLabel(button, 'نرسلها…')
   try {
-    const reply = await chrome.runtime.sendMessage({ type: 'dulabi:add', product })
+    const reply = await chrome.runtime.sendMessage({ type: 'nasaq:add', product })
     if (!reply?.ok) throw new Error(reply?.reason ?? 'failed')
-    setLabel(button, reply.duplicate ? 'مضافة من قبل' : 'أُضيفت إلى دولابي', 'done')
+    setLabel(button, reply.duplicate ? 'مضافة من قبل' : 'أُضيفت إلى نَسَق', 'done')
   } catch {
     setLabel(button, 'ما وصلت — أعيدي المحاولة', 'failed')
   } finally {
     button.disabled = false
-    setTimeout(() => setLabel(button, 'إضافة إلى دولابي'), 2600)
+    setTimeout(() => setLabel(button, 'إضافة إلى نَسَق'), 2600)
   }
 }
 

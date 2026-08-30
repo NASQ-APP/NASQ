@@ -18,7 +18,7 @@ import {
   toast,
 } from '@/shared/components/ui'
 import { PageContainer } from '@/shared/components/layout'
-import { ItemGrid } from '@/features/wardrobe/components/ItemGrid'
+import { TryPiecesRail } from '@/features/try-pieces/components/TryPiecesRail'
 import { useWardrobe } from '@/features/wardrobe/store'
 import { useStudio } from '@/features/studio/store'
 import { CATEGORIES, categoryById, ITEM_COLORS, shapesForSlot } from '@/domain/wardrobe'
@@ -192,7 +192,16 @@ export function TryPiecesPage() {
         />
       ) : (
         <>
-          <ItemGrid items={tryItems} />
+          <TryPiecesRail
+            pieces={tryItems.map((i) => ({
+              id: i.id,
+              name: i.name,
+              imageUrl: i.imageHasModel && !i.imageChosenByUser ? undefined : i.imageUrl,
+              meta: [categoryById(i.categoryId)?.name, i.price].filter(Boolean).join(' · ') || undefined,
+              badge: sourceById(i.storeId)?.latin,
+            }))}
+            onSelect={(id) => navigate(ROUTES.item(id))}
+          />
           <div className="mt-6 flex flex-wrap gap-2">
             <Button
               variant="danger"

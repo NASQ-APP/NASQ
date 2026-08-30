@@ -1,5 +1,5 @@
 {
-  "name": "@dulabi/backend",
+  "name": "@nasaq/backend",
   "private": true,
   "version": "2.1.0",
   "description": "الباك-إند: قاعدة البيانات والـRLS ودوال الحافة",

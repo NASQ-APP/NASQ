@@ -7,6 +7,7 @@
  */
 import { Shirt, Sparkles, Wand2 } from 'lucide-react'
 import { cn } from '@/shared/lib'
+import { APP } from '@/shared/config'
 import type { LucideIcon } from 'lucide-react'
 
 export type MobileSheet = 'wardrobe' | 'outfit' | undefined
@@ -38,7 +39,10 @@ export function StudioMobileBar({
   const counts: Record<SheetId, number> = { wardrobe: wardrobeCount, outfit: outfitCount }
 
   return (
-    <nav aria-label="أقسام الاستوديو" className="flex flex-none items-stretch border-t border-line bg-canvas">
+    <nav
+      aria-label="أقسام الاستوديو"
+      className="flex flex-none items-stretch border-t border-line bg-canvas px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2"
+    >
       {sheets.map((id) => {
         const { label, icon: Icon } = TABS[id]
         const badge = counts[id]
@@ -49,8 +53,8 @@ export function StudioMobileBar({
             onClick={() => onOpen(id)}
             aria-pressed={active === id}
             className={cn(
-              'flex flex-1 flex-col items-center gap-1 py-2.5 text-[11px] transition-colors',
-              active === id ? 'text-ink' : 'text-muted',
+              'flex min-h-12 flex-1 flex-col items-center justify-center gap-1 rounded-md text-[11px] transition-colors',
+              active === id ? 'bg-surface text-ink' : 'text-muted hover:bg-surface',
             )}
           >
             <span className="relative">
@@ -68,10 +72,10 @@ export function StudioMobileBar({
 
       <button
         onClick={onAskStylist}
-        className="flex flex-1 flex-col items-center gap-1 py-2.5 text-[11px] text-muted transition-colors hover:text-ink"
+        className="flex min-h-12 flex-1 flex-col items-center justify-center gap-1 rounded-md text-[11px] text-muted transition-colors hover:bg-surface hover:text-ink"
       >
         <Wand2 size={17} strokeWidth={1.5} aria-hidden />
-        دولابي
+        {APP.shortName}
       </button>
     </nav>
   )

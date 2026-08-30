@@ -2,7 +2,8 @@
  * ترتيب الإطلالة الحالية في خانات.
  *
  * الإطلالة تُقرأ كطبقات على الجسم لا كقائمة مسطّحة، فترتيب الخانات ثابت من
- * الأعلى للأسفل ثم المحمولات. وخانة واحدة لكل موضع — عدا الإكسسوارات.
+ * الأعلى للأسفل ثم المحمولات. والخانة **تقبل أي عدد**: الطبقات حقيقية (قميص
+ * تحت كنزة)، وحصر الخانة بقطعة يقرّر عن المستخدمة بدل ما يخدمها.
  *
  * منطق نقي: يستقبل قطعًا ويرجّع خانات، بلا React ولا حالة.
  */
@@ -14,21 +15,19 @@ export type OutfitSlotId = BodySlot
 export type OutfitSlotDefinition = {
   id: OutfitSlotId
   label: string
-  /** يقبل أكثر من قطعة؟ الإكسسوارات فقط. */
-  multiple: boolean
   /** نص زر الإضافة لما تكون الخانة فاضية */
   addLabel: string
 }
 
 /** ترتيب العرض: من الجذع للأسفل، ثم المحمول. */
 export const OUTFIT_SLOTS: OutfitSlotDefinition[] = [
-  { id: 'full', label: 'قطعة كاملة', multiple: false, addLabel: 'إضافة فستان أو عباية' },
-  { id: 'top', label: 'العلوي', multiple: false, addLabel: 'إضافة قطعة علوية' },
-  { id: 'bottom', label: 'السفلي', multiple: false, addLabel: 'إضافة قطعة سفلية' },
-  { id: 'outer', label: 'الخارجي', multiple: false, addLabel: 'إضافة جاكيت' },
-  { id: 'shoes', label: 'الأحذية', multiple: false, addLabel: 'إضافة حذاء' },
-  { id: 'bag', label: 'الشنطة', multiple: false, addLabel: 'إضافة حقيبة' },
-  { id: 'accessory', label: 'الإكسسوارات', multiple: true, addLabel: 'إضافة إكسسوار' },
+  { id: 'full', label: 'قطعة كاملة', addLabel: 'إضافة فستان أو عباية' },
+  { id: 'top', label: 'العلوي', addLabel: 'إضافة قطعة علوية' },
+  { id: 'bottom', label: 'السفلي', addLabel: 'إضافة قطعة سفلية' },
+  { id: 'outer', label: 'الخارجي', addLabel: 'إضافة جاكيت' },
+  { id: 'shoes', label: 'الأحذية', addLabel: 'إضافة حذاء' },
+  { id: 'bag', label: 'الشنطة', addLabel: 'إضافة حقيبة' },
+  { id: 'accessory', label: 'الإكسسوارات', addLabel: 'إضافة إكسسوار' },
 ]
 
 export type FilledSlot = OutfitSlotDefinition & { items: WardrobeItem[] }
@@ -44,23 +43,3 @@ export function toSlots(items: WardrobeItem[]): FilledSlot[] {
 /** الخانات اللي فيها قطع — تُعرض أولاً، والفاضية تُعرض كدعوة للإضافة. */
 export const filledSlots = (items: WardrobeItem[]): FilledSlot[] =>
   toSlots(items).filter((slot) => slot.items.length > 0)
-
-/**
- * القطعة اللي راح تُستبدل لو أضفنا `candidate`.
- *
- * القطعة الكاملة (فستان · عباية · ثوب) تغطي الجذع والساقين، فإضافتها تتعارض
- * مع العلوي والسفلي معًا — والعكس صحيح. بدون هذا المنطق تتكدّس القطع فوق
- * بعضها بلا معنى.
- */
-export function conflictsWith(candidate: WardrobeItem, current: WardrobeItem[]): WardrobeItem[] {
-  const slot = slotOfItem(candidate)
-  const definition = OUTFIT_SLOTS.find((item) => item.id === slot)
-  if (definition?.multiple) return []
-
-  const covered: BodySlot[] =
-    slot === 'full' ? ['full', 'top', 'bottom'] : slot === 'top' || slot === 'bottom' ? [slot, 'full'] : [slot]
-
-  return current.filter(
-    (item) => item.id !== candidate.id && covered.includes(slotOfItem(item)),
-  )
-}

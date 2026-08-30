@@ -25,6 +25,39 @@ export type StylistAnswer = {
 
 const NEUTRALS = ['أسود', 'أبيض', 'أبيض مكسور', 'كريمي', 'بيج', 'رمادي', 'فحمي', 'رملي', 'كحلي']
 
+const COLOR_PARTNERS: Record<string, string[]> = {
+  أسود: ['أبيض', 'أبيض مكسور', 'كريمي', 'بيج', 'جملي', 'رمادي', 'عنّابي', 'زيتي', 'وردي هادئ'],
+  أبيض: ['أسود', 'كحلي', 'بيج', 'جملي', 'بني', 'زيتي', 'عنّابي', 'أزرق دينم'],
+  'أبيض مكسور': ['كحلي', 'بني', 'جملي', 'زيتي', 'عنّابي', 'رمادي'],
+  كريمي: ['بني', 'جملي', 'كحلي', 'زيتي', 'عنّابي', 'وردي هادئ'],
+  بيج: ['أبيض', 'أسود', 'كحلي', 'بني', 'زيتي', 'عنّابي'],
+  جملي: ['أبيض', 'كريمي', 'أسود', 'كحلي', 'بني', 'زيتي'],
+  بني: ['أبيض', 'كريمي', 'بيج', 'أزرق دينم', 'زيتي', 'وردي هادئ'],
+  رمادي: ['أبيض', 'أسود', 'كحلي', 'عنّابي', 'وردي هادئ', 'أخضر باهت'],
+  فحمي: ['أبيض', 'كريمي', 'بيج', 'وردي هادئ', 'عنّابي'],
+  كحلي: ['أبيض', 'كريمي', 'بيج', 'جملي', 'رمادي', 'عنّابي', 'وردي هادئ'],
+  زيتي: ['أبيض مكسور', 'كريمي', 'بيج', 'جملي', 'بني', 'أسود'],
+  'أزرق دينم': ['أبيض', 'كريمي', 'بيج', 'بني', 'أسود', 'عنّابي'],
+  رملي: ['أبيض', 'بني', 'كحلي', 'زيتي', 'عنّابي'],
+  عنّابي: ['كريمي', 'بيج', 'أسود', 'رمادي', 'كحلي', 'وردي هادئ'],
+  'أخضر باهت': ['كريمي', 'بيج', 'بني', 'فحمي', 'وردي هادئ'],
+  'وردي هادئ': ['أبيض مكسور', 'كريمي', 'رمادي', 'فحمي', 'بني', 'عنّابي'],
+}
+
+export type ColorPairingAdvice = {
+  colors: string[]
+  message: string
+}
+
+/** لوحة ألوان عملية تُبنى حول لون القطعة الأساسية. */
+export function colorPairingFor(item: WardrobeItem): ColorPairingAdvice {
+  const colors = COLOR_PARTNERS[item.colorName] ?? ['أبيض', 'أسود', 'بيج', 'كحلي']
+  return {
+    colors,
+    message: `ألوان تتناسق مع ${item.colorName}: ${colors.slice(0, 5).join('، ')}.`,
+  }
+}
+
 const bySlot = (items: WardrobeItem[], slot: BodySlot) => items.filter((i) => slotOf(i) === slot)
 
 const pick = <T,>(list: T[], index: number): T | undefined =>
@@ -90,6 +123,138 @@ const isDressy = (item: WardrobeItem): boolean => {
 /** بصمة الإطلالة — تمنع تكرار نفس التشكيلة بين اقتراحات اليوم. */
 const lookKey = (look: StylistLook): string => look.itemIds.toSorted().join(',')
 
+/**
+ * يشرح قرار التنسيق من القطع نفسها، لا من قالب عام.
+ *
+ * الشرح يذكر القطعة القائدة والألوان الموجودة فعلًا، عشان تعرف المستخدمة
+ * ليش التشكيلة متماسكة وتقدر تتعلم منها بدل ما تطبقها بلا سياق.
+ */
+function explainLook(
+  itemIds: string[],
+  items: WardrobeItem[],
+  intent: { neutral: boolean; relaxed: boolean; evening: boolean },
+  style: UserStyleProfile,
+): string {
+  const chosen = itemIds
+    .map((id) => items.find((item) => item.id === id))
+    .filter((item): item is WardrobeItem => Boolean(item))
+  const colors = [...new Set(chosen.map((item) => item.colorName))]
+  const palette = colors.slice(0, 3).join(' و')
+  const hero =
+    chosen.find((item) => slotOf(item) === 'full') ??
+    chosen.find((item) => slotOf(item) === 'outer') ??
+    chosen[0]
+
+  if (!hero) return 'توليفة مبنية من القطع المتاحة في خزانتك.'
+
+  if (style.colors.length > 0) {
+    const liked = colors.filter((color) => style.colors.some((item) => item.name === color))
+    if (liked.length > 0) {
+      return `ألوان ${liked.slice(0, 2).join(' و')} قريبة من إلهامك، و«${hero.name}» تقود التشكيلة بدون زحمة.`
+    }
+  }
+
+  if (intent.evening) {
+    return `«${hero.name}» هي القطعة البارزة، ولوحة ${palette} تبقي الإطلالة المسائية متوازنة.`
+  }
+  if (intent.neutral) {
+    return `لوحة ${palette} هادئة وعملية، و«${hero.name}» تعطي الإطلالة ترتيبًا يناسب يومًا طويلًا.`
+  }
+  if (intent.relaxed) {
+    return `توليفة مريحة بألوان ${palette}، و«${hero.name}» تحافظ على شكل مرتب بدون تكلّف.`
+  }
+  return `«${hero.name}» نقطة البداية، وألوان ${palette} تربط القطع في إطلالة متوازنة.`
+}
+
+function pairingScore(
+  base: WardrobeItem,
+  candidate: WardrobeItem,
+  style: UserStyleProfile,
+): number {
+  const partners = colorPairingFor(base).colors
+  const liked = style.colors.some((color) => color.name === candidate.colorName)
+  return (
+    Number(partners.includes(candidate.colorName)) * 8 +
+    Number(NEUTRALS.includes(candidate.colorName)) * 3 +
+    Number(candidate.colorName === base.colorName) * 2 +
+    Number(liked) * 2
+  )
+}
+
+/**
+ * يثبّت قطعة واحدة ويكمل حولها حتى ثلاث إطلالات، بدون تكرار فتحة اللبس نفسها.
+ * الاختيار يفضّل الألوان المتناغمة، ثم ألوان الإلهام، ثم القطع المحايدة.
+ */
+function pairingLooks(
+  base: WardrobeItem,
+  items: WardrobeItem[],
+  style: UserStyleProfile,
+): StylistLook[] {
+  const baseSlot = slotOf(base)
+  const ranked = (slot: BodySlot) =>
+    bySlot(items, slot)
+      .filter((item) => item.id !== base.id)
+      .toSorted((a, b) => pairingScore(base, b, style) - pairingScore(base, a, style))
+
+  const pools = {
+    top: ranked('top'),
+    bottom: ranked('bottom'),
+    full: ranked('full'),
+    outer: ranked('outer'),
+    shoes: ranked('shoes'),
+    bag: ranked('bag'),
+    accessory: ranked('accessory'),
+  }
+
+  const choose = (slot: BodySlot, variant: number, offset = 0) =>
+    pick(pools[slot], variant + offset)
+
+  const build = (variant: number): WardrobeItem[] => {
+    const chosen: (WardrobeItem | undefined)[] = [base]
+
+    if (baseSlot === 'top') {
+      chosen.push(choose('bottom', variant), choose('shoes', variant))
+      chosen.push(variant % 2 ? choose('outer', variant) : choose('bag', variant))
+    } else if (baseSlot === 'bottom') {
+      chosen.push(choose('top', variant), choose('shoes', variant))
+      chosen.push(variant % 2 ? choose('outer', variant) : choose('bag', variant))
+    } else if (baseSlot === 'full') {
+      chosen.push(choose('shoes', variant), choose('bag', variant), choose('outer', variant))
+    } else if (baseSlot === 'outer') {
+      chosen.push(choose('top', variant), choose('bottom', variant), choose('shoes', variant))
+      chosen.push(choose('bag', variant))
+    } else if (baseSlot === 'shoes') {
+      const onePiece = variant % 3 === 2 && pools.full.length > 0
+      chosen.push(onePiece ? choose('full', variant) : choose('top', variant))
+      if (!onePiece) chosen.push(choose('bottom', variant))
+      chosen.push(choose('bag', variant), choose('outer', variant))
+    } else {
+      const onePiece = variant % 3 === 2 && pools.full.length > 0
+      chosen.push(onePiece ? choose('full', variant) : choose('top', variant))
+      if (!onePiece) chosen.push(choose('bottom', variant))
+      chosen.push(choose('shoes', variant), choose(baseSlot === 'bag' ? 'outer' : 'bag', variant))
+    }
+
+    if (baseSlot !== 'accessory' && variant === 2) chosen.push(choose('accessory', variant))
+
+    return [...new Map(chosen.filter(Boolean).map((item) => [item!.id, item!])).values()]
+  }
+
+  const looks = [0, 1, 2]
+    .map((variant): StylistLook => {
+      const chosen = build(variant)
+      const palette = [...new Set(chosen.map((item) => item.colorName))].slice(0, 4).join(' و')
+      return {
+        title: `حول ${base.name}`,
+        reason: `ثبتنا «${base.name}» كقطعة أساسية، ونسّقنا معها ألوان ${palette}.`,
+        itemIds: chosen.map((item) => item.id),
+      }
+    })
+    .filter((look) => look.itemIds.length >= 2)
+
+  return [...new Map(looks.map((look) => [lookKey(look), look])).values()]
+}
+
 export function suggest(
   question: string,
   wardrobe: WardrobeItem[],
@@ -122,24 +287,15 @@ export function suggest(
   if (asksPairing || (!asksLook && selectedIds.length)) {
     const base = items.find((i) => selectedIds.includes(i.id))
     if (base) {
-      const baseSlot = slotOf(base)
-      const wanted: BodySlot[] =
-        baseSlot === 'top' ? ['bottom', 'shoes', 'outer'] :
-        baseSlot === 'bottom' ? ['top', 'shoes', 'bag'] :
-        baseSlot === 'full' ? ['outer', 'shoes', 'bag'] :
-        ['top', 'bottom']
-
-      const pieces = wanted
-        .flatMap((slot) => bySlot(items, slot).filter((i) => !selectedIds.includes(i.id)).slice(0, 2))
-        .slice(0, 4)
+      const looks = pairingLooks(base, items, style)
 
       return {
-        message: pieces.length
-          ? `لقيت لك ${pieces.length} قطع من خزانتك تناسب «${base.name}».`
+        message: looks.length
+          ? `هذي أفضل التنسيقات من خزانتك حول «${base.name}».`
           : `ما لقيت شي في خزانتك ينسّق مع «${base.name}».`,
-        looks: [],
-        pieces: pieces.map((p) => p.id),
-        gap: pieces.length ? undefined : 'ينقصك قطعة أساسية بلون محايد.',
+        looks,
+        pieces: [],
+        gap: looks.length ? undefined : 'ينقصك قطعة أساسية أو حذاء بلون متناسق.',
       }
     }
   }
@@ -156,19 +312,14 @@ export function suggest(
     : items
 
   const looks: StylistLook[] = [0, 1, 2]
-    .map((variant) => ({
-      title: ['LOOK 01', 'LOOK 02', 'LOOK 03'][variant],
-      reason: style.colors.length
-        ? `قريبة من إلهامك: ${style.colors.slice(0, 2).map((c) => c.name).join(' و')}.`
-        : neutral
-        ? 'ألوان محايدة وقصّات مرتبة — تتحمّل يوم طويل بدون ما تفقد شكلها.'
-        : relaxed
-          ? 'قطع مريحة بدون ما تفقد الترتيب.'
-          : evening
-            ? 'قطعة أساسية أنيقة، والباقي هادئ عشان يبقى التركيز عليها.'
-            : 'مزيج متوازن من خزانتك — ألوان تمشي مع بعض.',
-      itemIds: assemble(scope, variant, neutral, style),
-    }))
+    .map((variant) => {
+      const itemIds = assemble(scope, variant, neutral, style)
+      return {
+        title: ['LOOK 01', 'LOOK 02', 'LOOK 03'][variant],
+        reason: explainLook(itemIds, items, { neutral, relaxed, evening }, style),
+        itemIds,
+      }
+    })
     .filter((l) => l.itemIds.length >= 2)
 
   const message = neutral

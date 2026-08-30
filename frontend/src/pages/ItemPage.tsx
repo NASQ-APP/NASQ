@@ -14,6 +14,7 @@ import { useStudio } from '@/features/studio/store'
 import { useLooks } from '@/features/looks/store'
 import { slotOf } from '@/domain/outfit'
 import { formatDate } from '@/shared/lib'
+import { APP } from '@/shared/config'
 
 export function ItemPage() {
   const { id } = useParams()
@@ -197,7 +198,7 @@ export function ItemPage() {
 
       {/* pairs with */}
       <section className="mt-16">
-        <SectionHeader eyebrow="Suggested" title="دولابي تقترح تنسيقها مع" />
+        <SectionHeader eyebrow="Suggested" title={`${APP.shortName} يقترح تنسيقها مع`} />
         {pairsWith.length === 0 ? (
           <p className="text-[13px] text-muted">ما فيه قطع كافية في خزانتك عشان أقترح.</p>
         ) : (

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Plus } from 'lucide-react'
 import { Button, Field, Modal, PageHeader, SearchInput, TextInput, toast } from '@/shared/components/ui'
@@ -7,6 +7,57 @@ import { WardrobeCard } from '@/features/wardrobe/components/WardrobeCard'
 import { ItemGrid } from '@/features/wardrobe/components/ItemGrid'
 import { useWardrobe } from '@/features/wardrobe/store'
 import { filterItems } from '@/domain/wardrobe'
+import { useReducedMotion } from '@/shared/hooks/useReducedMotion'
+
+function WardrobeBackdrop() {
+  const backdropRef = useRef<HTMLDivElement>(null)
+  const reducedMotion = useReducedMotion()
+
+  useEffect(() => {
+    const backdrop = backdropRef.current
+    if (!backdrop) return
+
+    let frame = 0
+    let pointerX = 0
+    let pointerY = 0
+
+    const render = () => {
+      const mobile = window.innerWidth < 768
+      const fadeDistance = Math.max(window.innerHeight * 0.9, 620)
+      const scrollProgress = Math.min(Math.max(window.scrollY / fadeDistance, 0), 1)
+      const baseOpacity = mobile ? 0.17 : 0.22
+
+      backdrop.style.setProperty('--wardrobe-opacity', String(baseOpacity * (1 - scrollProgress)))
+      backdrop.style.setProperty('--wardrobe-x', reducedMotion ? '0px' : `${pointerX}px`)
+      backdrop.style.setProperty('--wardrobe-y', reducedMotion ? '0px' : `${pointerY}px`)
+      frame = 0
+    }
+
+    const scheduleRender = () => {
+      if (!frame) frame = window.requestAnimationFrame(render)
+    }
+
+    const handlePointerMove = (event: PointerEvent) => {
+      pointerX = (event.clientX / window.innerWidth - 0.5) * 12
+      pointerY = (event.clientY / window.innerHeight - 0.5) * 8
+      scheduleRender()
+    }
+
+    window.addEventListener('scroll', scheduleRender, { passive: true })
+    window.addEventListener('resize', scheduleRender)
+    if (!reducedMotion) window.addEventListener('pointermove', handlePointerMove, { passive: true })
+    render()
+
+    return () => {
+      window.removeEventListener('scroll', scheduleRender)
+      window.removeEventListener('resize', scheduleRender)
+      window.removeEventListener('pointermove', handlePointerMove)
+      if (frame) window.cancelAnimationFrame(frame)
+    }
+  }, [reducedMotion])
+
+  return <div ref={backdropRef} className="wardrobe-emerging-bg" aria-hidden="true" />
+}
 
 export function WardrobesPage() {
   const { wardrobes, items, createWardrobe } = useWardrobe()
@@ -45,7 +96,9 @@ export function WardrobesPage() {
   }
 
   return (
-    <PageContainer>
+    <PageContainer className="relative isolate overflow-x-clip">
+      <WardrobeBackdrop />
+      <div className="relative z-10">
       <PageHeader
         eyebrow="My wardrobes"
         title="خزائني"
@@ -140,6 +193,7 @@ export function WardrobesPage() {
           </Field>
         </div>
       </Modal>
+      </div>
     </PageContainer>
   )
 }

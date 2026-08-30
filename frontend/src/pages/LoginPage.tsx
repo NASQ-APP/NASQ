@@ -8,8 +8,9 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { ArrowLeft } from 'lucide-react'
 import { AuthLayout } from '@/features/auth/components/AuthLayout'
+import { Compartment, WardrobeFrame, shelfField } from '@/features/auth/components/WardrobeFrame'
 import { useAuth } from '@/features/auth/store'
-import { Button, Field, TextInput, toast } from '@/shared/components/ui'
+import { Button, TextInput, toast } from '@/shared/components/ui'
 import { PasswordInput } from '@/shared/components/ui/PasswordInput'
 import { signInSchema, type SignInValues } from '@/domain/auth'
 import { ROUTES } from '@/shared/config'
@@ -53,29 +54,41 @@ export function LoginPage() {
       }
     >
       <form onSubmit={onSubmit} noValidate className="flex flex-col gap-5">
-        <Field label="البريد الإلكتروني" error={errors.email?.message}>
-          <TextInput
-            autoFocus
-            type="email"
-            inputMode="email"
-            autoComplete="email"
-            dir="ltr"
-            className="text-left"
-            placeholder="you@example.com"
-            aria-invalid={Boolean(errors.email)}
-            {...register('email')}
-          />
-        </Field>
+        <WardrobeFrame>
+          <Compartment
+            label="البريد الإلكتروني"
+            shelfLabel="رفّ الإيميل"
+            error={errors.email?.message}
+          >
+            <TextInput
+              autoFocus
+              type="email"
+              inputMode="email"
+              autoComplete="email"
+              dir="ltr"
+              className={`${shelfField} text-left`}
+              placeholder="you@example.com"
+              aria-invalid={Boolean(errors.email)}
+              {...register('email')}
+            />
+          </Compartment>
 
-        <Field label="كلمة المرور" error={errors.password?.message}>
-          <PasswordInput
-            autoComplete="current-password"
-            dir="ltr"
-            className="text-left"
-            aria-invalid={Boolean(errors.password)}
-            {...register('password')}
-          />
-        </Field>
+          <Compartment
+            label="كلمة المرور"
+            shelfLabel="رفّ كلمة المرور"
+            error={errors.password?.message}
+            last
+          >
+            <PasswordInput
+              autoComplete="current-password"
+              dir="ltr"
+              className={`${shelfField} pl-11! text-left`}
+              placeholder="••••••••"
+              aria-invalid={Boolean(errors.password)}
+              {...register('password')}
+            />
+          </Compartment>
+        </WardrobeFrame>
 
         <Button type="submit" size="lg" block disabled={busy}>
           {busy ? 'ندخّلك…' : 'تسجيل الدخول'}

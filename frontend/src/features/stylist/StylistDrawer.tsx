@@ -12,6 +12,7 @@ import { useStudio } from '@/features/studio/store'
 import { useStyleProfile } from '@/features/inspiration/store'
 import { QUICK_PROMPTS, suggest, type StylistAnswer } from './suggest'
 import { cn, uid } from '@/shared/lib'
+import { APP } from '@/shared/config'
 
 type Turn = { id: string; question: string; answer?: StylistAnswer }
 
@@ -71,7 +72,7 @@ export function StylistDrawer({ open, onClose }: { open: boolean; onClose: () =>
           <input
             value={term}
             onChange={(e) => setTerm(e.target.value)}
-            placeholder="اسألي دولابي…"
+            placeholder={`اسألي ${APP.shortName}…`}
             className="h-11 w-full bg-transparent text-[13px] outline-none placeholder:text-faint"
           />
           <Button type="submit" size="sm" disabled={!term.trim() || thinking}>

@@ -1,10 +1,22 @@
-/** موديلاتي (M-05) — تعديل، إعادة توليد، حذف، تعيين الافتراضي. */
+/**
+ * موديلاتي (M-05) — تعديل، تعيين الافتراضي، حذف، وصورتي.
+ *
+ * البطاقة تعرض القوام كاملاً بنسبة ٣:٤ لا بارتفاع ثابت — الارتفاع الثابت يقصّ
+ * القوام على الشاشات الضيقة، والقوام هو محتوى البطاقة كلها.
+ *
+ * الأفعال تتكيّف مع الجهاز: على الجوال تملأ العرض بأهداف لمس مريحة، ومن
+ * `sm` تصير في سطر واحد. وأيقونة الحذف وحدها بلا نص لكنها تحمل `aria-label` —
+ * زر بلا اسم لا يقرأه قارئ الشاشة.
+ */
 import { Link, useNavigate } from 'react-router-dom'
-import { Camera, Check, Pencil, Trash2 } from 'lucide-react'
-import { Button, ButtonLink, EmptyState, toast, Badge, PageHeader } from '@/shared/components/ui'
+import { Camera, Check, Pencil, Trash2, UserRound } from 'lucide-react'
+import { Badge, Button, ButtonLink, EmptyState, PageHeader, toast } from '@/shared/components/ui'
+import { Reveal, RevealItem } from '@/shared/components/motion'
+import { PageContainer } from '@/shared/components/layout'
+import { READY_MODELS } from '@/domain/model'
 import { useAiModels } from '@/features/ai-model/store'
 import { SKIN_TONES } from '@/infrastructure/rendering'
-import { formatShortDate } from '@/shared/lib'
+import { cn, formatShortDate } from '@/shared/lib'
 
 const SHAPE_LABEL: Record<string, string> = {
   slim: 'نحيف',
@@ -15,11 +27,12 @@ const SHAPE_LABEL: Record<string, string> = {
 }
 
 export function ModelsPage() {
-  const { models, deleteModel, setDefault, photo, clearPhoto } = useAiModels()
+  const { models, deleteModel, setDefault, photo, clearPhoto, readyModelId, setReadyModel } =
+    useAiModels()
   const navigate = useNavigate()
 
   return (
-    <div>
+    <PageContainer width="content">
       <PageHeader
         eyebrow="My models"
         title="موديلاتي"
@@ -27,107 +40,195 @@ export function ModelsPage() {
         action={<ButtonLink to="/models/new">موديل جديد</ButtonLink>}
       />
 
-      {models.length === 0 ? (
-        <EmptyState
-          title="ما عندك موديل بعد."
-          body="أنشئي موديلك مرة وحدة، ونستخدمه في كل تجربة."
-          action={<ButtonLink to="/models/new">أنشئي موديلك</ButtonLink>}
-        />
-      ) : (
-        <div className="grid gap-6 sm:grid-cols-2">
-          {models.map((model) => {
-            const c = model.characteristics
-            const tone = SKIN_TONES.find((t) => t.id === c.skinToneId)
+      {/* ---------------- الموديلات الجاهزة ---------------- */}
+      <section className="mb-12">
+        <div className="mb-4 flex items-baseline justify-between gap-4">
+          <div>
+            <p className="eyebrow">Ready models</p>
+            <h2 className="mt-1 text-[17px]">موديلات جاهزة</h2>
+          </div>
+          <p className="text-[11.5px] leading-6 text-faint">لقطة كاملة · خلفية بيضاء</p>
+        </div>
+
+        <Reveal className="grid gap-6 sm:grid-cols-2 sm:gap-7">
+          {READY_MODELS.map((ready, index) => {
+            const active = readyModelId === ready.id
+
             return (
-              <article key={model.id} className="overflow-hidden rounded-md border border-line">
-                <div className="relative grid h-[300px] place-items-center bg-surface">
-                  <img src={model.previewImageUrl} alt={model.name} className="h-full object-contain py-4" />
-                  {model.isDefault && (
-                    <span className="absolute right-3 top-3">
-                      <Badge tone="dark">افتراضي</Badge>
+              <RevealItem key={ready.id} index={index}>
+                <button
+                  onClick={() => {
+                    setReadyModel(active ? undefined : ready.id)
+                    if (!active) toast.ok(`${ready.name} صار المختار`)
+                  }}
+                  aria-pressed={active}
+                  className={cn(
+                    'lift group relative flex w-full flex-col overflow-hidden rounded-md border text-right transition-colors',
+                    active ? 'border-ink' : 'border-line hover:border-line-strong',
+                  )}
+                >
+                  {active && (
+                    <span className="absolute end-3 top-3 z-10">
+                      <Badge tone="dark">المختار</Badge>
                     </span>
                   )}
-                </div>
-                <div className="p-5">
-                  <div className="flex items-center justify-between">
-                    <p className="text-[14px]">{model.name}</p>
-                    <span className="text-[11px] text-faint">{formatShortDate(model.createdAt)}</span>
-                  </div>
-                  <p className="mt-1 text-[12px] text-muted">
-                    {c.gender === 'female' ? 'نسائي' : 'رجالي'} · {c.heightCm} سم
-                    {c.weightKg ? ` · ${c.weightKg} كجم` : ''} · {SHAPE_LABEL[c.bodyShape]}
-                    {tone ? ` · بشرة ${tone.name}` : ''}
-                  </p>
 
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    <Button size="sm" variant="secondary" onClick={() => navigate(`/models/${model.id}`)}>
-                      <Pencil size={13} strokeWidth={1.5} />
-                      تعديل
-                    </Button>
-                    {!model.isDefault && (
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        onClick={() => {
-                          setDefault(model.id)
-                          toast.ok('صار الافتراضي')
-                        }}
-                      >
-                        <Check size={13} strokeWidth={1.6} />
-                        اجعليه افتراضي
-                      </Button>
-                    )}
-                    <Button
-                      size="sm"
-                      variant="danger"
-                      onClick={() => {
-                        deleteModel(model.id)
-                        toast.ok('حذفنا الموديل')
-                      }}
-                    >
-                      <Trash2 size={13} strokeWidth={1.5} />
-                    </Button>
-                  </div>
-                </div>
-              </article>
+                  <span className="grid aspect-[4/5] w-full place-items-center overflow-hidden bg-surface">
+                    <img
+                      src={ready.imageUrl}
+                      alt={ready.name}
+                      className="h-full w-full object-contain transition-transform duration-[320ms] ease-soft group-hover:scale-[1.02]"
+                    />
+                  </span>
+
+                  <span className="flex items-baseline justify-between gap-3 p-4 sm:p-5">
+                    <span className="text-[14px]">{ready.name}</span>
+                    <span className="text-[11px] text-faint">{ready.note}</span>
+                  </span>
+                </button>
+              </RevealItem>
             )
           })}
+        </Reveal>
+      </section>
+
+      {models.length > 0 && (
+        <div className="mb-4">
+          <p className="eyebrow">My measurements</p>
+          <h2 className="mt-1 text-[17px]">موديلات بمقاساتي</h2>
         </div>
       )}
 
-      {/* user photo (§30) */}
-      <section className="mt-12 rounded-md border border-line p-6">
+      {models.length === 0 ? (
+        <EmptyState
+          title="ما عندك موديل بمقاساتك."
+          body="الموديلات الجاهزة فوق تكفي للتجربة، وتقدرين تنشئين موديلاً بمقاساتك لنتيجة أقرب."
+          icon={<UserRound size={22} strokeWidth={1.2} />}
+          action={<ButtonLink to="/models/new">أنشئي موديلك</ButtonLink>}
+        />
+      ) : (
+        <Reveal className="grid gap-6 sm:grid-cols-2 sm:gap-7 xl:grid-cols-3">
+          {models.map((model, index) => {
+            const c = model.characteristics
+            const tone = SKIN_TONES.find((item) => item.id === c.skinToneId)
+
+            return (
+              <RevealItem key={model.id} index={index}>
+                <article className="lift flex h-full flex-col overflow-hidden rounded-md border border-line hover:border-line-strong">
+                  {/* نسبة ثابتة بدل ارتفاع ثابت: القوام يظهر كاملاً على كل مقاس */}
+                  <div className="relative grid aspect-[4/5] place-items-center overflow-hidden bg-surface">
+                    <img
+                      src={model.previewImageUrl}
+                      alt={model.name}
+                      className="h-full w-full object-contain p-4 mix-blend-multiply"
+                    />
+                    {model.isDefault && (
+                      <span className="absolute end-3 top-3">
+                        <Badge tone="dark">افتراضي</Badge>
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex flex-1 flex-col p-4 sm:p-5">
+                    <div className="flex items-start justify-between gap-3">
+                      <p className="min-w-0 truncate text-[14px]">{model.name}</p>
+                      <span className="lat flex-none text-[10.5px] text-faint">
+                        {formatShortDate(model.createdAt)}
+                      </span>
+                    </div>
+
+                    <p className="mt-1 text-[12px] leading-6 text-muted">
+                      {c.gender === 'female' ? 'نسائي' : 'رجالي'} · {c.heightCm} سم
+                      {c.weightKg ? ` · ${c.weightKg} كجم` : ''} · {SHAPE_LABEL[c.bodyShape]}
+                      {tone ? ` · بشرة ${tone.name}` : ''}
+                    </p>
+
+                    {/* الأفعال تُدفع لأسفل البطاقة فتتحاذى بين البطاقات المتفاوتة */}
+                    <div className="mt-auto flex flex-col gap-2 pt-4 sm:flex-row sm:items-center">
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        block
+                        className="sm:w-auto sm:flex-1"
+                        onClick={() => navigate(`/models/${model.id}`)}
+                      >
+                        <Pencil size={13} strokeWidth={1.5} aria-hidden />
+                        تعديل
+                      </Button>
+
+                      {!model.isDefault && (
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          block
+                          className="sm:w-auto sm:flex-1"
+                          onClick={() => {
+                            setDefault(model.id)
+                            toast.ok('صار الافتراضي')
+                          }}
+                        >
+                          <Check size={13} strokeWidth={1.6} aria-hidden />
+                          الافتراضي
+                        </Button>
+                      )}
+
+                      <Button
+                        size="sm"
+                        variant="danger"
+                        aria-label={`حذف ${model.name}`}
+                        title="حذف"
+                        className="w-full sm:w-9 sm:flex-none sm:px-0"
+                        onClick={() => {
+                          deleteModel(model.id)
+                          toast.ok('حذفنا الموديل')
+                        }}
+                      >
+                        <Trash2 size={13} strokeWidth={1.5} aria-hidden />
+                        <span className="sm:hidden">حذف</span>
+                      </Button>
+                    </div>
+                  </div>
+                </article>
+              </RevealItem>
+            )
+          })}
+        </Reveal>
+      )}
+
+      {/* ---------------- صورتي (§30) ---------------- */}
+      <section className="mt-10 rounded-md border border-line p-5 sm:mt-12 sm:p-6">
         <div className="flex items-center gap-3">
-          <Camera size={17} strokeWidth={1.4} className="text-muted" />
+          <Camera size={17} strokeWidth={1.4} aria-hidden className="text-muted" />
           <p className="text-[14px]">صورتي</p>
         </div>
+
         {photo ? (
-          <div className="mt-4 flex flex-wrap items-center gap-5">
+          <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-5">
             <img
               src={photo.url}
               alt="صورتك"
-              className="h-[120px] w-[96px] rounded-md border border-line object-cover"
+              className="h-[150px] w-[120px] flex-none rounded-md border border-line object-cover sm:h-[120px] sm:w-[96px]"
             />
             <div className="flex-1">
-              <p className="text-[12.5px] text-muted">
+              <p className="text-[12.5px] leading-7 text-muted">
                 محفوظة داخل متصفحك فقط لهذي الجلسة — ما انرفعت لأي خادم.
               </p>
               <Button
                 variant="danger"
                 size="sm"
-                className="mt-3"
+                className="mt-3 w-full sm:w-auto"
                 onClick={() => {
                   clearPhoto()
                   toast.ok('حذفنا صورتك')
                 }}
               >
-                <Trash2 size={13} strokeWidth={1.5} />
+                <Trash2 size={13} strokeWidth={1.5} aria-hidden />
                 حذف صورتي
               </Button>
             </div>
           </div>
         ) : (
-          <p className="mt-3 text-[12.5px] text-muted">
+          <p className="mt-3 text-[12.5px] leading-7 text-muted">
             ما فيه صورة مرفوعة.{' '}
             <Link to="/studio" className="underline-offset-4 hover:underline">
               ارفعيها من الاستوديو
@@ -136,6 +237,6 @@ export function ModelsPage() {
           </p>
         )}
       </section>
-    </div>
+    </PageContainer>
   )
 }

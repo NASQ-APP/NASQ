@@ -4,6 +4,7 @@
  */
 import { useCallback, useEffect, useState, type CSSProperties } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { PageTransition } from '@/shared/components/motion'
 import { AppShellContext } from './context'
 import { MobileNav } from './MobileNav'
 import { Sidebar } from './Sidebar'
@@ -53,11 +54,12 @@ export function AppShell() {
             onTermChange={setTerm}
             onSearch={runSearch}
             onOpenNav={() => setNavOpen(true)}
-            onOpenStylist={openStylist}
             onOpenAdd={openAdd}
           />
           <main className="flex-1">
-            <Outlet />
+            <PageTransition>
+              <Outlet />
+            </PageTransition>
           </main>
         </div>
 

@@ -1,7 +1,7 @@
 /**
  * طابور القطع المنتظرة.
  *
- * القطعة تُضاف من صفحة المتجر، وتنتظر هنا لين يُفتح دولابي. ما تُحذف إلا بعد
+ * القطعة تُضاف من صفحة المتجر، وتنتظر هنا لين يُفتح نَسَق. ما تُحذف إلا بعد
  * ما يؤكّد التطبيق استلامها فعلًا — عشان ما تضيع قطعة لو أُغلق التبويب في
  * نص الطريق.
  */
@@ -23,7 +23,7 @@ async function writeQueue(queue) {
 
 /**
  * يضيف قطعة أو إلهامًا للطابور.
- * `kind` يفصل بينهما، فيعرف دولابي وين يوديه: قطع التجربة أو صفحة إلهامي.
+ * `kind` يفصل بينهما، فيعرف نَسَق وين يوديه: قطع التجربة أو صفحة إلهامي.
  */
 async function enqueue(kind, data) {
   const queue = await readQueue()
@@ -40,19 +40,19 @@ async function enqueue(kind, data) {
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   void (async () => {
     try {
-      if (message?.type === 'dulabi:add') {
+      if (message?.type === 'nasaq:add') {
         sendResponse(await enqueue('product', message.product))
         return
       }
-      if (message?.type === 'dulabi:inspire') {
+      if (message?.type === 'nasaq:inspire') {
         sendResponse(await enqueue('inspiration', message.inspiration))
         return
       }
-      if (message?.type === 'dulabi:pull') {
+      if (message?.type === 'nasaq:pull') {
         sendResponse({ ok: true, items: await readQueue() })
         return
       }
-      if (message?.type === 'dulabi:ack') {
+      if (message?.type === 'nasaq:ack') {
         const done = new Set(message.ids ?? [])
         const queue = await readQueue()
         await writeQueue(queue.filter((entry) => !done.has(entry.id)))

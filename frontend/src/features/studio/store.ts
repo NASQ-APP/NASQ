@@ -17,6 +17,7 @@ import {
   type PanelState,
 } from '@/domain/studio'
 import { storageKey } from '@/infrastructure/storage'
+import type { BodyParameters } from '@/domain/tryon'
 
 /** «كل ملابسي» — تنسيق من كل الخزائن مو من وحدة (متطلب ٧). */
 export const ALL_WARDROBES = 'all'
@@ -39,11 +40,16 @@ type StudioState = {
   suggestionsHeight: number
   suggestionsOpen: boolean
 
+  /**
+   * قياسات الموديل التقريبية.
+   * أرقام غير حسّاسة فتُحفظ — بخلاف الصور الشخصية والإطلالة المولّدة، تبقى
+   * في الذاكرة ولا تُكتب في التخزين (§19).
+   */
+  bodyParameters?: BodyParameters
+
   add: (itemId: string) => void
   remove: (itemId: string) => void
   toggle: (itemId: string) => void
-  /** يضيف قطعة ويشيل ما يتعارض معها — تُنادى بعد تأكيد المستخدمة */
-  replaceWith: (itemId: string, removeIds: string[]) => void
   replaceAll: (itemIds: string[]) => void
   clear: () => void
   has: (itemId: string) => boolean
@@ -53,6 +59,7 @@ type StudioState = {
   toggleFocusMode: () => void
   setActiveWardrobe: (id: string) => void
   setActiveCategory: (slot: string) => void
+  setBodyParameters: (parameters: BodyParameters) => void
   setSuggestionsHeight: (height: number) => void
   toggleSuggestions: () => void
 }
@@ -68,6 +75,7 @@ export const useStudio = create<StudioState>()(
       activeCategory: 'all',
       suggestionsHeight: SUGGESTIONS_DEFAULT_HEIGHT,
       suggestionsOpen: true,
+      bodyParameters: undefined,
 
       add: (itemId) =>
         set((s) => (s.selection.includes(itemId) ? s : { selection: [...s.selection, itemId] })),
@@ -80,12 +88,6 @@ export const useStudio = create<StudioState>()(
             ? s.selection.filter((id) => id !== itemId)
             : [...s.selection, itemId],
         })),
-
-      replaceWith: (itemId, removeIds) =>
-        set((s) => {
-          const kept = s.selection.filter((id) => !removeIds.includes(id))
-          return { selection: kept.includes(itemId) ? kept : [...kept, itemId] }
-        }),
 
       replaceAll: (itemIds) => set({ selection: itemIds }),
       clear: () => set({ selection: [] }),
@@ -113,6 +115,8 @@ export const useStudio = create<StudioState>()(
       setActiveCategory: (slot) => set({ activeCategory: slot }),
 
       // السحب يفتح الشريط ضمنيًا: من يسحب يريد أن يرى، لا أن يفتح ثم يسحب
+      setBodyParameters: (bodyParameters) => set({ bodyParameters }),
+
       setSuggestionsHeight: (height) =>
         set({ suggestionsHeight: clampSuggestionsHeight(height), suggestionsOpen: true }),
 

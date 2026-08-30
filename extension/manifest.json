@@ -1,14 +1,14 @@
 {
   "manifest_version": 3,
-  "name": "دولابي الذكي — إضافة إلى دولابي",
-  "description": "زر «إضافة إلى دولابي» داخل صفحة المنتج في المتاجر، يرسل القطعة إلى «قطع تحت التجربة».",
+  "name": "نَسَق | NASAQ — إضافة إلى خزانتك",
+  "description": "زر «إضافة إلى نَسَق» داخل صفحة المنتج في المتاجر، يرسل القطعة إلى «قطع تحت التجربة».",
   "version": "0.1.0",
   "permissions": ["storage"],
   "background": {
     "service_worker": "background.js"
   },
   "action": {
-    "default_title": "دولابي الذكي"
+    "default_title": "نَسَق"
   },
   "content_scripts": [
     {
@@ -30,7 +30,7 @@
       "matches": ["*://*.pinterest.com/*"]
     },
     {
-      "js": ["content/dulabi.js"],
+      "js": ["content/nasaq.js"],
       "run_at": "document_idle",
       "matches": ["http://localhost:5173/*", "http://127.0.0.1:5173/*"]
     }

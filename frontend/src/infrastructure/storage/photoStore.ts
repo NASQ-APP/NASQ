@@ -8,6 +8,13 @@
  * عند وصول الخادم (المرحلة ٢): يُستبدل هذا الملف برفع إلى Supabase Storage،
  * ولا يتغيّر أي مكوّن واجهة.
  */
+/**
+ * الاسم يبقى `dulabi` رغم تسمية المشروع «نَسَق».
+ *
+ * IndexedDB ما فيها هجرة تلقائية بين قاعدتين: تغيير الاسم يفتح قاعدة فاضية
+ * ويترك صور المستخدمة في القديمة كأنها انمسحت. الاسم داخلي لا تشوفه أي
+ * مستخدمة، والاتساق التجميلي ما يستاهل ضياع صورة وحدة.
+ */
 const DB_NAME = 'dulabi'
 const DB_VERSION = 1
 const STORE = 'item-photos'
@@ -42,6 +49,16 @@ async function withStore<T>(
 
 export const savePhoto = (itemId: string, blob: Blob): Promise<IDBValidKey> =>
   withStore('readwrite', (store) => store.put(blob, itemId))
+
+/** يقرأ بلوب قطعة وحدة — تحتاجه التجربة الافتراضية لتركيب المراجع. */
+export const readPhoto = async (itemId: string): Promise<Blob | undefined> => {
+  try {
+    const value = await withStore<unknown>('readonly', (store) => store.get(itemId))
+    return value instanceof Blob ? value : undefined
+  } catch {
+    return undefined
+  }
+}
 
 export const deletePhoto = (itemId: string): Promise<undefined> =>
   withStore('readwrite', (store) => store.delete(itemId))

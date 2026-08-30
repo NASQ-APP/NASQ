@@ -16,5 +16,5 @@ export {
   toggleFocus,
 } from './layout'
 export type { PanelPlacement, PanelState, StudioLayout } from './layout'
-export { OUTFIT_SLOTS, conflictsWith, filledSlots, toSlots } from './outfit'
+export { OUTFIT_SLOTS, filledSlots, toSlots } from './outfit'
 export type { FilledSlot, OutfitSlotDefinition, OutfitSlotId } from './outfit'
