@@ -104,6 +104,7 @@ export function ModelWorkspace({
             options={[
               { value: 'warm', label: 'دافئ' },
               { value: 'white', label: 'أبيض' },
+              { value: 'none', label: 'بدون' },
             ]}
           />
           <Button variant="secondary" size="sm" onClick={onChooseModel}>
@@ -134,6 +135,7 @@ export function ModelWorkspace({
           // بينهما هو اللي يرسم المكان. والوضع الأبيض يحتاج أرضية أغمق لأن
           // سطوع الضوء نسبي — ما يميّز الأبيض إلا فرقه عمّا تحته.
           'transition-[box-shadow,background-color] duration-[250ms] ease-soft',
+          // الأبيض وحده يحتاج أرضية أغمق ليبان؛ «بدون» ما فيها ضوء تُقاس عليه
           tone === 'white' ? 'bg-studio-floor-dim' : 'bg-studio-floor',
           over && 'ring-1 ring-ink',
           dragging && !over && 'ring-1 ring-line-strong',

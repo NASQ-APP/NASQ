@@ -12,8 +12,14 @@
  * متعدّد الزوايا من المزوّد، وما هو موجود.
  */
 
-/** لون الإضاءة اللي تختاره المستخدمة. */
-export type LightTone = 'warm' | 'white'
+/**
+ * إضاءة المشهد كما تختارها المستخدمة.
+ * `none` تطفئ الأبجورة **وتخفيها**: مصباح مرسوم بلا ضوء يُقرأ عطلاً لا خيارًا.
+ */
+export type LightTone = 'warm' | 'white' | 'none'
+
+/** الأوضاع المضيئة وحدها — `none` ما لها لون ولا شدّة. */
+type LitTone = Exclude<LightTone, 'none'>
 
 /**
  * لكل لون شدّته وضبابيته.
@@ -23,7 +29,7 @@ export type LightTone = 'warm' | 'white'
  * فيحتاج ضبابية أوسع تردّه ضوءًا منتشرًا لا بقعة لها حافة.
  */
 const TONES: Record<
-  LightTone,
+  LitTone,
   {
     color: string
     beam: [number, number, number, number]
@@ -57,7 +63,51 @@ export function StudioSet({ tone = 'warm' }: { tone?: LightTone }) {
   const lampBottom = LAMP.y + LAMP.height
   /** قاعدة المخروط تتجاوز المنصّة، فالضوء ينسكب حواليها لا عليها وحدها. */
   const beamHalf = rx * 1.45
-  const light = TONES[tone]
+  const lit = tone !== 'none'
+  const light = TONES[lit ? tone : 'warm']
+
+  /** المنصّة تبقى في كل الأوضاع: هي المكان، والضوء زينة فوقه. */
+  const platform = (
+    <>
+      {/* سماكة المنصّة — القرص اللي تحت، أغمق فيبان للقرص سُمك */}
+      <ellipse
+        cx={cx}
+        cy={cy + 1.2}
+        rx={rx}
+        ry={ry}
+        fill="var(--color-muted)"
+        fillOpacity="0.42"
+        stroke="var(--color-muted)"
+        strokeOpacity="0.5"
+        strokeWidth="1"
+        vectorEffect="non-scaling-stroke"
+      />
+      {/* سطح المنصّة — أبيض ناصع على الأرضية الرمادية */}
+      <ellipse
+        cx={cx}
+        cy={cy}
+        rx={rx}
+        ry={ry}
+        fill="var(--color-canvas)"
+        stroke="var(--color-line-strong)"
+        strokeWidth="1"
+        vectorEffect="non-scaling-stroke"
+      />
+    </>
+  )
+
+  if (!lit) {
+    return (
+      <svg
+        aria-hidden
+        viewBox="0 0 100 100"
+        preserveAspectRatio="none"
+        className="pointer-events-none absolute inset-0 -z-0 h-full w-full"
+      >
+        {platform}
+      </svg>
+    )
+  }
 
   return (
     <svg
@@ -130,30 +180,7 @@ export function StudioSet({ tone = 'warm' }: { tone?: LightTone }) {
         filter="url(#studio-soft)"
       />
 
-      {/* سماكة المنصّة — القرص اللي تحت، أغمق فيبان للقرص سُمك */}
-      <ellipse
-        cx={cx}
-        cy={cy + 1.2}
-        rx={rx}
-        ry={ry}
-        fill="var(--color-muted)"
-        fillOpacity="0.42"
-        stroke="var(--color-muted)"
-        strokeOpacity="0.5"
-        strokeWidth="1"
-        vectorEffect="non-scaling-stroke"
-      />
-      {/* سطح المنصّة — أبيض ناصع على الأرضية الرمادية */}
-      <ellipse
-        cx={cx}
-        cy={cy}
-        rx={rx}
-        ry={ry}
-        fill="var(--color-canvas)"
-        stroke="var(--color-line-strong)"
-        strokeWidth="1"
-        vectorEffect="non-scaling-stroke"
-      />
+      {platform}
 
       {/* بركة الضوء على المنصّة */}
       <ellipse cx={cx} cy={cy} rx={rx * 0.9} ry={ry * 0.9} fill="url(#studio-pool)" />
