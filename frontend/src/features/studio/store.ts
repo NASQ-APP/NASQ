@@ -17,7 +17,6 @@ import {
   type PanelState,
 } from '@/domain/studio'
 import { storageKey } from '@/infrastructure/storage'
-import type { BodyParameters } from '@/domain/tryon'
 
 /** «كل ملابسي» — تنسيق من كل الخزائن مو من وحدة (متطلب ٧). */
 export const ALL_WARDROBES = 'all'
@@ -40,12 +39,13 @@ type StudioState = {
   suggestionsHeight: number
   suggestionsOpen: boolean
 
-  /**
-   * قياسات الموديل التقريبية.
-   * أرقام غير حسّاسة فتُحفظ — بخلاف الصور الشخصية والإطلالة المولّدة، تبقى
-   * في الذاكرة ولا تُكتب في التخزين (§19).
-   */
-  bodyParameters?: BodyParameters
+  /*
+    القياسات **ما تعيش هنا**.
+    مصدرها الوحيد `useAiModels`: الموديل المحفوظ يملك قياساته بمعرّفه، ويقرأها
+    الاستوديو وصفحة «موديلاتي» من نفس المكان. نسخة ثانية هنا كانت تعني مصدرين
+    يتفارقان — تعدّلين من صفحة وما يظهر في الأخرى — وتربط القياسات بحالة
+    الإطلالة، فتضيع مع أي تفريغ للاختيار.
+  */
 
   add: (itemId: string) => void
   remove: (itemId: string) => void
@@ -59,7 +59,6 @@ type StudioState = {
   toggleFocusMode: () => void
   setActiveWardrobe: (id: string) => void
   setActiveCategory: (slot: string) => void
-  setBodyParameters: (parameters: BodyParameters) => void
   setSuggestionsHeight: (height: number) => void
   toggleSuggestions: () => void
 }
@@ -75,7 +74,6 @@ export const useStudio = create<StudioState>()(
       activeCategory: 'all',
       suggestionsHeight: SUGGESTIONS_DEFAULT_HEIGHT,
       suggestionsOpen: true,
-      bodyParameters: undefined,
 
       add: (itemId) =>
         set((s) => (s.selection.includes(itemId) ? s : { selection: [...s.selection, itemId] })),
@@ -115,8 +113,6 @@ export const useStudio = create<StudioState>()(
       setActiveCategory: (slot) => set({ activeCategory: slot }),
 
       // السحب يفتح الشريط ضمنيًا: من يسحب يريد أن يرى، لا أن يفتح ثم يسحب
-      setBodyParameters: (bodyParameters) => set({ bodyParameters }),
-
       setSuggestionsHeight: (height) =>
         set({ suggestionsHeight: clampSuggestionsHeight(height), suggestionsOpen: true }),
 
@@ -124,16 +120,21 @@ export const useStudio = create<StudioState>()(
     }),
     {
       name: storageKey('studio'),
-      version: 2,
-      // نسخة ١ ما تعرف الاقتراحات — تأخذ الافتراضي بدل ما تُهمل الحالة كلها
-      migrate: (state, from) =>
-        from >= 2
-          ? (state as StudioState)
-          : {
-              ...(state as StudioState),
-              suggestionsHeight: SUGGESTIONS_DEFAULT_HEIGHT,
-              suggestionsOpen: true,
-            },
+      version: 3,
+      /*
+        نسخة ١: ما تعرف الاقتراحات — تأخذ الافتراضي بدل ما تُهمل الحالة كلها.
+        نسخة ٣: `bodyParameters` انتقلت لبيانات الموديل، فتُسقَط من هنا. القيمة
+        القديمة لا تُنقَل: المخزن ما يقدر يكتب في مخزن آخر أثناء الهجرة، والقياس
+        يُعاد إدخاله مرة من «تعديل الموديل».
+      */
+      migrate: (state, from) => {
+        const { bodyParameters: _dropped, ...rest } = state as StudioState & {
+          bodyParameters?: unknown
+        }
+        return from >= 2
+          ? (rest as StudioState)
+          : { ...(rest as StudioState), suggestionsHeight: SUGGESTIONS_DEFAULT_HEIGHT, suggestionsOpen: true }
+      },
     },
   ),
 )

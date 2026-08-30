@@ -7,12 +7,11 @@
  */
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { modelImageUrl } from '@/infrastructure/rendering'
-import { renderTheme } from '@/theme'
 import { storageKey } from '@/infrastructure/storage'
 import { seedFrom, uid } from '@/shared/lib'
 import type { AiModel, ModelCharacteristics, ModelSource, UserPhoto } from '@/domain/model'
 import type { Gender } from '@/domain/wardrobe'
+import { readyModelFor } from '@/domain/model'
 
 type ModelState = {
   models: AiModel[]
@@ -26,7 +25,8 @@ type ModelState = {
   updateModel: (id: string, characteristics: ModelCharacteristics) => void
   deleteModel: (id: string) => void
   setDefault: (id: string) => void
-  setActive: (id: string) => void
+  /** `undefined` يفكّ التثبيت فيرجع الاستوديو للموديل الافتراضي حسب الجنس */
+  setActive: (id?: string) => void
   modelFor: (gender: Gender) => AiModel | undefined
 
   /** الموديل الجاهز المختار — يُحفظ فما تعيد المستخدمة الاختيار كل مرة */
@@ -38,8 +38,14 @@ type ModelState = {
   setPreferredSource: (source: ModelSource) => void
 }
 
+/**
+ * صورة بطاقة الموديل.
+ *
+ * صورة الأساس حسب الجنس، لا رسمة متّجهة مبنية من المقاسات: الرسمة كانت تعطي
+ * شكلاً تخطيطيًا ما يشبه جسمًا، وتوهم بدقة ما تملكها.
+ */
 const previewOf = (characteristics: ModelCharacteristics) =>
-  modelImageUrl({ characteristics, framing: 'full', background: renderTheme.background })
+  readyModelFor(characteristics.gender).imageUrl
 
 const defaultName = (g: Gender) => (g === 'female' ? 'موديلي النسائي' : 'موديلي الرجالي')
 
@@ -96,7 +102,7 @@ export const useAiModels = create<ModelState>()(
           }
         }),
 
-      setActive: (id) => set({ activeModelId: id }),
+      setActive: (activeModelId) => set({ activeModelId }),
 
       modelFor: (gender) => {
         const { models, activeModelId } = get()

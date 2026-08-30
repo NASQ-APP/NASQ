@@ -22,8 +22,9 @@ import { StudioMobileBar, type MobileSheet } from '@/features/studio/components/
 import { useStudio } from '@/features/studio/store'
 import { useTryOn } from '@/features/studio/useTryOn'
 import { garmentReferences, referenceFromUrl } from '@/features/studio/references'
-import { READY_MODELS, readyModelById } from '@/domain/model'
+import { READY_MODELS, readyModelById, readyModelFor } from '@/domain/model'
 import type { BodyParameters } from '@/domain/tryon'
+import type { ModelCharacteristics } from '@/domain/model'
 import { useWardrobe } from '@/features/wardrobe/store'
 import { useAiModels } from '@/features/ai-model/store'
 import { useLooks } from '@/features/looks/store'
@@ -128,7 +129,28 @@ export function StudioPage() {
 
 
   const photo = models.photo
-  const readyModel = readyModelById(models.readyModelId ?? '') ?? READY_MODELS[0]
+
+  /**
+   * الموديل الفعّال — **مصدر القياسات الوحيد**.
+   *
+   * يُشتقّ عند كل عرض من بيانات الموديلات المحفوظة، ما يُنسخ في حالة محلية ولا
+   * يُزامَن بـ`useEffect`: النسخة المحلية تعني مصدرين يتفارقان، والمزامنة
+   * بالتأثير تكتب فوق ما أدخلته المستخدمة عند أول إعادة عرض.
+   *
+   * الأولوية: الموديل المختار صراحةً ← الموديل الافتراضي لجنس الموديل الجاهز.
+   * ولو ما فيه موديل محفوظ بعد، القياسات فاضية — ولا يُنشأ سجلّ إلا بفعل صريح.
+   */
+  const activeModel = models.models.find((model) => model.id === models.activeModelId)
+
+  const readyModel = activeModel
+    ? readyModelFor(activeModel.characteristics.gender)
+    : (readyModelById(models.readyModelId ?? '') ?? READY_MODELS[0])
+
+  const measurementSource =
+    activeModel ?? models.models.find((model) => model.characteristics.gender === readyModel.gender && model.isDefault)
+
+  const characteristics: ModelCharacteristics =
+    measurementSource?.characteristics ?? { gender: readyModel.gender }
 
   /**
    * صورة الشخص المرسلة للمزوّد، بترتيب الأولوية:
@@ -169,7 +191,7 @@ export function StudioPage() {
     const { result, error } = await tryOn.run({
       personImage: person,
       garments,
-      bodyParameters: studio.bodyParameters,
+      bodyParameters: characteristics,
     })
     if (result) {
       setGeneratedLook(result.image)
@@ -190,7 +212,7 @@ export function StudioPage() {
       personImage: person,
       garments,
       previousLook: generatedLook,
-      bodyParameters: studio.bodyParameters,
+      bodyParameters: characteristics,
     })
     if (result) {
       setGeneratedLook(result.image)
@@ -199,8 +221,23 @@ export function StudioPage() {
     report(error)
   }
 
+  /**
+   * التعديل يكتب في **بيانات الموديل** لا في حالة الاستوديو.
+   *
+   * فيبقى محفوظًا بعد إعادة التحميل، ويظهر فورًا في «موديلاتي». ولو ما فيه
+   * موديل محفوظ بعد، هذي أول مرة تُدخل فيها قياسات — فيُنشأ سجلّ لها الآن،
+   * بفعل صريح لا بتهيئة تلقائية.
+   */
   const applyAdjustment = async (parameters: BodyParameters, refinement?: string) => {
-    studio.setBodyParameters(parameters)
+    const next: ModelCharacteristics = {
+      ...parameters,
+      gender: characteristics.gender,
+      refinement: refinement?.trim() || undefined,
+    }
+
+    if (measurementSource) models.updateModel(measurementSource.id, next)
+    else models.saveModel(next)
+
     // التعديل يبني على الموديل المعدّل السابق إن وُجد، فالتحسينات تتراكم
     const base = await referenceFromUrl(adaptedModel ?? readyModel.imageUrl)
     if (!base) return
@@ -389,11 +426,22 @@ export function StudioPage() {
         <ModelPicker
           choice={modelChoice}
           readyModelId={models.readyModelId ?? READY_MODELS[0].id}
+          savedModels={models.models}
+          activeModelId={measurementSource?.id}
           hasPhoto={Boolean(photo)}
+          onChooseSaved={(id) => {
+            setModelChoice('ready')
+            models.setActive(id)
+            // الموديل المعدّل يخص موديلاً بعينه، فتبديل الموديل يُسقطه
+            setAdaptedModel(undefined)
+            setGeneratedLook(undefined)
+          }}
           onChooseReady={(id) => {
             setModelChoice('ready')
             models.setReadyModel(id)
-            // الموديل المعدّل يخص موديلاً بعينه، فتبديل الموديل يُسقطه
+            // الاختيار الصريح لموديل جاهز يُلغي تثبيت موديل محفوظ، وإلا بقي
+            // جنسُه يفرض صورة الأساس ويتجاهل ما اختارته المستخدمة الآن
+            models.setActive(undefined)
             setAdaptedModel(undefined)
             setGeneratedLook(undefined)
           }}
@@ -408,9 +456,15 @@ export function StudioPage() {
         />
       </Modal>
 
+      {/*
+        المفتاح يعيد تركيب الدرج عند تبديل الموديل، فتُقرأ قياسات الموديل
+        الجديد من أول عرض. البديل — مزامنة الحالة الداخلية بـ`useEffect` —
+        يكتب فوق ما تكتبه المستخدمة عند أي إعادة عرض.
+      */}
       <AdjustModelDrawer
+        key={measurementSource?.id ?? `new-${characteristics.gender}`}
         open={adjustOpen}
-        value={studio.bodyParameters ?? {}}
+        value={characteristics}
         busy={tryOn.status === 'working'}
         onClose={() => setAdjustOpen(false)}
         onApply={applyAdjustment}

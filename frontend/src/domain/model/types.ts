@@ -6,10 +6,7 @@
  * الحقيقي كمان (المبدأ ٣).
  */
 import type { Gender } from '@/domain/shared/types'
-
-export type BodyShape = 'slim' | 'straight' | 'athletic' | 'curvy' | 'plus'
-export type HairStyle = 'long' | 'medium' | 'short' | 'tied' | 'covered' | 'bald'
-export type AgeRange = '18-24' | '25-34' | '35-44' | '45+'
+import type { BodyParameters } from '@/domain/tryon'
 
 export type SkinTone = {
   id: string
@@ -17,24 +14,23 @@ export type SkinTone = {
   hex: string
 }
 
-/** المطلوب: الجنس والطول وشكل الجسم ولون البشرة. والباقي اختياري (M-02). */
-export type ModelCharacteristics = {
+/**
+ * مواصفات الموديل.
+ *
+ * **قياسات لا أوصاف**: كانت شكل جسم وبشرة وشعر وفئة عمرية — تصنيفات تقريبية
+ * ما يعرف النموذج وش يسوي فيها، وتُجبر المستخدمة على اختيار خانة ما تشبهها.
+ * القياس رقم تعرفه المستخدمة عن نفسها، ويقدر النموذج يقرّب التناسب منه.
+ *
+ * والحقول **كلها اختيارية عدا الجنس**: من تعرف طولها فقط تكتبه وتمشي. إجبار
+ * سبعة حقول قبل البدء يقتل التدفّق، والقياسات أصلاً إرشاد لا شرط.
+ *
+ * نفس شكل `BodyParameters` في `domain/tryon` عمدًا: هي القياسات نفسها التي
+ * تُرسل للمزوّد، فتوحيدها يمنع تحويلاً بين شكلين يتفرّقان مع الوقت.
+ */
+export type ModelCharacteristics = BodyParameters & {
   gender: Gender
-  heightCm: number
-  bodyShape: BodyShape
-  skinToneId: string
-
-  weightKg?: number
-  hairStyle?: HairStyle
-  hairColorHex?: string
-  ageRange?: AgeRange
-
-  measurements?: {
-    shoulders?: number
-    chest?: number
-    waist?: number
-    hips?: number
-  }
+  /** تعديل بكلمات المستخدمة — «أكتاف أعرض شوي» */
+  refinement?: string
 }
 
 export type AiModel = {

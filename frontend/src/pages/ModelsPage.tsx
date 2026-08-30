@@ -15,16 +15,8 @@ import { Reveal, RevealItem } from '@/shared/components/motion'
 import { PageContainer } from '@/shared/components/layout'
 import { READY_MODELS } from '@/domain/model'
 import { useAiModels } from '@/features/ai-model/store'
-import { SKIN_TONES } from '@/infrastructure/rendering'
+import { describeCharacteristics } from '@/features/ai-model/components/ModelBuilder'
 import { cn, formatShortDate } from '@/shared/lib'
-
-const SHAPE_LABEL: Record<string, string> = {
-  slim: 'نحيف',
-  straight: 'مستقيم',
-  athletic: 'رياضي',
-  curvy: 'ممتلئ متناسق',
-  plus: 'مقاسات أكبر',
-}
 
 export function ModelsPage() {
   const { models, deleteModel, setDefault, photo, clearPhoto, readyModelId, setReadyModel } =
@@ -110,7 +102,6 @@ export function ModelsPage() {
         <Reveal className="grid gap-6 sm:grid-cols-2 sm:gap-7 xl:grid-cols-3">
           {models.map((model, index) => {
             const c = model.characteristics
-            const tone = SKIN_TONES.find((item) => item.id === c.skinToneId)
 
             return (
               <RevealItem key={model.id} index={index}>
@@ -137,10 +128,9 @@ export function ModelsPage() {
                       </span>
                     </div>
 
+                    {/* الملخّص من مصدر واحد — نفس النص في المعاينة وفي البطاقة */}
                     <p className="mt-1 text-[12px] leading-6 text-muted">
-                      {c.gender === 'female' ? 'نسائي' : 'رجالي'} · {c.heightCm} سم
-                      {c.weightKg ? ` · ${c.weightKg} كجم` : ''} · {SHAPE_LABEL[c.bodyShape]}
-                      {tone ? ` · بشرة ${tone.name}` : ''}
+                      {c.gender === 'female' ? 'نسائي' : 'رجالي'} · {describeCharacteristics(c)}
                     </p>
 
                     {/* الأفعال تُدفع لأسفل البطاقة فتتحاذى بين البطاقات المتفاوتة */}

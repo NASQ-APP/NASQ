@@ -12,6 +12,8 @@
  */
 import { ImagePlus, Sliders, UserRound, Users } from 'lucide-react'
 import { READY_MODELS } from '@/domain/model'
+import { describeCharacteristics } from '@/features/ai-model/components/ModelBuilder'
+import type { AiModel } from '@/domain/model'
 import { Button } from '@/shared/components/ui'
 import { PhotoUploader } from './PhotoUploader'
 import { cn } from '@/shared/lib'
@@ -21,14 +23,21 @@ export type ModelChoice = 'ready' | 'photo'
 export function ModelPicker({
   choice,
   readyModelId,
+  savedModels,
+  activeModelId,
   hasPhoto,
+  onChooseSaved,
   onChooseReady,
   onChoosePhoto,
   onAdjust,
 }: {
   choice: ModelChoice
   readyModelId?: string
+  /** الموديلات المحفوظة — كل واحد يحمل قياساته بمعرّفه */
+  savedModels: AiModel[]
+  activeModelId?: string
   hasPhoto: boolean
+  onChooseSaved: (id: string) => void
   onChooseReady: (id: string) => void
   onChoosePhoto: () => void
   onAdjust: () => void
@@ -36,10 +45,55 @@ export function ModelPicker({
   // العنوان تكفّلت به النافذة الحاوية — تكراره هنا يطبع رأسين على شاشة وحدة
   return (
     <div className="flex flex-col gap-6">
+      {/*
+        ---------------- موديلاتي ----------------
+        تُعرض أولاً لأنها تحمل قياسات المستخدمة، والجاهزة أساس بلا قياس.
+        اختيار موديل هنا يحمّل قياساته للتوليد — القياسات تتبع المعرّف.
+      */}
+      {savedModels.length > 0 && (
+        <div className="flex flex-col gap-3">
+          <p className="eyebrow">My models</p>
+          <ul className="grid gap-2">
+            {savedModels.map((model) => {
+              const active = choice === 'ready' && activeModelId === model.id
+              return (
+                <li key={model.id}>
+                  <button
+                    onClick={() => onChooseSaved(model.id)}
+                    aria-pressed={active}
+                    className={cn(
+                      'flex w-full items-center gap-3 rounded-md border px-3 py-2.5 text-right transition-colors',
+                      active ? 'border-ink' : 'border-line hover:border-line-strong',
+                    )}
+                  >
+                    <span className="grid h-12 w-10 flex-none place-items-center overflow-hidden rounded-sm bg-stage">
+                      <img
+                        src={model.previewImageUrl}
+                        alt=""
+                        aria-hidden
+                        className="h-full w-full object-contain"
+                      />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[13px]">{model.name}</span>
+                      <span className="block truncate text-[10.5px] leading-5 text-faint">
+                        {describeCharacteristics(model.characteristics)}
+                      </span>
+                    </span>
+                    {active && <span className="lat flex-none text-[9.5px] text-muted">المختار</span>}
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        </div>
+      )}
+
       {/* ---------------- الموديلات الجاهزة ---------------- */}
       <ul className="grid gap-4 sm:grid-cols-2">
         {READY_MODELS.map((model) => {
-          const active = choice === 'ready' && readyModelId === model.id
+          // الموديل الجاهز يُعدّ مختارًا فقط لو ما فيه موديل محفوظ مثبّت
+          const active = choice === 'ready' && !activeModelId && readyModelId === model.id
 
           return (
             <li key={model.id}>

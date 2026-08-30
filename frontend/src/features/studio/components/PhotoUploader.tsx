@@ -10,28 +10,19 @@ import { useState } from 'react'
 import { AlertTriangle, Check, Trash2 } from 'lucide-react'
 import { ImageUploader } from '@/shared/components/media/ImageUploader'
 import { PHOTO_GUIDELINES, validatePhoto } from '@/infrastructure/model'
-import { modelImageUrl } from '@/infrastructure/rendering'
+import { readyModelFor } from '@/domain/model'
 import { Button, toast } from '@/shared/components/ui'
 import { useAiModels } from '@/features/ai-model/store'
 import { uid } from '@/shared/lib'
 import type { PhotoValidationResult } from '@/domain/model'
 import type { ImageCandidate } from '@/domain/images'
 
-const exampleImage = modelImageUrl({
-  characteristics: {
-    gender: 'female',
-    heightCm: 168,
-    bodyShape: 'straight',
-    skinToneId: 'medium',
-    hairStyle: 'tied',
-  },
-  garments: [
-    { slot: 'top', colorHex: '#EDEAE3', shape: 'tee' },
-    { slot: 'bottom', colorHex: '#7C90A8', shape: 'jeans' },
-    { slot: 'shoes', colorHex: '#F1F0ED', shape: 'sneakers' },
-  ],
-  background: '#F1F1EE',
-})
+/**
+ * مثال «الصورة الصحيحة»: صورة الموديل الجاهز نفسها.
+ * كانت رسمة متّجهة، والرسمة ما تُري المستخدمة ما المطلوب فعلاً — لقطة كاملة
+ * للجسم، مواجهة، بإضاءة واضحة وخلفية بسيطة. المثال يجب أن يكون من جنس المطلوب.
+ */
+const exampleImage = readyModelFor('female').imageUrl
 
 export function PhotoUploader() {
   const { photo, setPhoto, clearPhoto } = useAiModels()

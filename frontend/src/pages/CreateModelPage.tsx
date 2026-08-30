@@ -13,6 +13,7 @@ import {
   ModelPreview,
   defaultCharacteristics,
 } from '@/features/ai-model/components/ModelBuilder'
+import { PhotoUploader } from '@/features/studio/components/PhotoUploader'
 import { useAiModels } from '@/features/ai-model/store'
 import { ROUTES } from '@/shared/config'
 import type { AiModel, ModelCharacteristics } from '@/domain/model'
@@ -29,9 +30,10 @@ export function CreateModelPage() {
 function ModelForm({ editing }: { editing?: AiModel }) {
   const navigate = useNavigate()
   const saveModel = useAiModels((state) => state.saveModel)
+  const photo = useAiModels((state) => state.photo)
   const updateModel = useAiModels((state) => state.updateModel)
 
-  const [step, setStep] = useState<1 | 2>(editing ? 2 : 1)
+  const [step, setStep] = useState<1 | 2 | 'photo'>(editing ? 2 : 1)
   const [characteristics, setCharacteristics] = useState<ModelCharacteristics>(
     editing?.characteristics ?? defaultCharacteristics('female'),
   )
@@ -41,11 +43,6 @@ function ModelForm({ editing }: { editing?: AiModel }) {
   const pickGender = (gender: Gender) => {
     setCharacteristics(defaultCharacteristics(gender))
     setStep(2)
-  }
-
-  const regenerate = () => {
-    setBusy(true)
-    setTimeout(() => setBusy(false), 650)
   }
 
   const save = () => {
@@ -66,7 +63,7 @@ function ModelForm({ editing }: { editing?: AiModel }) {
   return (
     <PageContainer width="content">
       <button
-        onClick={() => (step === 2 && !editing ? setStep(1) : navigate(-1))}
+        onClick={() => (step !== 1 && !editing ? setStep(1) : navigate(-1))}
         className="lat mb-6 flex items-center gap-2 text-[10px] text-faint hover:text-ink"
       >
         <ChevronLeft size={12} aria-hidden />
@@ -87,7 +84,31 @@ function ModelForm({ editing }: { editing?: AiModel }) {
       {step === 1 ? (
         <div className="max-w-[760px]">
           <p className="eyebrow mb-4">الخطوة ١ · لمن نتسوّق؟</p>
-          <GenderStep value={characteristics.gender} onPick={pickGender} />
+          <GenderStep
+            value={characteristics.gender}
+            onPick={pickGender}
+            onUsePhoto={() => setStep('photo')}
+          />
+        </div>
+      ) : step === 'photo' ? (
+        /*
+          مسار الصورة الشخصية يتخطّى المقاسات كلها: الصورة **هي** الجسم، فما
+          فيه ما تُقاسه. تنتهي بالذهاب للاستوديو مباشرة.
+        */
+        <div className="max-w-[560px]">
+          <p className="eyebrow mb-4">صورتك</p>
+          <PhotoUploader />
+          <p className="mt-4 text-[11.5px] leading-7 text-faint">
+            صورتك ما تُرفع لأي خادم — تعيش في متصفحك لهذي الجلسة فقط.
+          </p>
+          <div className="mt-8 flex gap-3">
+            <Button size="lg" onClick={() => navigate(ROUTES.studio)} disabled={!photo}>
+              {photo ? 'ابدئي التجربة' : 'ارفعي صورتك أول'}
+            </Button>
+            <Button size="lg" variant="secondary" onClick={() => setStep(1)}>
+              رجوع
+            </Button>
+          </div>
         </div>
       ) : (
         <div className="grid gap-14 lg:grid-cols-[1fr_420px]">
@@ -110,7 +131,7 @@ function ModelForm({ editing }: { editing?: AiModel }) {
               )}
             </div>
           </div>
-          <ModelPreview characteristics={characteristics} onRegenerate={regenerate} busy={busy} />
+          <ModelPreview characteristics={characteristics} />
         </div>
       )}
     </PageContainer>
