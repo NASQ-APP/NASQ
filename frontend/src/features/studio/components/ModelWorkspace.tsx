@@ -27,7 +27,8 @@ import {
   Users,
 } from 'lucide-react'
 import { DRAG_MIME } from './ClothingCard'
-import { Button } from '@/shared/components/ui'
+import { StudioSet, type LightTone } from './StudioSet'
+import { Button, Segmented } from '@/shared/components/ui'
 import { AI_DISCLAIMER, STAGE_LABELS } from '@/domain/tryon'
 import { cn } from '@/shared/lib'
 import type { TryOnStage } from '@/domain/tryon'
@@ -40,7 +41,11 @@ import type { TryOnStage } from '@/domain/tryon'
  * الموضع المطلق يقيس على الحاوية ذات الارتفاع المحدّد بدل الصف، و`object-contain`
  * يترك النسبة سليمة. والحشو يمنع القوام من لمس الحواف.
  */
-const STAGE_IMAGE = 'absolute inset-0 h-full w-full object-contain p-4'
+const STAGE_IMAGE =
+  'absolute inset-0 z-[1] h-full w-full object-contain p-4 ' +
+  // صور الموديل والنتيجة خلفيتها بيضاء صمّاء، فعلى أرضية رمادية تُقرأ
+  // مستطيلاً يغطّي المنصّة. `multiply` يذيب الأبيض في الأرضية ويُبقي القوام.
+  'mix-blend-multiply'
 
 export function ModelWorkspace({
   modelImageUrl,
@@ -80,6 +85,8 @@ export function ModelWorkspace({
   const [over, setOver] = useState(false)
   const [zoom, setZoom] = useState(1)
 
+  const [tone, setTone] = useState<LightTone>('warm')
+
   const canGenerate = hasModel && itemCount > 0 && !busy
 
   return (
@@ -89,10 +96,21 @@ export function ModelWorkspace({
         <p className="min-w-0 truncate text-[11.5px] text-muted">
           {generatedLook ? 'إطلالتك المولّدة' : hasModel ? modelName : 'ما فيه موديل'}
         </p>
-        <Button variant="secondary" size="sm" onClick={onChooseModel}>
-          <Sliders size={13} strokeWidth={1.5} aria-hidden />
-          {hasModel ? 'تغيير الموديل' : 'اختيار الموديل'}
-        </Button>
+        <div className="flex flex-none items-center gap-2">
+          {/* لون إضاءة الاستوديو — اختيار المستخدمة */}
+          <Segmented<LightTone>
+            value={tone}
+            onChange={setTone}
+            options={[
+              { value: 'warm', label: 'دافئ' },
+              { value: 'white', label: 'أبيض' },
+            ]}
+          />
+          <Button variant="secondary" size="sm" onClick={onChooseModel}>
+            <Sliders size={13} strokeWidth={1.5} aria-hidden />
+            {hasModel ? 'تغيير الموديل' : 'اختيار الموديل'}
+          </Button>
+        </div>
       </div>
 
       {/* ---------------- اللوحة ---------------- */}
@@ -112,13 +130,18 @@ export function ModelWorkspace({
         }}
         className={cn(
           'relative mx-5 grid min-h-0 flex-1 place-items-center overflow-hidden rounded-md',
-          // أبيض لا رمادي: خلفية الموديل والنتيجة بيضاء، وأي لون غيره يرسم
-          // حدًّا حول الصورة فتُقرأ اللوحة كخلفيتين لا واحدة.
-          'bg-canvas transition-[box-shadow] duration-[250ms] ease-soft',
+          // أرضية الاستوديو. الدائرة البيضاء تحت الموديل هي المنصّة، فالتباين
+          // بينهما هو اللي يرسم المكان. والوضع الأبيض يحتاج أرضية أغمق لأن
+          // سطوع الضوء نسبي — ما يميّز الأبيض إلا فرقه عمّا تحته.
+          'transition-[box-shadow,background-color] duration-[250ms] ease-soft',
+          tone === 'white' ? 'bg-studio-floor-dim' : 'bg-studio-floor',
           over && 'ring-1 ring-ink',
           dragging && !over && 'ring-1 ring-line-strong',
         )}
       >
+        {/* طقم الاستوديو خلف كل شيء — منصّة وإضاءة، بلا لف */}
+        {(hasModel || generatedLook) && !busy && <StudioSet tone={tone} />}
+
         {dragging && (
           <p
             className={cn(

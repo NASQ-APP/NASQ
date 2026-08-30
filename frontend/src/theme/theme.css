@@ -21,6 +21,12 @@
   --color-surface-warm: #f4f3f0;
   --color-stage: #f7f7f5;
   --color-danger: #8a1f1f;
+  /* ضوء الاستوديو الدافئ — اللون الدافئ الوحيد في النظام، للإضاءة فقط */
+  --color-lamp: #e8b84b;
+  /* أرضية لوحة الاستوديو — أغمق من line-strong ليبرز عليها الضوء */
+  --color-studio-floor: #d6d6d2;
+  /* أرضية الوضع الأبيض — أغمق، فالأبيض ما يميّزه إلا الفتحة */
+  --color-studio-floor-dim: #c0c0bb;
 
   /* ---------- الخطوط ---------- */
   --font-sans: 'IBM Plex Sans Arabic', 'Alexandria', ui-sans-serif, system-ui, sans-serif;
