@@ -8,7 +8,7 @@
 import { useEffect, useState } from 'react'
 import { ChevronLeft, ChevronRight, User } from 'lucide-react'
 import { useWardrobe } from '@/features/wardrobe/store'
-import { isProductOnly, scoreImages, type ImageScore } from '@/features/try-pieces/pick-image'
+import { personInImage, scoreImages, type ImageScore } from '@/features/try-pieces/pick-image'
 import { cn } from '@/shared/lib'
 
 type Props = {
@@ -38,12 +38,22 @@ export function ItemImagePicker({ itemId, images, current, className }: Props) {
   if (images.length < 2) return null
 
   const index = Math.max(0, images.indexOf(current ?? ''))
-  /** الفحص ما خلص بعد؟ نعتبرها «فيها عارضة» — ما نجازف بإظهار شخص. */
-  const hasPerson = (src: string) => !isProductOnly(scores[src])
+
+  /**
+   * الوسم على ما فحصناه فقط.
+   *
+   * الفحص لسا شغّال، أو فشلت قراءة الصورة؟ ما نعلّمها — الوسم يقول «شفنا عارضة
+   * هنا»، ولو حطّيناه على المجهول لقالت المستخدمة إن كل صورها فيها عارضة.
+   */
+  const hasPerson = (src: string) => personInImage(scores[src]) === true
 
   const choose = (next: number) => {
     const src = images[(next + images.length) % images.length]
-    updateItem(itemId, { imageUrl: src, imageHasModel: hasPerson(src), imageChosenByUser: true })
+    updateItem(itemId, {
+      imageUrl: src,
+      imageHasModel: personInImage(scores[src]),
+      imageChosenByUser: true,
+    })
   }
 
   return (

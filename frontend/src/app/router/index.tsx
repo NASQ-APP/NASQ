@@ -16,7 +16,6 @@ import { WelcomePage } from '@/pages/WelcomePage'
 import { StudioPage } from '@/pages/StudioPage'
 import { TravelPage } from '@/pages/TravelPage'
 import { TripPage } from '@/pages/TripPage'
-import { InspirationPage } from '@/pages/InspirationPage'
 import { TryPiecesPage } from '@/pages/TryPiecesPage'
 import { WardrobePage } from '@/pages/WardrobePage'
 import { WardrobesPage } from '@/pages/WardrobesPage'
@@ -42,7 +41,6 @@ export const router = createBrowserRouter([
       { path: ROUTES.travel, element: <TravelPage /> },
       { path: '/travel/:id', element: <TripPage /> },
       { path: ROUTES.tryPieces, element: <TryPiecesPage /> },
-      { path: ROUTES.inspiration, element: <InspirationPage /> },
       { path: ROUTES.models, element: <ModelsPage /> },
       { path: ROUTES.newModel, element: <CreateModelPage /> },
       { path: '/models/:id', element: <CreateModelPage /> },

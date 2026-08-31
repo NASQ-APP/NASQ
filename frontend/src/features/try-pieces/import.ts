@@ -28,7 +28,10 @@ export type ImportedProduct = {
   imageUrl?: string
   /** كل صور المنتج — عشان تقدر المستخدمة تختار غير الافتراضية */
   images?: string[]
-  /** ما لقينا صورة للقطعة وحدها: كل صور المتجر عليها عارضة */
+  /**
+   * ما لقينا صورة للقطعة وحدها: كل صور المتجر عليها عارضة.
+   * `undefined` = ما فحصناها — لا نعرف، وما نتظاهر إننا نعرف.
+   */
   imageHasModel?: boolean
   /** معلومة تساعد على القرار — مب عرض بيع */
   price?: string
@@ -162,7 +165,9 @@ export async function productFromRaw(raw: RawProduct): Promise<ImportedProduct> 
     brand: raw.brand,
     imageUrl: picked.best ?? raw.imageUrl,
     images: images.length > 1 ? images : undefined,
-    imageHasModel: images.length > 0 && !picked.foundProductOnly,
+    /* ما نكتب الوسم إلا لو قرأنا الصور فعلًا. فشل القراءة يترك الحقل
+       `undefined`: «ما قدرنا نقرأ» ≠ «فيها شخص». */
+    imageHasModel: picked.readable ? !picked.foundProductOnly : undefined,
     price: raw.price,
     categoryId,
     shape: shapesForSlot(slot)[0].id,

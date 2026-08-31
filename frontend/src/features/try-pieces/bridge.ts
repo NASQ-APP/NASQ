@@ -1,9 +1,9 @@
 /**
  * استقبال القطع من إضافة المتصفح.
  *
- * تصلنا رسالتان: **قطعة** من صفحة منتج في متجر، و**إلهام** من صفحة Pin في
- * بنترست. القطعة تمر على نفس تحويل اللصق ونفس `addItem`، والإلهام يروح لصفحة
- * «إلهامي» وتُقرأ ألوانه — ما يدخل الخزانة ولا قطع التجربة.
+ * تصلنا رسالتان: **قطعة** من صفحة منتج في متجر، و**إلهام** من نسخة قديمة من
+ * الإضافة. الوجهة واحدة: **قطع التجربة**. صفحة «إلهامي» انحذفت، فما بقي مكان
+ * ثانٍ يروح له المستورد — والإلهام يتحوّل لقطعة بنترست ويمر على نفس المسار.
  *
  * محتوى الرسالة جاي من صفحة متجر ما نملكها، فنتعامل معه كبيانات غير موثوقة:
  * نقرأ الحقول المعروفة فقط، ونتحقق من أنواعها وأطوالها وروابطها.
@@ -16,8 +16,6 @@ import { useEffect, useRef, useState } from 'react'
 import { useWardrobe } from '@/features/wardrobe/store'
 import { toast } from '@/shared/components/ui'
 import { CATEGORIES, ITEM_COLORS, categoryById, shapesForSlot } from '@/domain/wardrobe'
-import { useInspiration } from '@/features/inspiration/store'
-import { inspirationAnalyzer } from '@/features/inspiration/analyze'
 import { productFromRaw, type ImportedProduct, type RawProduct } from './import'
 import { sourceById } from './sources'
 
@@ -69,6 +67,29 @@ function toRaw(value: unknown): RawProduct | undefined {
 }
 
 /**
+ * إلهام من نسخة قديمة من الإضافة → قطعة بنترست.
+ *
+ * رسالة الإلهام ما فيها إلا صورة ورابط: لا اسم ولا فئة. نعطيها اسمًا محايدًا
+ * ونعلّمها بنترست، فتقف في طابور اختيار الفئة مثل أي Pin بدل ما تضيع.
+ */
+function inspirationToRaw(value: unknown): RawProduct | undefined {
+  if (!value || typeof value !== 'object') return undefined
+  const input = value as Record<string, unknown>
+
+  const imageUrl = link(input.imageUrl)
+  if (!imageUrl) return undefined
+
+  return {
+    extracted: true,
+    storeId: 'pinterest',
+    sourceLink: link(input.sourceLink) ?? imageUrl,
+    name: str(input.name, 200) ?? 'قطعة من بنترست',
+    imageUrl,
+    images: [imageUrl],
+  }
+}
+
+/**
  * يركّب المستقبِل على مستوى التطبيق، فأي صفحة مفتوحة تستقبل القطعة.
  * بدون إضافة مركّبة ما يصير شي — الاستيراد باللصق يبقى كما هو.
  */
@@ -77,7 +98,6 @@ export type PendingPiece = { product: ImportedProduct; storeName?: string }
 
 export function useStoreBridge() {
   const addItem = useWardrobe((s) => s.addItem)
-  const addInspiration = useInspiration((s) => s.add)
   const handled = useRef(new Set<string>())
   const [pending, setPending] = useState<PendingPiece[]>([])
 
@@ -102,31 +122,8 @@ export function useStoreBridge() {
         window.postMessage({ source: APP, type: 'ack', ids: [id] }, window.location.origin)
       const payload = message.data ?? message.product
 
-      if (message.type === 'inspiration') {
-        void (async () => {
-          const imageUrl = link((payload as Record<string, unknown> | undefined)?.imageUrl)
-          if (!imageUrl) {
-            toast.error('وصلنا إلهام بلا صورة.')
-            ack()
-            return
-          }
-          const reading = await inspirationAnalyzer.read(imageUrl)
-          addInspiration({
-            source: 'pinterest',
-            imageUrl,
-            sourceLink: link((payload as Record<string, unknown>).sourceLink),
-            palette: reading.palette,
-            pieces: [],
-            tags: [],
-          })
-          toast.ok('أضفناه لإلهامك')
-          ack()
-        })()
-        return
-      }
-
       void (async () => {
-        const raw = toRaw(payload)
+        const raw = message.type === 'inspiration' ? inspirationToRaw(payload) : toRaw(payload)
         if (!raw) {
           toast.error('وصلتنا قطعة ناقصة من الإضافة.')
           ack()
@@ -179,7 +176,7 @@ export function useStoreBridge() {
     window.postMessage({ source: APP, type: 'ready' }, window.location.origin)
 
     return () => window.removeEventListener('message', onMessage)
-  }, [addItem, addInspiration])
+  }, [addItem])
 
   /** تختار المستخدمة الفئة، فتدخل القطعة الخزانة بها. */
   const choose = (categoryId: string) => {

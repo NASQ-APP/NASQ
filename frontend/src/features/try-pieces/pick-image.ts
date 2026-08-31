@@ -110,8 +110,18 @@ async function measure(src: string): Promise<ImageScore> {
 /** تحت هذي الدرجة نعتبر الصورة «قطعة وحدها». */
 export const PERSON_CUTOFF = 0.06
 
-export const isProductOnly = (score?: ImageScore): boolean =>
+const isProductOnly = (score?: ImageScore): boolean =>
   Boolean(score?.read) && (score as ImageScore).personScore < PERSON_CUTOFF
+
+/**
+ * هل في الصورة شخص؟ `undefined` = ما قدرنا نقرأها.
+ *
+ * ثلاث حالات لا اثنتان. فشل القراءة ليس إثباتًا لوجود شخص: الوسيط اللي يمرّر
+ * صور المتاجر يشتغل في التطوير فقط، فخارجه تفشل كل قراءة — ولو عددناها
+ * «فيها عارضة» لوسمنا كل صور المتاجر بوسم ما فحصناه.
+ */
+export const personInImage = (score?: ImageScore): boolean | undefined =>
+  score?.read === true ? score.personScore >= PERSON_CUTOFF : undefined
 
 /** يفحص مجموعة صور مرة وحدة — النتيجة محفوظة، فإعادة النداء رخيصة. */
 export async function scoreImages(images: string[]): Promise<ImageScore[]> {
@@ -128,18 +138,29 @@ export async function scoreImages(images: string[]): Promise<ImageScore[]> {
  */
 export async function pickBestImage(
   images: string[],
-): Promise<{ best?: string; scores: ImageScore[]; foundProductOnly: boolean }> {
-  if (images.length === 0) return { scores: [], foundProductOnly: false }
+): Promise<{
+  best?: string
+  scores: ImageScore[]
+  foundProductOnly: boolean
+  /** قرأنا صورة واحدة على الأقل — بدونها `foundProductOnly` لا يعني شيئًا */
+  readable: boolean
+}> {
+  if (images.length === 0) return { scores: [], foundProductOnly: false, readable: false }
 
   const measured = await scoreImages(images)
   const readable = measured.filter((s) => s.read)
   if (readable.length === 0) {
-    return { best: images[0], scores: measured, foundProductOnly: false }
+    return { best: images[0], scores: measured, foundProductOnly: false, readable: false }
   }
 
   const ranked = readable.toSorted(
     (a, b) => a.personScore - b.personScore || b.cleanBackground - a.cleanBackground,
   )
   const winner = ranked[0]
-  return { best: winner.src, scores: measured, foundProductOnly: isProductOnly(winner) }
+  return {
+    best: winner.src,
+    scores: measured,
+    foundProductOnly: isProductOnly(winner),
+    readable: true,
+  }
 }

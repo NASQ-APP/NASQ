@@ -26,7 +26,6 @@ export const ROUTES = {
   travel: '/travel',
   trip: (id: string) => `/travel/${id}`,
   tryPieces: '/try',
-  inspiration: '/inspiration',
   welcome: '/welcome',
   models: '/models',
   newModel: '/models/new',

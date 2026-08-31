@@ -1,4 +1,4 @@
-import { Heart, Images, LayoutGrid, Plane, Settings, Shirt, Tag, UserRound, Wand2 } from 'lucide-react'
+import { Images, LayoutGrid, Plane, Settings, Shirt, Tag, UserRound, Wand2 } from 'lucide-react'
 import { ROUTES } from '@/shared/config'
 import type { ComponentType } from 'react'
 
@@ -30,7 +30,6 @@ export const NAV_GROUPS: NavGroup[] = [
       { to: ROUTES.studio, label: 'استوديو التنسيق', icon: Wand2 },
       { to: ROUTES.travel, label: 'السفر', icon: Plane },
       { to: ROUTES.tryPieces, label: 'قطع للتجربة', icon: Tag },
-      { to: ROUTES.inspiration, label: 'إلهامي', icon: Heart },
     ],
   },
   {

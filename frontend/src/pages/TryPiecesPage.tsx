@@ -192,11 +192,17 @@ export function TryPiecesPage() {
         />
       ) : (
         <>
+          {/*
+            نعرض صورة المتجر كما هي، حتى لو فيها عارضة. حجبها كان يترك الرفّ
+            لوحات فاضية: أغلب صور الفساتين على عارضة، فتختفي القطعة كلها ولا
+            تعرف المستخدمة وش استوردت. الصورة الناقصة أسوأ من عارضة فيها.
+            تبديل الصورة يبقى متاحًا من صفحة القطعة.
+          */}
           <TryPiecesRail
             pieces={tryItems.map((i) => ({
               id: i.id,
               name: i.name,
-              imageUrl: i.imageHasModel && !i.imageChosenByUser ? undefined : i.imageUrl,
+              imageUrl: i.imageUrl,
               meta: [categoryById(i.categoryId)?.name, i.price].filter(Boolean).join(' · ') || undefined,
               badge: sourceById(i.storeId)?.latin,
             }))}
