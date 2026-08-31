@@ -37,7 +37,6 @@ type StudioState = {
 
   /** ارتفاع شريط الاقتراحات بالبكسل — تتحكم فيه المستخدمة بالسحب */
   suggestionsHeight: number
-  suggestionsOpen: boolean
 
   /*
     القياسات **ما تعيش هنا**.
@@ -60,7 +59,6 @@ type StudioState = {
   setActiveWardrobe: (id: string) => void
   setActiveCategory: (slot: string) => void
   setSuggestionsHeight: (height: number) => void
-  toggleSuggestions: () => void
 }
 
 export const useStudio = create<StudioState>()(
@@ -73,7 +71,6 @@ export const useStudio = create<StudioState>()(
       activeWardrobeId: ALL_WARDROBES,
       activeCategory: 'all',
       suggestionsHeight: SUGGESTIONS_DEFAULT_HEIGHT,
-      suggestionsOpen: true,
 
       add: (itemId) =>
         set((s) => (s.selection.includes(itemId) ? s : { selection: [...s.selection, itemId] })),
@@ -112,28 +109,30 @@ export const useStudio = create<StudioState>()(
       setActiveWardrobe: (id) => set({ activeWardrobeId: id }),
       setActiveCategory: (slot) => set({ activeCategory: slot }),
 
-      // السحب يفتح الشريط ضمنيًا: من يسحب يريد أن يرى، لا أن يفتح ثم يسحب
       setSuggestionsHeight: (height) =>
-        set({ suggestionsHeight: clampSuggestionsHeight(height), suggestionsOpen: true }),
-
-      toggleSuggestions: () => set((s) => ({ suggestionsOpen: !s.suggestionsOpen })),
+        set({ suggestionsHeight: clampSuggestionsHeight(height) }),
     }),
     {
       name: storageKey('studio'),
-      version: 3,
+      version: 4,
       /*
         نسخة ١: ما تعرف الاقتراحات — تأخذ الافتراضي بدل ما تُهمل الحالة كلها.
         نسخة ٣: `bodyParameters` انتقلت لبيانات الموديل، فتُسقَط من هنا. القيمة
         القديمة لا تُنقَل: المخزن ما يقدر يكتب في مخزن آخر أثناء الهجرة، والقياس
         يُعاد إدخاله مرة من «تعديل الموديل».
+        نسخة ٤: الشريط ما عاد ينطوي، فتُسقَط `suggestionsOpen`. وإسقاطها **لازم**
+        لا تنظيف: من طوت شريطها قبل ما تُشال الميزة كانت تفتح الاستوديو على
+        شريط مطويّ بلا سهم يعيده.
       */
       migrate: (state, from) => {
-        const { bodyParameters: _dropped, ...rest } = state as StudioState & {
-          bodyParameters?: unknown
-        }
+        const {
+          bodyParameters: _dropped,
+          suggestionsOpen: _collapsed,
+          ...rest
+        } = state as StudioState & { bodyParameters?: unknown; suggestionsOpen?: boolean }
         return from >= 2
           ? (rest as StudioState)
-          : { ...(rest as StudioState), suggestionsHeight: SUGGESTIONS_DEFAULT_HEIGHT, suggestionsOpen: true }
+          : { ...(rest as StudioState), suggestionsHeight: SUGGESTIONS_DEFAULT_HEIGHT }
       },
     },
   ),

@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { ArrowLeft, Plus, Sparkles } from 'lucide-react'
+import { ArrowLeft, Sparkles } from 'lucide-react'
 import { Button, ButtonLink, Card, EmptyState, SectionHeader } from '@/shared/components/ui'
 import { PageContainer } from '@/shared/components/layout'
 import { WardrobeCard } from '@/features/wardrobe/components/WardrobeCard'
@@ -24,7 +24,7 @@ export function HomePage() {
   const name = useAuth((s) => s.user?.name)
   const model = useAiModels((s) => s.models[0])
   // المودالات المشتركة تعيش في القشرة — نفتحها من هنا بدل ما نكرّرها
-  const { openAdd, openStylist } = useAppShell()
+  const { openStylist } = useAppShell()
 
   const owned = items.filter((i) => i.source === 'wardrobe')
 
@@ -115,13 +115,6 @@ export function HomePage() {
           {wardrobes.slice(0, 4).map((w) => (
             <WardrobeCard key={w.id} wardrobe={w} />
           ))}
-          <button
-            onClick={openAdd}
-            className="flex aspect-[4/4.5] flex-col items-center justify-center gap-2 rounded-md border border-dashed border-line-strong text-muted transition-colors hover:border-line-strong hover:text-ink"
-          >
-            <Plus size={20} strokeWidth={1.2} />
-            <span className="text-[12px]">إضافة قطعة</span>
-          </button>
         </div>
       </section>
 

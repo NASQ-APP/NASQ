@@ -5,11 +5,11 @@
  * القطع. تُطوى لشريط رفيع بدل ما تختفي، فيبقى الرجوع لها بضغطة.
  */
 import { useMemo, useState } from 'react'
-import { ChevronDown, Filter, Heart, PanelRightClose, Plus, Search, X } from 'lucide-react'
+import { ChevronDown, Filter, Heart, PanelRightClose, Search, X } from 'lucide-react'
 import { ALL_WARDROBES, useStudio } from '../store'
 import { ClothingCard } from './ClothingCard'
 import { useWardrobe } from '@/features/wardrobe/store'
-import { Button, EmptyState } from '@/shared/components/ui'
+import { EmptyState } from '@/shared/components/ui'
 import { SLOT_FILTERS, matchesQuery, ownedItems, slotOfItem } from '@/domain/wardrobe'
 import { cn } from '@/shared/lib'
 import type { WardrobeItem } from '@/domain/wardrobe'
@@ -17,12 +17,10 @@ import type { WardrobeItem } from '@/domain/wardrobe'
 export function WardrobePanel({
   showHeader = true,
   onPick,
-  onAddItem,
   onDragStateChange,
 }: {
   showHeader?: boolean
   onPick: (item: WardrobeItem) => void
-  onAddItem: () => void
   onDragStateChange: (dragging: boolean) => void
 }) {
   const { wardrobes, items } = useWardrobe()
@@ -241,10 +239,9 @@ export function WardrobePanel({
             title={owned.length === 0 ? 'خزانتك فاضية.' : 'ما لقينا قطعة.'}
             body={
               owned.length === 0
-                ? 'صوّري أول قطعة وابدئي التنسيق.'
+                ? 'أضيفي أول قطعة من «إضافة قطعة» فوق، وابدئي التنسيق.'
                 : 'جرّبي كلمة ثانية أو غيّري الفئة.'
             }
-            action={owned.length === 0 ? <Button onClick={onAddItem}>إضافة قطعة</Button> : undefined}
           />
         ) : (
           <div className="grid grid-cols-2 gap-x-3 gap-y-4">
@@ -260,17 +257,6 @@ export function WardrobePanel({
             ))}
           </div>
         )}
-      </div>
-
-      {/* ---------------- إضافة ---------------- */}
-      <div className="flex-none border-t border-line p-3">
-        <button
-          onClick={onAddItem}
-          className="flex h-9 w-full items-center justify-center gap-2 rounded-md border border-dashed border-line-strong text-[12px] text-muted transition-colors hover:border-ink hover:text-ink"
-        >
-          <Plus size={14} strokeWidth={1.6} aria-hidden />
-          إضافة قطعة
-        </button>
       </div>
     </div>
   )

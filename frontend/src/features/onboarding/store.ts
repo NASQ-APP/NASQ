@@ -11,6 +11,7 @@ import { persist } from 'zustand/middleware'
 import { storageKey } from '@/infrastructure/storage'
 import { hasBackend } from '@/shared/config'
 import { fetchPreferences, saveDeclaredStyle } from '@/infrastructure/profile/repository'
+import { toggleIn } from '@/domain/style/onboarding'
 import { EMPTY_DECLARED } from '@/domain/style/types'
 import type { AvoidRule, DeclaredStyle } from '@/domain/style/types'
 import type { ItemColor } from '@/domain/wardrobe'
@@ -27,23 +28,20 @@ type OnboardingState = {
   toggleAvoid: (rule: AvoidRule) => void
   /** يختم التعارف: يثبّت التاريخ فيصير الملف «مُصرَّحًا» */
   complete: () => void
+  /** يحفظ ما عدّلته من الإعدادات، ويختم التعارف لو كانت تخطّته أول مرة */
+  save: (declared: DeclaredStyle) => Promise<void>
   /** يعيد التعارف من الإعدادات — يمسح كل شي بما فيه القيود */
   reset: () => void
   /** يقرأ ذوقها المصرَّح من ملفها على الخادم. */
   load: () => Promise<void>
 }
 
-/**
- * التبديل يصير **داخل** `set` لا في المكوّن.
- *
- * لو حسبناه من قيمة التقطها الرسم، ضاع أحد اختيارين متتاليين بسرعة: الثاني
- * يُبنى على حالة ما تحدّثت بعد فيمسح الأول. القراءة من الحالة الحيّة تحلّها.
- */
-const flip = <T,>(list: T[], value: T, same: (a: T, b: T) => boolean, max?: number): T[] => {
-  if (list.some((entry) => same(entry, value))) return list.filter((entry) => !same(entry, value))
-  if (max !== undefined && list.length >= max) return list
-  return [...list, value]
-}
+/*
+  التبديل يصير **داخل** `set` لا في المكوّن.
+
+  لو حسبناه من قيمة التقطها الرسم، ضاع أحد اختيارين متتاليين بسرعة: الثاني
+  يُبنى على حالة ما تحدّثت بعد فيمسح الأول. القراءة من الحالة الحيّة تحلّها.
+*/
 
 export const useOnboarding = create<OnboardingState>()(
   persist(
@@ -57,7 +55,7 @@ export const useOnboarding = create<OnboardingState>()(
         set((state) => ({
           declared: {
             ...state.declared,
-            tags: flip(state.declared.tags, tag, (a, b) => a === b, max),
+            tags: toggleIn(state.declared.tags, tag, (a, b) => a === b, max),
           },
         })),
 
@@ -65,7 +63,7 @@ export const useOnboarding = create<OnboardingState>()(
         set((state) => ({
           declared: {
             ...state.declared,
-            colors: flip(state.declared.colors, color, (a, b) => a.name === b.name, max),
+            colors: toggleIn(state.declared.colors, color, (a, b) => a.name === b.name, max),
           },
         })),
 
@@ -73,7 +71,7 @@ export const useOnboarding = create<OnboardingState>()(
         set((state) => ({
           declared: {
             ...state.declared,
-            contexts: flip(state.declared.contexts, id, (a, b) => a === b),
+            contexts: toggleIn(state.declared.contexts, id, (a, b) => a === b),
           },
         })),
 
@@ -81,7 +79,7 @@ export const useOnboarding = create<OnboardingState>()(
         set((state) => ({
           declared: {
             ...state.declared,
-            avoid: flip(state.declared.avoid, rule, (a, b) => a === b),
+            avoid: toggleIn(state.declared.avoid, rule, (a, b) => a === b),
           },
         })),
 
@@ -96,6 +94,24 @@ export const useOnboarding = create<OnboardingState>()(
           declared: { ...state.declared, completedAt: new Date().toISOString() },
         }))
         if (hasBackend()) void saveDeclaredStyle(get().declared).catch(() => {})
+      },
+
+      /*
+        الحفظ من الإعدادات يشبه الختم، ويفترق عنه في شيء واحد: **التاريخ**.
+
+        `completedAt` يقول متى عرفنا ذوقها أول مرة، فتعديل وسم بعد شهر ما
+        يجعلها «تعرّفت اليوم». ومن تخطّت التعارف وجاوبت هنا تُختم الآن — لأن
+        هذا أول جواب فعلاً.
+
+        والخطأ يُرمى لا يُبتلع: الصفحة تقول «ما حفظنا» بدل ما تُظهر نجاحًا كاذبًا.
+      */
+      save: async (declared) => {
+        const stamped = {
+          ...declared,
+          completedAt: declared.completedAt ?? new Date().toISOString(),
+        }
+        set({ declared: stamped })
+        if (hasBackend()) await saveDeclaredStyle(stamped)
       },
 
       reset: () => {

@@ -61,6 +61,27 @@ export const GENDER_OPTIONS: { id: Gender; name: string }[] = [
 /** حدّ الملاحظة الحرّة — قصيرة عن قصد: سطر أو سطران يكفيان النموذج. */
 export const MAX_NOTE = 280
 
+/**
+ * إضافة أو إزالة من قائمة اختيارات — بحدّ أعلى اختياري.
+ *
+ * تعيش هنا لا في مخزن التعارف لأن **شاشتين** تعدّلان نفس القوائم: التعارف على
+ * الحالة الحيّة، والإعدادات على مسودّة تنتظر زر الحفظ. منطق واحد لهما يمنع
+ * اختلافهما في الحدّ الأعلى بصمت.
+ *
+ * وبلوغ الحد يُرجع القائمة **كما هي** لا نسخة منها: الرسم يقارن بالمرجع، فنسخة
+ * جديدة بلا تغيير تعني رسمًا بلا سبب.
+ */
+export function toggleIn<T>(
+  list: T[],
+  value: T,
+  same: (a: T, b: T) => boolean,
+  max?: number,
+): T[] {
+  if (list.some((entry) => same(entry, value))) return list.filter((entry) => !same(entry, value))
+  if (max !== undefined && list.length >= max) return list
+  return [...list, value]
+}
+
 export function confidenceOf(declared: DeclaredStyle): number {
   const answered = [
     declared.tags.length >= MIN_TAGS,

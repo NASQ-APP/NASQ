@@ -302,7 +302,6 @@ export function StudioPage() {
         onToggleFocus={studio.toggleFocusMode}
         onSave={() => setSaveOpen(true)}
         onClear={studio.clear}
-        onUsePhoto={() => setModelPickerOpen(true)}
       />
 
       <motion.div
@@ -335,7 +334,6 @@ export function StudioPage() {
               pick(item)
               if (layout.wardrobe === 'sheet') setSheet(undefined)
             }}
-            onAddItem={openAdd}
             onDragStateChange={setDragging}
           />
         </AdaptivePanel>
@@ -366,10 +364,8 @@ export function StudioPage() {
           {!focusMode && (
             <SmartSuggestionsStrip
               height={studio.suggestionsHeight}
-              open={studio.suggestionsOpen}
               selectedIds={studio.selection}
               onResize={studio.setSuggestionsHeight}
-              onToggle={studio.toggleSuggestions}
               onApply={(itemIds) => {
                 studio.replaceAll(itemIds)
                 toast.ok('جهّزنا لك الإطلالة في الاستوديو')

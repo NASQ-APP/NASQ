@@ -6,14 +6,13 @@
  * عشان يبقى الموديل هو بطل الاستوديو.
  */
 import { useMemo, useState } from 'react'
-import { ChevronDown, ChevronUp, MessageCircleMore, Sparkles } from 'lucide-react'
+import { ChevronDown } from 'lucide-react'
 import { colorPairingFor, suggest } from '@/features/stylist'
 import { useStyleProfile } from '@/features/try-pieces/taste'
 import { ItemImage } from '@/shared/components/media/ItemImage'
 import { ResizeHandle } from '@/shared/components/layout'
 import { colorByName, ownedItems } from '@/domain/wardrobe'
 import { useWardrobe } from '@/features/wardrobe/store'
-import { cn } from '@/shared/lib'
 import {
   SUGGESTIONS_MAX_HEIGHT,
   SUGGESTIONS_MIN_HEIGHT,
@@ -40,19 +39,15 @@ const PAIRING_MIN_HEIGHT = 180
 
 export function SmartSuggestionsStrip({
   height,
-  open,
   selectedIds,
   onResize,
-  onToggle,
   onApply,
   onAskStylist,
   onAddItem,
 }: {
   height: number
-  open: boolean
   selectedIds: string[]
   onResize: (height: number) => void
-  onToggle: () => void
   onApply: (itemIds: string[]) => void
   onAskStylist: () => void
   onAddItem: () => void
@@ -102,38 +97,30 @@ export function SmartSuggestionsStrip({
     <section
       aria-label="منسّق الإطلالات الذكي"
       className="flex flex-none flex-col border-t border-line bg-canvas"
-      style={{ height: open ? height : undefined }}
+      style={{ height }}
     >
-      {open && (
-        <ResizeHandle
-          label="ارتفاع منسّق الإطلالات"
-          value={height}
-          min={isPairing ? PAIRING_MIN_HEIGHT : SUGGESTIONS_MIN_HEIGHT}
-          max={SUGGESTIONS_MAX_HEIGHT}
-          step={SUGGESTIONS_STEP}
-          grow="up"
-          onChange={onResize}
-          onToggle={onToggle}
-        />
-      )}
+      {/*
+        المقبض يغيّر الارتفاع ولا يطوي.
 
-      <div className={cn('flex flex-none items-center gap-2 px-4', open ? 'pb-2 pt-1' : 'py-2')}>
-        <span className="grid h-8 w-8 flex-none place-items-center rounded-md bg-ink text-white">
-          <Sparkles size={14} strokeWidth={1.6} aria-hidden />
-        </span>
+        كان الشريط ينطوي بسهم، وكان الطيّ يخفي الاقتراحات كلها خلف زر ثانٍ
+        تتذكّره المستخدمة. والسحب يكفي: من تبي مساحة أكبر للموديل تنزل بالمقبض،
+        ومن تبي اقتراحات أكثر تطلع به — بلا حالة مخفية تُنسى.
+      */}
+      <ResizeHandle
+        label="ارتفاع منسّق الإطلالات"
+        value={height}
+        min={isPairing ? PAIRING_MIN_HEIGHT : SUGGESTIONS_MIN_HEIGHT}
+        max={SUGGESTIONS_MAX_HEIGHT}
+        step={SUGGESTIONS_STEP}
+        grow="up"
+        onChange={onResize}
+      />
 
-        <span className="min-w-0 flex-1">
-          <span className="flex items-center gap-1.5">
-            <span className="truncate text-[11.5px] font-medium">منسّق الإطلالات الذكي</span>
-            <span className="lat rounded-sm bg-surface px-1.5 text-[8.5px] text-muted">AI</span>
-          </span>
-          <span className="hidden truncate text-[10px] text-faint xl:block">
-            يراعي المناسبة وذوقك، ويختار من خزانتك فقط
-          </span>
-        </span>
+      <div className="flex flex-none items-center gap-2 px-4 pb-2 pt-1">
+        {/* اسم الشريط في `aria-label` وحده: «اسألي نَسّق» تحته تقول ما يفعله بلا تكرار */}
+        <span className="min-w-0 flex-1" />
 
-        {open && (
-          <label className="relative flex-none">
+        <label className="relative flex-none">
             <span className="sr-only">نوع الإطلالة</span>
             <select
               value={activeMode.id}
@@ -156,38 +143,12 @@ export function SmartSuggestionsStrip({
               size={12}
               strokeWidth={1.6}
               aria-hidden
-              className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-faint"
-            />
-          </label>
-        )}
-
-        <button
-          type="button"
-          onClick={onAskStylist}
-          aria-label="اطلبي تنسيقًا مخصصًا"
-          title="تنسيق مخصص"
-          className="grid h-9 w-9 flex-none place-items-center rounded-md text-muted transition-colors hover:bg-surface hover:text-ink"
-        >
-          <MessageCircleMore size={14} strokeWidth={1.5} aria-hidden />
-        </button>
-
-        <button
-          type="button"
-          onClick={onToggle}
-          aria-expanded={open}
-          aria-label={open ? 'طيّ منسّق الإطلالات' : 'إظهار منسّق الإطلالات'}
-          title={open ? 'طيّ المنسّق' : 'إظهار المنسّق'}
-          className="grid h-9 w-9 flex-none place-items-center rounded-md text-muted transition-colors hover:bg-surface hover:text-ink"
-        >
-          {open ? (
-            <ChevronDown size={14} strokeWidth={1.5} aria-hidden />
-          ) : (
-            <ChevronUp size={14} strokeWidth={1.5} aria-hidden />
-          )}
-        </button>
+            className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-faint"
+          />
+        </label>
       </div>
 
-      {open && isPairing && pairingItem && (
+      {isPairing && pairingItem && (
         <PairingBrief
           item={pairingItem}
           items={owned}
@@ -195,7 +156,7 @@ export function SmartSuggestionsStrip({
         />
       )}
 
-      {open && looks.length === 0 && (
+      {looks.length === 0 && (
         <EmptySuggestions
           hasItems={owned.length > 0}
           message={answer.gap ?? answer.message}
@@ -204,13 +165,13 @@ export function SmartSuggestionsStrip({
         />
       )}
 
-      {open && looks.length > 0 && view === 'row' && (
+      {looks.length > 0 && view === 'row' && (
         <div className="min-h-0 px-4 pb-3" aria-live="polite">
           <LookRow looks={looks} pieces={pieces} onApply={onApply} />
         </div>
       )}
 
-      {open && looks.length > 0 && view === 'grid' && (
+      {looks.length > 0 && view === 'grid' && (
         <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4" aria-live="polite">
           <ul className="grid gap-2 sm:grid-cols-2 2xl:grid-cols-3">
             {looks.map((look, index) => (
