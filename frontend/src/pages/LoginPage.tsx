@@ -6,7 +6,6 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { ArrowLeft } from 'lucide-react'
 import { AuthLayout } from '@/features/auth/components/AuthLayout'
 import { Compartment, WardrobeFrame, shelfField } from '@/features/auth/components/WardrobeFrame'
 import { useAuth } from '@/features/auth/store'
@@ -94,13 +93,6 @@ export function LoginPage() {
           {busy ? 'ندخّلك…' : 'تسجيل الدخول'}
         </Button>
 
-        <Link
-          to={ROUTES.home}
-          className="inline-flex items-center gap-1.5 self-start text-[12px] text-muted transition-colors hover:text-ink"
-        >
-          أكمل بدون حساب
-          <ArrowLeft size={13} strokeWidth={1.6} aria-hidden />
-        </Link>
       </form>
     </AuthLayout>
   )

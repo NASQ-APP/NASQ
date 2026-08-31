@@ -9,7 +9,7 @@ import { useNavigate } from 'react-router-dom'
 import { Link } from 'react-router-dom'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { ArrowLeft, Info } from 'lucide-react'
+import { Info } from 'lucide-react'
 import { AuthLayout } from '@/features/auth/components/AuthLayout'
 import { Compartment, WardrobeFrame, shelfField } from '@/features/auth/components/WardrobeFrame'
 import { useAuth, syncsAcrossDevices } from '@/features/auth/store'
@@ -126,13 +126,6 @@ export function SignUpPage() {
           </p>
         )}
 
-        <Link
-          to={ROUTES.home}
-          className="inline-flex items-center gap-1.5 self-start text-[12px] text-muted transition-colors hover:text-ink"
-        >
-          أكمل بدون حساب
-          <ArrowLeft size={13} strokeWidth={1.6} aria-hidden />
-        </Link>
       </form>
     </AuthLayout>
   )

@@ -1,11 +1,26 @@
 /**
- * روابط عرض صور القطع المرفوعة.
+ * روابط عرض الصور المرفوعة.
  *
- * البلوبات في IndexedDB (`infrastructure/storage`)، وهنا نحتفظ بروابط الكائن
- * الجاهزة عشان `ItemImage` تقرأها فورًا بدون انتظار غير متزامن في كل رسم.
+ * الواجهة تسأل سؤالًا واحدًا: «وين صورة هذا الشيء؟» — وهذا المخزن يجيب برابط
+ * جاهز، بلا انتظار غير متزامن في كل رسم.
+ *
+ * **من وين يجي الرابط**: مع خادم مهيّأ يُرفع الملف لسلّة المستخدمة الخاصة
+ * ويُوقَّع رابطه، فتتبعها صورها لأي جهاز. وبلا خادم (تطوير بلا مفاتيح) تبقى
+ * البلوبات في IndexedDB كما كانت. الواجهة ما تعرف الفرق.
+ *
+ * الرفع **متفائل**: نعرض رابط بلوب محلي في اللحظة، ونستبدله بالموقّع لما يصل
+ * الخادم. المستخدمة صوّرت قطعتها الحين، فما تنتظر شبكة عشان تشوفها.
  */
 import { create } from 'zustand'
 import { clearPhotos, deletePhoto, loadAllPhotos, savePhoto } from '@/infrastructure/storage'
+import {
+  deleteAllPhotos,
+  deletePhoto as deleteRemotePhoto,
+  signAllPhotos,
+  uploadPhoto,
+} from '@/infrastructure/wardrobe/photos'
+import { supabase } from '@/infrastructure/supabase'
+import { hasBackend } from '@/shared/config'
 
 type PhotoState = {
   urls: Record<string, string>
@@ -15,36 +30,88 @@ type PhotoState = {
   clear: () => Promise<void>
 }
 
+/** مُعرِّف الجلسة — كل مسارات التخزين تبدأ به. */
+async function userId(): Promise<string | undefined> {
+  if (!supabase) return undefined
+  const { data } = await supabase.auth.getUser()
+  return data.user?.id
+}
+
+const revoke = (url?: string) => {
+  if (url?.startsWith('blob:')) URL.revokeObjectURL(url)
+}
+
 export const useItemPhotos = create<PhotoState>((set, get) => ({
   urls: {},
 
   hydrate: async () => {
-    set({ urls: await loadAllPhotos() })
+    if (!hasBackend()) {
+      set({ urls: await loadAllPhotos() })
+      return
+    }
+
+    const id = await userId()
+    // بلا جلسة ما فيه صور تُقرأ — والحارس يوجّه للدخول أصلاً
+    if (!id) return set({ urls: {} })
+
+    try {
+      set({ urls: await signAllPhotos(id) })
+    } catch {
+      // تعذّر توقيع الروابط: القطع ترجع لرسمها المتّجه بدل صور مكسورة
+      set({ urls: {} })
+    }
   },
 
   set: async (itemId, blob) => {
-    await savePhoto(itemId, blob)
-    const previous = get().urls[itemId]
-    if (previous?.startsWith('blob:')) URL.revokeObjectURL(previous)
-    set((state) => ({ urls: { ...state.urls, [itemId]: URL.createObjectURL(blob) } }))
+    // الصورة تبين فورًا، والرفع يلحق
+    const preview = URL.createObjectURL(blob)
+    revoke(get().urls[itemId])
+    set((state) => ({ urls: { ...state.urls, [itemId]: preview } }))
+
+    if (!hasBackend()) {
+      await savePhoto(itemId, blob)
+      return
+    }
+
+    const id = await userId()
+    if (!id) return
+
+    await uploadPhoto(id, itemId, blob)
+
+    // نستبدل رابط البلوب بالموقّع: البلوب يموت مع التبويب، والموقّع يعيش
+    // على أي جهاز تفتح منه.
+    try {
+      const signed = await signAllPhotos(id)
+      if (signed[itemId]) {
+        revoke(get().urls[itemId])
+        set((state) => ({ urls: { ...state.urls, [itemId]: signed[itemId] } }))
+      }
+    } catch {
+      // التوقيع فشل بس الرفع نجح — البلوب المحلي يكفي لهذي الجلسة
+    }
   },
 
   remove: async (itemId) => {
-    await deletePhoto(itemId)
-    const previous = get().urls[itemId]
-    if (previous?.startsWith('blob:')) URL.revokeObjectURL(previous)
+    revoke(get().urls[itemId])
     set((state) => {
       const { [itemId]: _dropped, ...rest } = state.urls
       return { urls: rest }
     })
+
+    if (!hasBackend()) return deletePhoto(itemId)
+
+    const id = await userId()
+    if (id) await deleteRemotePhoto(id, itemId)
   },
 
   clear: async () => {
-    await clearPhotos()
-    for (const url of Object.values(get().urls)) {
-      if (url.startsWith('blob:')) URL.revokeObjectURL(url)
-    }
+    for (const url of Object.values(get().urls)) revoke(url)
     set({ urls: {} })
+
+    if (!hasBackend()) return clearPhotos()
+
+    const id = await userId()
+    if (id) await deleteAllPhotos(id)
   },
 }))
 

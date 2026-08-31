@@ -1,8 +1,11 @@
 /**
  * عقود الحساب.
  *
- * التطبيق يشتغل بلا حساب: الخزانة محلية والحساب طبقة فوقها للمزامنة (X-04).
- * فالجلسة اختيارية دائمًا، وما فيها بوّابة توقف المستخدمة عن استعمال دولابها.
+ * الحساب **إلزامي**: البيانات مملوكة لمستخدمة وتحميها RLS على الخادم، فبلا
+ * جلسة ما فيه صفوف تُقرأ أصلاً. الحارس في `RequireAuth`.
+ *
+ * `AuthUser` هو **المصدر الوحيد** لهوية المستخدمة في التطبيق — الاسم والبريد
+ * يُقرآن منه لا من مخزن جانبي. مخزنان للاسم يعني اسمين يختلفان.
  */
 
 export type AuthUser = {
@@ -27,6 +30,7 @@ export type AuthErrorCode =
   | 'weak-password'
   | 'network'
   | 'not-configured'
+  | 'email-confirm-required'
   | 'unknown'
 
 export type AuthError = {
@@ -40,7 +44,8 @@ const MESSAGES: Record<AuthErrorCode, string> = {
   'email-taken': 'فيه حساب مسجّل بهذا البريد. سجّلي دخولك بدل الإنشاء.',
   'weak-password': 'كلمة المرور قصيرة. اجعليها ٨ أحرف على الأقل.',
   network: 'ما قدرنا نوصل للخادم. تحقّقي من اتصالك.',
-  'not-configured': 'المزامنة بين الأجهزة غير مفعّلة بعد.',
+  'not-configured': 'الخادم غير مهيّأ. تحقّقي من إعدادات المشروع.',
+  'email-confirm-required': 'أنشأنا حسابك — افتحي بريدك وأكّديه ثم سجّلي دخولك.',
   unknown: 'صار خطأ غير متوقّع. حاولي مرة ثانية.',
 }
 
@@ -49,8 +54,8 @@ export const authError = (code: AuthErrorCode): AuthError => ({ code, message: M
 /**
  * عقد مزوّد الحساب — نفس نمط مزوّد التجربة.
  *
- * `local` يحفظ ملفًا شخصيًا على الجهاز، و`supabase` يضيف المزامنة الحقيقية.
- * الصفحات ما تعرف أيّهما يعمل.
+ * `local` يحفظ ملفًا شخصيًا على الجهاز (للتطوير بلا مفاتيح)، و`supabase` هو
+ * المزوّد الحقيقي. الصفحات ما تعرف أيّهما يعمل.
  */
 export type AuthProvider = {
   readonly id: string
@@ -59,4 +64,6 @@ export type AuthProvider = {
   signUp(input: SignUpInput): Promise<AuthUser>
   signIn(credentials: Credentials): Promise<AuthUser>
   signOut(): Promise<void>
+  /** يعدّل الاسم المعروض ويعيد المستخدمة بعد التعديل. */
+  updateName(name: string): Promise<AuthUser>
 }

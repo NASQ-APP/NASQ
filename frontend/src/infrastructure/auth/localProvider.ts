@@ -71,4 +71,12 @@ export const localAuthProvider: AuthProvider = {
   async signOut() {
     // الملف الشخصي يبقى على الجهاز؛ الخروج ينهي الجلسة فقط
   },
+
+  async updateName(name) {
+    const existing = read()
+    if (!existing) throw authError('invalid-credentials')
+    const updated: AuthUser = { ...existing, name: name.trim() }
+    write(updated)
+    return updated
+  },
 }

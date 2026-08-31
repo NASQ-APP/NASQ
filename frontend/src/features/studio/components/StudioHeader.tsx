@@ -7,7 +7,7 @@
 import { useState } from 'react'
 import { ChevronRight, Focus, Images, MoreHorizontal, Save, Trash2, UserRound } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import { Button } from '@/shared/components/ui'
+import { Button, ButtonLink } from '@/shared/components/ui'
 import { ROUTES } from '@/shared/config'
 
 export function StudioHeader({
@@ -38,13 +38,16 @@ export function StudioHeader({
   return (
     <header className="flex flex-none items-center justify-between gap-3 border-b border-line bg-canvas px-3 py-3 sm:px-5">
       <div className="flex min-w-0 items-center gap-3">
-        <Link
+        {/* الاستوديو شاشة تملأ النافذة بلا شريط تنقّل — فطريق الخروج لازم يبين */}
+        <ButtonLink
           to={ROUTES.home}
-          aria-label="رجوع للرئيسية"
-          className="grid h-8 w-8 place-items-center rounded-md text-faint transition-colors hover:bg-surface hover:text-ink"
+          variant="secondary"
+          size="sm"
+          className="flex-none"
         >
-          <ChevronRight size={16} strokeWidth={1.5} aria-hidden />
-        </Link>
+          <ChevronRight size={15} strokeWidth={1.6} aria-hidden />
+          <span className="hidden sm:inline">رجوع</span>
+        </ButtonLink>
         <div className="min-w-0">
           <div className="flex items-center gap-2.5">
             <h1 className="truncate text-[16px] sm:text-[17px]">استوديو التنسيق</h1>

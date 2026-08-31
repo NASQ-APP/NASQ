@@ -4,8 +4,7 @@
  */
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ChevronLeft } from 'lucide-react'
-import { Button, toast } from '@/shared/components/ui'
+import { BackButton, Button, toast } from '@/shared/components/ui'
 import { PageContainer } from '@/shared/components/layout'
 import {
   CharacteristicsForm,
@@ -62,13 +61,10 @@ function ModelForm({ editing }: { editing?: AiModel }) {
 
   return (
     <PageContainer width="content">
-      <button
+      <BackButton
+        className="mb-6"
         onClick={() => (step !== 1 && !editing ? setStep(1) : navigate(-1))}
-        className="lat mb-6 flex items-center gap-2 text-[10px] text-faint hover:text-ink"
-      >
-        <ChevronLeft size={12} aria-hidden />
-        رجوع
-      </button>
+      />
 
       <header className="mb-10">
         <p className="eyebrow">Your model</p>
@@ -105,9 +101,7 @@ function ModelForm({ editing }: { editing?: AiModel }) {
             <Button size="lg" onClick={() => navigate(ROUTES.studio)} disabled={!photo}>
               {photo ? 'ابدئي التجربة' : 'ارفعي صورتك أول'}
             </Button>
-            <Button size="lg" variant="secondary" onClick={() => setStep(1)}>
-              رجوع
-            </Button>
+            <BackButton size="lg" onClick={() => setStep(1)} />
           </div>
         </div>
       ) : (

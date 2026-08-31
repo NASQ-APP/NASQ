@@ -4,6 +4,7 @@
  */
 export { Button, ButtonAnchor, ButtonLink } from './Button'
 export type { ButtonVariant, ButtonSize } from './Button'
+export { BackButton } from './BackButton'
 export { IconButton } from './IconButton'
 export { Chip } from './Chip'
 export { Badge } from './Badge'

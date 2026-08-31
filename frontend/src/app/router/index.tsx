@@ -1,5 +1,6 @@
 import { createBrowserRouter } from 'react-router-dom'
 import { AppShell } from '@/app/layout/AppShell'
+import { RequireAuth } from '@/features/auth/RequireAuth'
 import { ROUTES } from '@/shared/config'
 import { CreateModelPage } from '@/pages/CreateModelPage'
 import { HomePage } from '@/pages/HomePage'
@@ -25,9 +26,13 @@ export const router = createBrowserRouter([
   { path: ROUTES.login, element: <LoginPage /> },
   { path: ROUTES.signUp, element: <SignUpPage /> },
   { path: ROUTES.welcome, element: <WelcomePage /> },
+  // كل ما تحت هنا يحتاج جلسة — الحارس يوجّه لتسجيل الدخول بدونها
   {
-    element: <AppShell />,
+    element: <RequireAuth />,
     children: [
+      {
+        element: <AppShell />,
+        children: [
       { path: ROUTES.home, element: <HomePage /> },
       { path: ROUTES.wardrobes, element: <WardrobesPage /> },
       { path: '/wardrobe/:id', element: <WardrobePage /> },
@@ -43,7 +48,9 @@ export const router = createBrowserRouter([
       { path: '/models/:id', element: <CreateModelPage /> },
       { path: ROUTES.settings, element: <SettingsPage /> },
       { path: ROUTES.privacy, element: <PrivacyPage /> },
-      { path: '*', element: <NotFoundPage /> },
+          { path: '*', element: <NotFoundPage /> },
+        ],
+      },
     ],
   },
 ])

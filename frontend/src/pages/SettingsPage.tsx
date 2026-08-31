@@ -1,9 +1,8 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { LogIn, LogOut, RotateCcw, Shield, Trash2 } from 'lucide-react'
+import { LogOut, Shield, Trash2 } from 'lucide-react'
 import {
   Button,
-  ButtonLink,
   ConfirmDialog,
   Field,
   PageHeader,
@@ -11,23 +10,43 @@ import {
   toast,
 } from '@/shared/components/ui'
 import { PageContainer } from '@/shared/components/layout'
-import { useProfile } from '@/features/profile/store'
 import { useWardrobe } from '@/features/wardrobe/store'
 import { useLooks } from '@/features/looks/store'
 import { useTravel } from '@/features/travel/store'
 import { useAiModels } from '@/features/ai-model/store'
 import { useAuth, syncsAcrossDevices } from '@/features/auth/store'
-import { ROUTES } from '@/shared/config'
 
 export function SettingsPage() {
-  const profile = useProfile()
-  const { wardrobes, items, resetToSeed, clearAll } = useWardrobe()
+  const { wardrobes, items, clearItems, clearAll } = useWardrobe()
   const looks = useLooks((s) => s.looks)
   const trips = useTravel((s) => s.trips)
   const { models, photo, clearPhoto } = useAiModels()
   const user = useAuth((state) => state.user)
+  const busy = useAuth((state) => state.busy)
   const signOut = useAuth((state) => state.signOut)
-  const [confirm, setConfirm] = useState<'reset' | 'clear'>()
+  const updateName = useAuth((state) => state.updateName)
+  const [confirm, setConfirm] = useState<'items' | 'all'>()
+
+  // الحقل مسوّدة محلية: الكتابة ما تلمس الجلسة إلا بعد «حفظ» — وإلا صار كل
+  // حرف طلبَ خادم. والبداية من اسم الجلسة تكفي: `RequireAuth` ما يعرض هذي
+  // الصفحة إلا وفيه مستخدمة، والخروج يفكّها من الشجرة.
+  const [name, setName] = useState(user?.name ?? '')
+
+  const joined = user?.createdAt
+    ? new Date(user.createdAt).toLocaleDateString('ar-SA-u-nu-latn', {
+        year: 'numeric',
+        month: 'long',
+      })
+    : undefined
+
+  const saveName = async () => {
+    const clean = name.trim()
+    if (!clean) return toast.error('الاسم ما ينفع يكون فاضيًا.')
+    if (clean === user?.name) return toast.ok('ما فيه تغيير.')
+    const error = await updateName(clean)
+    if (error) return toast.error(error.message)
+    toast.ok('حدّثنا اسمك')
+  }
 
   const stats = [
     { label: 'الخزائن', value: wardrobes.length },
@@ -51,25 +70,35 @@ export function SettingsPage() {
       </div>
 
       <section className="mb-12">
-        <p className="eyebrow mb-4">بياناتك</p>
+        <p className="eyebrow mb-4">حسابك</p>
         <div className="flex flex-col gap-4">
-          <Field label="الاسم">
-            <TextInput
-              value={profile.name}
-              onChange={(e) => profile.setProfile({ name: e.target.value })}
-            />
+          <Field label="الاسم" hint="هو اللي يناديك فيه دولابك في الصفحة الرئيسية">
+            <TextInput value={name} onChange={(e) => setName(e.target.value)} />
           </Field>
-          <Field label="البريد الإلكتروني (اختياري)">
-            <TextInput
-              dir="ltr"
-              value={profile.email}
-              onChange={(e) => profile.setProfile({ email: e.target.value })}
-              placeholder="name@example.com"
-            />
+          <Field label="البريد الإلكتروني" hint="بريد دخولك — ما يتغيّر من هنا">
+            <TextInput dir="ltr" value={user?.email ?? ''} readOnly disabled />
           </Field>
-          <Button className="self-start" onClick={() => toast.ok('حفظنا بياناتك')}>
-            حفظ
-          </Button>
+          <div className="flex flex-wrap items-center gap-3">
+            <Button onClick={saveName} disabled={busy}>
+              {busy ? 'نحفظ…' : 'حفظ'}
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={async () => {
+                await signOut()
+                toast.ok('سجّلنا خروجك')
+              }}
+            >
+              <LogOut size={13} strokeWidth={1.5} />
+              خروج
+            </Button>
+          </div>
+          <p className="text-[12px] text-muted">
+            {joined && <>عضوة منذ {joined} · </>}
+            {syncsAcrossDevices
+              ? 'حسابك على الخادم — بياناتك تتبعك على أي جهاز تدخلين منه.'
+              : 'ملف على هذا الجهاز فقط — ما يزامن بين الأجهزة.'}
+          </p>
         </div>
       </section>
 
@@ -119,65 +148,25 @@ export function SettingsPage() {
       </section>
 
       <section>
-        <p className="eyebrow mb-4">الحساب</p>
-        <div className="flex flex-col divide-y divide-line border-y border-line">
-          {user ? (
-            <Row
-              title={user.name}
-              note={
-                syncsAcrossDevices
-                  ? user.email
-                  : `${user.email} · ملف على هذا الجهاز، ما يزامن بين الأجهزة بعد.`
-              }
-              action={
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={async () => {
-                    await signOut()
-                    toast.ok('سجّلنا خروجك')
-                  }}
-                >
-                  <LogOut size={13} strokeWidth={1.5} />
-                  خروج
-                </Button>
-              }
-            />
-          ) : (
-            <Row
-              title="ما عندك حساب"
-              note="الحساب اختياري — دولابك يشتغل بدونه، ويميّزه لك لما تنشئينه."
-              action={
-                <ButtonLink to={ROUTES.login} variant="secondary" size="sm">
-                  <LogIn size={13} strokeWidth={1.5} />
-                  تسجيل الدخول
-                </ButtonLink>
-              }
-            />
-          )}
-        </div>
-      </section>
-
-      <section>
         <p className="eyebrow mb-4">بيانات التطبيق</p>
         <div className="flex flex-col divide-y divide-line border-y border-line">
           <Row
-            title="إرجاع الخزائن الافتراضية"
-            note="يحذف قطعك ويرجّع الخزائن الخمس فاضية زي أول مرة."
+            title="حذف كل القطع"
+            note="يحذف قطعك كلها ويبقي خزائنك فاضية بأسمائها."
             action={
-              <Button variant="secondary" size="sm" onClick={() => setConfirm('reset')}>
-                <RotateCcw size={13} strokeWidth={1.5} />
-                إرجاع
+              <Button variant="secondary" size="sm" onClick={() => setConfirm('items')}>
+                <Trash2 size={13} strokeWidth={1.5} />
+                حذف القطع
               </Button>
             }
           />
           <Row
-            title="تفريغ الخزانة"
-            note="يحذف كل القطع ويبقي خزانة واحدة فقط."
+            title="تصفير الخزانة"
+            note="يحذف القطع والخزائن معًا — ترجعين لصفحة بيضاء."
             action={
-              <Button variant="danger" size="sm" onClick={() => setConfirm('clear')}>
+              <Button variant="danger" size="sm" onClick={() => setConfirm('all')}>
                 <Trash2 size={13} strokeWidth={1.5} />
-                تفريغ
+                تصفير
               </Button>
             }
           />
@@ -188,21 +177,21 @@ export function SettingsPage() {
         open={Boolean(confirm)}
         onClose={() => setConfirm(undefined)}
         onConfirm={() => {
-          if (confirm === 'reset') {
-            resetToSeed()
-            toast.ok('رجّعنا الخزائن الافتراضية')
+          if (confirm === 'items') {
+            clearItems()
+            toast.ok('حذفنا كل القطع')
           } else {
             clearAll()
-            toast.ok('فرّغنا الخزانة')
+            toast.ok('صفّرنا الخزانة')
           }
           setConfirm(undefined)
         }}
         eyebrow="Confirm"
-        title={confirm === 'reset' ? 'إرجاع الخزائن الافتراضية؟' : 'تفريغ الخزانة؟'}
+        title={confirm === 'items' ? 'حذف كل القطع؟' : 'تصفير الخزانة؟'}
       >
-        {confirm === 'reset'
-          ? 'راح تنحذف كل قطعك وترجع الخزائن الخمس فاضية زي أول مرة.'
-          : 'راح تنحذف كل القطع من كل الخزائن. إطلالاتك المحفوظة تبقى، بس بتفقد قطعها.'}
+        {confirm === 'items'
+          ? 'راح تنحذف كل القطع من كل الخزائن، وتبقى الخزائن بأسمائها. إطلالاتك المحفوظة تبقى بس بتفقد قطعها.'
+          : 'راح تنحذف القطع والخزائن كلها. ما فيه رجعة.'}
       </ConfirmDialog>
     </PageContainer>
   )

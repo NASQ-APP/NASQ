@@ -9,7 +9,7 @@
     "reset": "npx supabase db reset",
     "diff": "npx supabase db diff",
     "push": "npx supabase db push",
-    "types": "npx supabase gen types typescript --local > ../frontend/src/infrastructure/supabase/database.types.ts",
+    "types": "npx supabase gen types typescript --project-id vfkmydsarlznevuqibrn > ../frontend/src/infrastructure/supabase/database.types.ts",
     "functions:serve": "npx supabase functions serve --no-verify-jwt",
     "functions:deploy": "npx supabase functions deploy"
   }

@@ -6,7 +6,7 @@ import { WardrobeCard } from '@/features/wardrobe/components/WardrobeCard'
 import { LookCard } from '@/features/looks/components/LookCard'
 import { useWardrobe } from '@/features/wardrobe/store'
 import { useLooks } from '@/features/looks/store'
-import { useProfile } from '@/features/profile/store'
+import { useAuth } from '@/features/auth/store'
 import { useAiModels } from '@/features/ai-model/store'
 import { DailySuggestions, QUICK_PROMPTS } from '@/features/stylist'
 import { WeatherLine } from '@/features/weather'
@@ -21,7 +21,7 @@ const greeting = () => {
 export function HomePage() {
   const { wardrobes, items } = useWardrobe()
   const looks = useLooks((s) => s.looks)
-  const name = useProfile((s) => s.name)
+  const name = useAuth((s) => s.user?.name)
   const model = useAiModels((s) => s.models[0])
   // المودالات المشتركة تعيش في القشرة — نفتحها من هنا بدل ما نكرّرها
   const { openAdd, openStylist } = useAppShell()
@@ -46,7 +46,7 @@ export function HomePage() {
         <WeatherLine />
 
         <h1 className="mt-4 text-[36px] sm:text-[42px]">
-          {greeting()}، {name}.
+          {greeting()}{name ? `، ${name}` : ''}.
           <br />
           <span className="display text-[40px] sm:text-[48px]">وش ودك تلبسين اليوم؟</span>
         </h1>

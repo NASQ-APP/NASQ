@@ -12,7 +12,7 @@
  */
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Button, ColorSwatch, toast } from '@/shared/components/ui'
+import { BackButton, Button, ColorSwatch, toast } from '@/shared/components/ui'
 import { StepShell } from '@/features/onboarding/components/StepShell'
 import { ChoiceChip } from '@/features/onboarding/components/ChoiceChip'
 import { useOnboarding } from '@/features/onboarding/store'
@@ -37,7 +37,7 @@ const TOTAL = 6
 /** رقم شاشة الملخّص — بعد آخر سؤال */
 const SUMMARY = TOTAL + 1
 
-/** رابط نصّي صغير — «تخطّي» و«رجوع» ما يستاهلون شكل زر. */
+/** رابط نصّي صغير لـ«تخطّي» — خروج من التعارف، فما يزاحم زر التقدّم. */
 const QUIET = 'text-[11.5px] text-faint transition-colors hover:text-ink'
 
 export function WelcomePage() {
@@ -145,9 +145,7 @@ export function WelcomePage() {
           footer={
             <>
               <Button onClick={() => setStep(4)}>تمام</Button>
-              <button onClick={() => setStep(2)} className={QUIET}>
-                رجوع
-              </button>
+              <BackButton onClick={() => setStep(2)} />
             </>
           }
         >
@@ -198,9 +196,7 @@ export function WelcomePage() {
               <Button disabled={contexts.length === 0} onClick={() => setStep(5)}>
                 تمام
               </Button>
-              <button onClick={() => setStep(3)} className={QUIET}>
-                رجوع
-              </button>
+              <BackButton onClick={() => setStep(3)} />
               <button onClick={leave} className={QUIET}>
                 تخطّي
               </button>
@@ -238,9 +234,7 @@ export function WelcomePage() {
           footer={
             <>
               <Button onClick={() => setStep(6)}>تمام</Button>
-              <button onClick={() => setStep(4)} className={QUIET}>
-                رجوع
-              </button>
+              <BackButton onClick={() => setStep(4)} />
             </>
           }
         >
@@ -289,9 +283,7 @@ export function WelcomePage() {
           footer={
             <>
               <Button onClick={() => setStep(SUMMARY)}>تمام</Button>
-              <button onClick={() => setStep(5)} className={QUIET}>
-                رجوع
-              </button>
+              <BackButton onClick={() => setStep(5)} />
               <button onClick={() => setStep(SUMMARY)} className={QUIET}>
                 تخطّي
               </button>
