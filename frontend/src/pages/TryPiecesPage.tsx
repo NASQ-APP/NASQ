@@ -7,7 +7,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Check, Link2, Trash2, Wand2 } from 'lucide-react'
+import { Camera, Check, Link2, Trash2, Wand2 } from 'lucide-react'
 import {
   Button,
   EmptyState,
@@ -20,9 +20,10 @@ import { PageContainer } from '@/shared/components/layout'
 import { TryPiecesRail } from '@/features/try-pieces/components/TryPiecesRail'
 import { itemBySourceLink, useWardrobe } from '@/features/wardrobe/store'
 import { useStudio } from '@/features/studio/store'
+import { useAppShell } from '@/app/layout'
 import { CATEGORIES, categoryById, ITEM_COLORS, shapesForSlot } from '@/domain/wardrobe'
 import { sourceById } from '@/features/try-pieces/sources'
-import { guessCategoryId, importFromUrl, nameFromUrl } from '@/features/try-pieces/import'
+import { importFromUrl } from '@/features/try-pieces/import'
 import { useImportedImageAudit } from '@/features/try-pieces/audit'
 import { cn } from '@/shared/lib'
 import { ROUTES } from '@/shared/config'
@@ -38,6 +39,7 @@ export function TryPiecesPage() {
   const navigate = useNavigate()
   const { items, addItem, deleteItem } = useWardrobe()
   const studio = useStudio()
+  const { openAdd } = useAppShell()
 
   // القطع المستوردة قبل هذي الميزة تُفحص مرة وحدة هنا
   useImportedImageAudit()
@@ -45,6 +47,14 @@ export function TryPiecesPage() {
   const [link, setLink] = useState('')
   const [importing, setImporting] = useState(false)
   const [step, setStep] = useState(0)
+
+  /**
+   * متجر رفض القراءة — نوقف ونشرح بدل ما نضيف قطعة ناقصة بصمت.
+   *
+   * الإضافة الصامتة تخلّي المستخدمة تلقى قطعة بلا صورة وما تدري ليش، فتظن العطل
+   * عندنا. السبب يُقال، والمخرج يُعرَض — والقرار لها.
+   */
+  const [blocked, setBlocked] = useState<{ storeName: string; link: string }>()
 
   const tryItems = items.filter((i) => i.source === 'try')
 
@@ -99,25 +109,9 @@ export function TryPiecesPage() {
     */
     if (!product.extracted && product.blocked) {
       const store = sourceById(product.storeId)
-      const derived = nameFromUrl(link)
-      const guessed = guessCategoryId(derived ?? '')
-      const item = addItem({
-        name: derived ?? `قطعة من ${store?.name ?? 'متجر خارجي'}`,
-        categoryId: guessed,
-        shape: shapesForSlot(categoryById(guessed)?.slot ?? 'top')[0].id,
-        colorHex: ITEM_COLORS[0].hex,
-        colorName: ITEM_COLORS[0].name,
-        wardrobeId: null,
-        source: 'try',
-        storeId: product.storeId,
-        sourceLink: link,
-      })
-
       setImporting(false)
       setStep(0)
-      setLink('')
-      toast.info(`${store?.name ?? 'المتجر'} يمنع القراءة الآلية — أضفناها، كمّلي تفاصيلها.`)
-      navigate(ROUTES.item(item.id))
+      setBlocked({ storeName: store?.name ?? new URL(link).hostname.replace(/^www\./, ''), link })
       return
     }
 
@@ -293,6 +287,51 @@ export function TryPiecesPage() {
           </div>
         </>
       )}
+
+      {/* ---------------- store blocks automated reading ---------------- */}
+      <Modal
+        open={Boolean(blocked)}
+        onClose={() => setBlocked(undefined)}
+        eyebrow="Store protection"
+        title={`${blocked?.storeName ?? 'المتجر'} يحمي صفحاته`}
+        width="sm"
+        footer={
+          <div className="flex flex-wrap gap-3">
+            <Button
+              onClick={() => {
+                setBlocked(undefined)
+                setLink('')
+                openAdd()
+              }}
+            >
+              <Camera size={14} strokeWidth={1.5} />
+              ارفعي صورة القطعة
+            </Button>
+            <Button variant="secondary" onClick={() => setBlocked(undefined)}>
+              إلغاء
+            </Button>
+          </div>
+        }
+      >
+        <div className="flex flex-col gap-4 text-[13px] leading-8 text-muted">
+          <p>
+            هذا المتجر <strong className="text-ink">يرفض القراءة الآلية</strong> لصفحاته، فما
+            نقدر نسحب صورة القطعة ولا اسمها ولا سعرها. مو عطلًا عندنا — يفتح للمتصفّح وحده.
+          </p>
+          <p>
+            بس تقدرين تضيفينها بنفسك عن طريق <strong className="text-ink">رفع صورتها</strong>،
+            ونقرأ فئتها ولونها من الصورة.
+          </p>
+
+          <div className="rounded-md border border-line bg-surface p-4">
+            <ol className="flex list-inside list-decimal flex-col gap-1.5 text-[12.5px]">
+              <li>افتحي صفحة القطعة في المتجر</li>
+              <li>خذي لقطة شاشة للقطعة وحدها</li>
+              <li>ارجعي واضغطي «ارفعي صورة القطعة» تحت</li>
+            </ol>
+          </div>
+        </div>
+      </Modal>
 
       {/* ---------------- import progress ---------------- */}
       <Modal open={importing} onClose={() => undefined} eyebrow="Importing" title="نقرأ القطعة من الرابط…">

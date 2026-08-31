@@ -16,7 +16,7 @@ import { PageContainer } from '@/shared/components/layout'
 import { Button, PageHeader, toast } from '@/shared/components/ui'
 import { CATEGORIES, ITEM_COLORS, categoryById, shapesForSlot } from '@/domain/wardrobe'
 import { itemBySourceLink, useWardrobe } from '@/features/wardrobe/store'
-import { guessCategoryId, importFromUrl, nameFromUrl } from '@/features/try-pieces/import'
+import { importFromUrl } from '@/features/try-pieces/import'
 import { sourceById } from '@/features/try-pieces/sources'
 import { useStudio } from '@/features/studio/store'
 import { ROUTES } from '@/shared/config'
@@ -68,27 +68,6 @@ export function SharePage() {
       }
 
       const product = await importFromUrl(link)
-
-      // المتجر رفض القراءة: ندخّلها بما يقوله الرابط، وتكمّلينها أنتِ
-      if (!product.extracted && product.blocked) {
-        const store = sourceById(product.storeId)
-        const derived = nameFromUrl(link)
-        const guessed = guessCategoryId(derived ?? '')
-        const item = addItem({
-          name: derived ?? `قطعة من ${store?.name ?? 'متجر خارجي'}`,
-          categoryId: guessed,
-          shape: shapesForSlot(categoryById(guessed)?.slot ?? 'top')[0].id,
-          colorHex: ITEM_COLORS[0].hex,
-          colorName: ITEM_COLORS[0].name,
-          wardrobeId: null,
-          source: 'try',
-          storeId: product.storeId,
-          sourceLink: link,
-        })
-        toast.info(`${store?.name ?? 'المتجر'} يمنع القراءة الآلية — أضفناها، كمّلي تفاصيلها.`)
-        navigate(ROUTES.item(item.id), { replace: true })
-        return
-      }
 
       if (!product.extracted) {
         setReason(product.reason ?? 'ما قدرنا نقرأ القطعة من الرابط.')
