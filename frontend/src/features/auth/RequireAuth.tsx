@@ -96,8 +96,19 @@ export function RequireAuth() {
   }
 
   if (!user) {
-    // نحفظ الوجهة فترجع لها المستخدمة بعد الدخول بدل ما تبدأ من الرئيسية
-    return <Navigate to={ROUTES.login} replace state={{ from: location.pathname }} />
+    /*
+      نحفظ الوجهة **بمعاملاتها**، لا مسارها وحده.
+
+      قطعة تشاركها من متجر تصل على `/share?url=…` — فإسقاط المعاملات يعني إنها
+      تسجّل دخولها ثم تلقى صفحة تقول «ما وصلنا رابط». القطعة هي المعاملة.
+    */
+    return (
+      <Navigate
+        to={ROUTES.login}
+        replace
+        state={{ from: `${location.pathname}${location.search}` }}
+      />
+    )
   }
 
   return <Outlet />

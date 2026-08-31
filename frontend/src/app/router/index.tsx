@@ -11,6 +11,7 @@ import { ModelsPage } from '@/pages/ModelsPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { PrivacyPage } from '@/pages/PrivacyPage'
 import { SettingsPage } from '@/pages/SettingsPage'
+import { SharePage } from '@/pages/SharePage'
 import { SignUpPage } from '@/pages/SignUpPage'
 import { WelcomePage } from '@/pages/WelcomePage'
 import { StudioPage } from '@/pages/StudioPage'
@@ -46,6 +47,11 @@ export const router = createBrowserRouter([
       { path: '/models/:id', element: <CreateModelPage /> },
       { path: ROUTES.settings, element: <SettingsPage /> },
       { path: ROUTES.privacy, element: <PrivacyPage /> },
+      /*
+        مقصد المشاركة **داخل الحارس** عمدًا: القطعة تُكتب في خزانة مستخدمة بعينها،
+        فبلا جلسة ما فيه وين تروح. الحارس يحفظ الوجهة فترجع لها بعد الدخول برابطها كاملًا.
+      */
+      { path: ROUTES.share, element: <SharePage /> },
           { path: '*', element: <NotFoundPage /> },
         ],
       },

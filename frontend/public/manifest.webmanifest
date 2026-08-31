@@ -1,0 +1,29 @@
+{
+  "name": "نَسَق | NASAQ",
+  "short_name": "نَسَق",
+  "description": "من خزانتك، نصنع طَلّتك. شاركي أي قطعة من أي متجر وشوفيها عليكِ قبل ما تشترينها.",
+  "lang": "ar",
+  "dir": "rtl",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#FFFFFF",
+  "theme_color": "#FFFFFF",
+  "icons": [
+    {
+      "src": "/nasaq.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "share_target": {
+    "action": "/share",
+    "method": "GET",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  }
+}

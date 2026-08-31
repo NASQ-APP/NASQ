@@ -10,7 +10,7 @@
  * ما فيه بيانات تجريبية: إمّا بيانات المنتج الحقيقية، أو سبب واضح للفشل.
  */
 import { CATEGORIES, ITEM_COLORS, categoryById, shapesForSlot } from '@/domain/wardrobe'
-import { DEV_IMPORT_PATH } from '../../../vite-plugins/import-path'
+import { supabase } from '@/infrastructure/supabase'
 import { pickBestImage } from './pick-image'
 import type { GarmentShape } from '@/domain/wardrobe'
 
@@ -179,32 +179,37 @@ export async function productFromRaw(raw: RawProduct): Promise<ImportedProduct> 
 /**
  * تقرأ القطعة من الرابط.
  *
- * عند ربط Supabase: استبدلي جسم الدالة بـ
- *   return request<ImportedProduct>(ENDPOINTS.itemsFromUrl, { method: 'POST', body: { url } })
- * الصفحات والبطاقات ما تتغيّر — تستهلك نفس `ImportedProduct`.
+ * القراءة تصير في دالة `items-from-url` على الخادم، لأن المتصفّح ممنوع من
+ * قراءة صفحة من نطاق ثانٍ (CORS).
+ *
+ * **نفس المسار في التطوير والإنتاج**: كان وسيط Vite يقرأها أثناء التطوير، وهو
+ * أداة ما توجد في البناء النهائي — فينكسر الاستيراد لحظة النشر وما يظهر ذلك في
+ * أي تجربة محلية. مسار واحد يعني إن ما نجرّبه هو ما يشتغل عند المستخدمة.
  */
 export async function importFromUrl(url: string): Promise<ImportedProduct> {
   const link = url.trim()
   if (!link) return { extracted: false, sourceLink: link, reason: 'الصقي رابط القطعة أولًا.' }
 
-  if (!import.meta.env.DEV) {
-    return {
-      extracted: false,
-      sourceLink: link,
-      reason: 'قراءة الروابط متاحة أثناء التطوير فقط لين نربط الخادم.',
-    }
+  const db = supabase
+  if (!db) {
+    return { extracted: false, sourceLink: link, reason: 'الخادم غير مهيّأ.' }
   }
 
   try {
-    const response = await fetch(DEV_IMPORT_PATH, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ url: link }),
-    })
-    if (!response.ok) {
-      return { extracted: false, sourceLink: link, reason: 'قارئ الروابط ما استجاب.' }
+    const { data, error } = await db.functions.invoke('items-from-url', { body: { url: link } })
+
+    if (error) {
+      // ردّ الخطأ يحمل رسالة بلغة بشر — نقرأها بدل ما نقول «صار خطأ»
+      const body = await error.context?.json?.().catch(() => undefined)
+      const message = typeof body?.message === 'string' ? body.message : undefined
+      return {
+        extracted: false,
+        sourceLink: link,
+        reason: message ?? 'ما قدرنا نوصل لقارئ الروابط.',
+      }
     }
-    return await productFromRaw((await response.json()) as RawProduct)
+
+    return await productFromRaw(data as RawProduct)
   } catch {
     return { extracted: false, sourceLink: link, reason: 'ما قدرنا نوصل لقارئ الروابط.' }
   }

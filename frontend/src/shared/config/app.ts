@@ -32,6 +32,8 @@ export const ROUTES = {
   editModel: (id: string) => `/models/${id}`,
   settings: '/settings',
   privacy: '/privacy',
+  /** مقصد «مشاركة» من نظام التشغيل — يطابق `share_target.action` في البيان */
+  share: '/share',
   login: '/login',
   signUp: '/signup',
 } as const

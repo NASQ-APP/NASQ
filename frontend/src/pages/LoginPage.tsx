@@ -3,7 +3,7 @@
  *
  * مثل صفحة الإنشاء: الحساب اختياري، والمستخدمة تقدر تدخل دولابها بدونه.
  */
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { AuthLayout } from '@/features/auth/components/AuthLayout'
@@ -16,6 +16,7 @@ import { ROUTES } from '@/shared/config'
 
 export function LoginPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const signIn = useAuth((state) => state.signIn)
   const busy = useAuth((state) => state.busy)
 
@@ -28,6 +29,16 @@ export function LoginPage() {
     defaultValues: { email: '', password: '' },
   })
 
+  /*
+    الوجهة اللي حفظها الحارس قبل ما يطردها — وإلا الرئيسية.
+
+    من ضغطت رابط إطلالة أو شاركت قطعة ترجع لها بعد الدخول، مو للرئيسية فتبدأ
+    الرحلة من جديد. ونقبل المسارات الداخلية فقط: قيمة تجي من خارج التطبيق تصير
+    تحويلًا مفتوحًا يودي المستخدمة لموقع غريب بعد إدخال كلمة مرورها.
+  */
+  const from = (location.state as { from?: string } | null)?.from
+  const destination = from?.startsWith('/') && !from.startsWith('//') ? from : ROUTES.home
+
   const onSubmit = handleSubmit(async (values) => {
     const failure = await signIn(values)
     if (failure) {
@@ -35,7 +46,7 @@ export function LoginPage() {
       return
     }
     toast.ok('أهلًا برجوعك')
-    navigate(ROUTES.home)
+    navigate(destination, { replace: true })
   })
 
   return (
