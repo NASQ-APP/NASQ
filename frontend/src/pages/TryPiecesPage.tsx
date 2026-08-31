@@ -22,7 +22,7 @@ import { itemBySourceLink, useWardrobe } from '@/features/wardrobe/store'
 import { useStudio } from '@/features/studio/store'
 import { CATEGORIES, categoryById, ITEM_COLORS, shapesForSlot } from '@/domain/wardrobe'
 import { sourceById } from '@/features/try-pieces/sources'
-import { importFromUrl } from '@/features/try-pieces/import'
+import { guessCategoryId, importFromUrl, nameFromUrl } from '@/features/try-pieces/import'
 import { useImportedImageAudit } from '@/features/try-pieces/audit'
 import { cn } from '@/shared/lib'
 import { ROUTES } from '@/shared/config'
@@ -89,6 +89,37 @@ export function TryPiecesPage() {
    */
   const completeImport = useCallback(async () => {
     const product = await importFromUrl(link)
+
+    /*
+      المتجر رفض القراءة — ومع ذلك ندخّل القطعة.
+
+      المستخدمة لصقت رابطًا لقطعة تبيها، ورفض المتجر لقارئ آلي مشكلته هو لا مشكلتها.
+      فنأخذ من الرابط ما يعطيه: المتجر من نطاقه، والاسم من مساره — ثم نوديها
+      لصفحة القطعة تكمّل الفئة والصورة. قطعة ناقصة أفضل من رسالة خطأ.
+    */
+    if (!product.extracted && product.blocked) {
+      const store = sourceById(product.storeId)
+      const derived = nameFromUrl(link)
+      const guessed = guessCategoryId(derived ?? '')
+      const item = addItem({
+        name: derived ?? `قطعة من ${store?.name ?? 'متجر خارجي'}`,
+        categoryId: guessed,
+        shape: shapesForSlot(categoryById(guessed)?.slot ?? 'top')[0].id,
+        colorHex: ITEM_COLORS[0].hex,
+        colorName: ITEM_COLORS[0].name,
+        wardrobeId: null,
+        source: 'try',
+        storeId: product.storeId,
+        sourceLink: link,
+      })
+
+      setImporting(false)
+      setStep(0)
+      setLink('')
+      toast.info(`${store?.name ?? 'المتجر'} يمنع القراءة الآلية — أضفناها، كمّلي تفاصيلها.`)
+      navigate(ROUTES.item(item.id))
+      return
+    }
 
     if (!product.extracted) {
       setImporting(false)

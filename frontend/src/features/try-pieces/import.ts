@@ -12,6 +12,7 @@
 import { CATEGORIES, ITEM_COLORS, categoryById, shapesForSlot } from '@/domain/wardrobe'
 import { supabase } from '@/infrastructure/supabase'
 import { pickBestImage } from './pick-image'
+import { storeIdFromUrl } from './sources'
 import type { GarmentShape } from '@/domain/wardrobe'
 
 /** ردّ `items-from-url` — نفس الحقول ونفس المعاني. */
@@ -43,6 +44,11 @@ export type ImportedProduct = {
 
   /** سبب مقروء لو ما نجح الاستخراج */
   reason?: string
+  /**
+   * المتجر يرفض أي قارئ آلي — ليس عطلًا ولا تصلحه إعادة محاولة.
+   * الواجهة تدخّل القطعة بما يقوله الرابط وتطلب إكمالها بدل ما تضيّعها.
+   */
+  blocked?: boolean
 }
 
 /**
@@ -63,12 +69,64 @@ export type RawProduct = {
   currency?: string
   color?: string
   reason?: string
+  blocked?: boolean
+}
+
+/**
+ * اسم معقول من الرابط وحده.
+ *
+ * المتاجر تكتب اسم المنتج في المسار: `buy-lola-casademunt-draped-dress-…`.
+ * فلما يرفض المتجر قراءة صفحته، يبقى الرابط يحمل ما يكفي لاسم تعرفه
+ * المستخدمة — أفضل من «قطعة من متجر خارجي».
+ *
+ * نسقط المقاطع التقنية (`buy`، المعرّفات الرقمية، اللاحقة) لأنها عنوان لا اسم.
+ */
+const SLUG_NOISE = /^(buy|shop|p|prd|dp|product|item|en|ar|sa|saudi|saudi-ar|women|men|clothing)$/i
+
+/** كلمات مقطع واحد بعد تنظيفه من الضجيج التقني. */
+function wordsOf(segment: string): string[] {
+  return segment
+    .replace(/\.(html?|php|aspx)$/i, '')
+    .split(/[-_]/)
+    .filter((word) => word && !/^\d+$/.test(word) && !SLUG_NOISE.test(word))
+    // معرّف المنتج يجي مخلوطًا بالأرقام وما يُقرأ — نسقطه
+    .filter((word) => !(/\d/.test(word) && /[a-z]/i.test(word) && word.length > 6))
+}
+
+export function nameFromUrl(link: string): string | undefined {
+  try {
+    const segments = new URL(link).pathname.split('/').filter(Boolean)
+    if (segments.length === 0) return undefined
+
+    /*
+      نمشي من آخر المسار للخلف، ونأخذ أول مقطع يحمل كلامًا.
+
+      بعض المتاجر تختم الرابط بمعرّف رقمي (ايسوس: `…/prd/12345678`)،
+      فالاكتفاء بالمقطع الأخير يعطي لا شيء ويسقط القطعة على «قطعة من متجر».
+      والمقطع اللي قبله غالبًا هو الاسم الوصفي.
+    */
+    for (const segment of segments.slice(-3).toReversed()) {
+      const words = wordsOf(segment)
+      // مقطع بكلمة واحدة غالبًا قسم لا اسم منتج
+      if (words.length < 2) continue
+      const name = words.join(' ').slice(0, 90)
+      return name.charAt(0).toUpperCase() + name.slice(1)
+    }
+    return undefined
+  } catch {
+    return undefined
+  }
 }
 
 /* ---------------------- تحويل لمفردات الخزانة ---------------------- */
 
-/** لون غير معروف — نقوله صراحة بدل ما نخمّن. */
-const UNKNOWN_COLOR = { hex: '#B9B3AA', name: 'غير محدد' }
+/**
+ * لون غير معروف — نقوله صراحة بدل ما نخمّن.
+ *
+ * رمادي هادئ لا أسود: القطعة بلا صورة تُرسم بلونها، والأسود يعطي مربّعًا
+ * مصمتًا يبدو عطلًا — ويدّعي معرفة لون ما نعرفه.
+ */
+export const UNKNOWN_COLOR = { hex: '#B9B3AA', name: 'غير محدد' }
 
 /** أسماء الألوان كما تكتبها المتاجر. */
 const COLOR_WORDS: [RegExp, string][] = [
@@ -130,7 +188,13 @@ function cleanName(raw: string): string {
   return parts.join(' | ').replace(/\s{2,}/g, ' ').trim() || raw.trim()
 }
 
-function guessCategoryId(name: string): string {
+/**
+ * فئة مرجّحة من الاسم — يستعملها اللصق والإضافة والإدخال اليدوي معًا.
+ *
+ * حتى لمّا يحجب المتجر صفحته، يبقى اسم المنتج في الرابط — وفيه كلمة تقول
+ * وش هي: `dress`، `skirt`، `heels`. فنخمّن منها بدل ما نسقط على أول فئة في القائمة.
+ */
+export function guessCategoryId(name: string): string {
   const hit = CATEGORY_WORDS.find(([pattern]) => pattern.test(name))
   const id = hit?.[1]
   return CATEGORIES.some((c) => c.id === id) ? (id as string) : CATEGORIES[0].id
@@ -199,18 +263,35 @@ export async function importFromUrl(url: string): Promise<ImportedProduct> {
     const { data, error } = await db.functions.invoke('items-from-url', { body: { url: link } })
 
     if (error) {
-      // ردّ الخطأ يحمل رسالة بلغة بشر — نقرأها بدل ما نقول «صار خطأ»
+      /*
+        فشل النداء نفسه — **نعامله حجبًا**.
+
+        المتاجر اللي تُسقط الاتصال تخلي الدالة تنتظر حتى تردّ البوابة 502 قبل ما
+        يوصلنا ردّها. والنتيجة واحدة من ناحية المستخدمة: ما قدرنا نقرأ الصفحة،
+        والمخرج إدخال يدوي لا إعادة محاولة. فما نفرّق بينهما في الواجهة.
+      */
       const body = await error.context?.json?.().catch(() => undefined)
       const message = typeof body?.message === 'string' ? body.message : undefined
       return {
         extracted: false,
+        blocked: true,
         sourceLink: link,
-        reason: message ?? 'ما قدرنا نوصل لقارئ الروابط.',
+        storeId: storeIdFromUrl(link),
+        reason: message ?? 'ما قدرنا نقرأ صفحة المنتج.',
       }
     }
 
-    return await productFromRaw(data as RawProduct)
+    const raw = data as RawProduct
+    // الخادم ما تعرّف على المتجر؟ الرابط وحده يكفي لمعرفته
+    const product = await productFromRaw({ ...raw, storeId: raw.storeId ?? storeIdFromUrl(link) })
+    return raw.blocked ? { ...product, blocked: true, reason: raw.reason } : product
   } catch {
-    return { extracted: false, sourceLink: link, reason: 'ما قدرنا نوصل لقارئ الروابط.' }
+    return {
+      extracted: false,
+      blocked: true,
+      sourceLink: link,
+      storeId: storeIdFromUrl(link),
+      reason: 'ما قدرنا نقرأ صفحة المنتج.',
+    }
   }
 }

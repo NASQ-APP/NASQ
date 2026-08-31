@@ -25,16 +25,32 @@ export type Extracted = {
   currency?: string
   color?: string
   reason?: string
+  /** المتجر يرفض أي قارئ آلي — المخرج إدخال يدوي لا إعادة محاولة. */
+  blocked?: boolean
 }
 
 const STORES: Record<string, string> = {
   'shein.com': 'shein',
-  'namshi.com': 'namshi',
-  'aliexpress.com': 'ali',
-  'zara.com': 'zara',
-  'noon.com': 'noon',
-  'asos.com': 'asos',
   'vogacloset.com': 'voga',
+  'ounass.com': 'ounass',
+  'nisnass.com': 'nisnass',
+  'trendyol.com': 'trendyol',
+  'mango.com': 'mango',
+  'centrepointstores.com': 'centrepoint',
+  'amazon.sa': 'amazon',
+  'aliexpress.com': 'ali',
+  'temu.com': 'temu',
+  'prettylittlething.com': 'plt',
+  'boohoo.com': 'boohoo',
+  'pinterest.com': 'pinterest',
+  'namshi.com': 'namshi',
+  'noon.com': 'noon',
+  'zara.com': 'zara',
+  'asos.com': 'asos',
+  'hm.com': 'hm',
+  'maxfashion.com': 'max',
+  '6thstreet.com': '6th',
+  'styli.com': 'styli',
 }
 
 const storeIdFor = (hostname: string): string | undefined => {
@@ -214,7 +230,14 @@ export async function readProduct(rawUrl: string): Promise<Extracted> {
         accept: 'text/html,application/xhtml+xml',
         'accept-language': 'ar,en;q=0.8',
       },
-      signal: AbortSignal.timeout(15_000),
+      /*
+        مهلة قصيرة عمدًا.
+
+        المتجر اللي يحجب يُسقط الاتصال بصمت ويخلينا ننتظر للنهاية — وبوابة
+        الدوال تستسلم قبلنا وتردّ 502، فيضيع رمز `blocked` اللي بنيناه. ثمانية
+        ثوانٍ تكفي أي متجر يردّ فعلًا، وتخلينا نردّ نحن قبلها لمن لا يردّ.
+      */
+      signal: AbortSignal.timeout(8_000),
     })
 
     if (response.status === 429) {
@@ -228,9 +251,10 @@ export async function readProduct(rawUrl: string): Promise<Extracted> {
     if (response.status === 403) {
       return {
         extracted: false,
+        blocked: true,
         sourceLink: url.toString(),
         storeId,
-        reason: `${storeName} رفض القراءة (403).`,
+        reason: `${storeName} يمنع القراءة الآلية لصفحاته (403).`,
       }
     }
     if (!response.ok) {
@@ -243,11 +267,19 @@ export async function readProduct(rawUrl: string): Promise<Extracted> {
     }
     html = (await response.text()).slice(0, 1_500_000)
   } catch {
+    /*
+      المتجر أسقط الاتصال بصمت — حماية تبصم مصافحة TLS وتُسقط أي
+      عميل غير متصفّح. ما ينفع معها تغيير ترويسة ولا إعادة محاولة.
+
+      نردّ برمز صريح `blocked` بدل رسالة تلمّح لعطل في اتصال المستخدمة، كي
+      تعرف الواجهة إن المخرج إدخال يدوي لا إعادة محاولة.
+    */
     return {
       extracted: false,
+      blocked: true,
       sourceLink: url.toString(),
       storeId,
-      reason: 'ما قدرنا نفتح الرابط — تأكدي من الاتصال أو جرّبي رابطًا ثانيًا.',
+      reason: `${storeName} يمنع القراءة الآلية لصفحاته.`,
     }
   }
 

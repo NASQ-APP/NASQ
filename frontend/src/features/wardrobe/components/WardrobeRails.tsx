@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ItemImage } from '@/shared/components/media/ItemImage'
 import { useReducedMotion } from '@/shared/hooks/useReducedMotion'
@@ -76,6 +76,32 @@ function Rail({ items, reverse = false }: { items: WardrobeItem[]; reverse?: boo
   const stopped = useRef(false)
   const drag = useRef({ active: false, startX: 0, startLeft: 0, moved: 0 })
 
+  /**
+   * هل نكرّر القائمة مرتين؟
+   *
+   * التكرار هو اللي يخفي حدّ اللفّ ويخلي المشي متصلًا — لكنه يصلح فقط لمّا
+   * تملأ النسخة الواحدة عرض الرفّ. مع قطع قليلة تبين النسختان معًا على الشاشة،
+   * فتظن المستخدمة إن قطعها تكرّرت — وهذا أسوأ من قفزة في حركة ما تحتاجها أصلًا.
+   */
+  const [looped, setLooped] = useState(false)
+
+  /*
+    القياس يصير في ردّ `ResizeObserver` لا في جسم الأثر: هو حدث من المتصفّح،
+    ويطلق أول مرة عند المراقبة فما نحتاج قياسًا مباشرًا يطلب رسمة ثانية.
+  */
+  useEffect(() => {
+    const track = trackRef.current
+    if (!track) return
+
+    const observer = new ResizeObserver(() => {
+      const passes = track.dataset.passes === '2' ? 2 : 1
+      const onePass = track.scrollWidth / passes
+      setLooped(onePass > track.clientWidth + 1)
+    })
+    observer.observe(track)
+    return () => observer.disconnect()
+  }, [])
+
   /** آخر موضع للمؤشّر — لقياس حركة فعلية لا مجرّد وجود. */
   const last = useRef<{ x: number; y: number } | null>(null)
 
@@ -88,14 +114,15 @@ function Rail({ items, reverse = false }: { items: WardrobeItem[]; reverse?: boo
   // نبدأ من منتصف المسار، فيبقى للمشي يمينًا مكان من أول لحظة
   useEffect(() => {
     const track = trackRef.current
-    if (!track || items.length === 0) return
+    if (!track || items.length === 0 || !looped) return
     pos.current = track.scrollWidth / 2
     track.scrollLeft = pos.current
-  }, [items])
+  }, [items, looped])
 
   // حلقة دائمة: تبدأ بعد المهلة وما تتوقّف — الأعلام وحدها تقرّر المشي
   useEffect(() => {
-    if (stillMotion) return
+    // بلا تكرار ما فيه مكان يمشي له ولا حدّ يُخفى — الرفّ يقعد مكانه
+    if (stillMotion || !looped) return
     const track = trackRef.current
     if (!track) return
 
@@ -128,7 +155,7 @@ function Rail({ items, reverse = false }: { items: WardrobeItem[]; reverse?: boo
       clearTimeout(timer)
       cancelAnimationFrame(frame)
     }
-  }, [reverse, stillMotion])
+  }, [reverse, stillMotion, looped])
 
   const onPointerDown = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
     const track = trackRef.current
@@ -184,6 +211,8 @@ function Rail({ items, reverse = false }: { items: WardrobeItem[]; reverse?: boo
         ref={trackRef}
         // ltr يخلي scrollLeft يتصرّف باتّجاه واحد، فالحساب ما يختلف بين المتصفّحات
         dir="ltr"
+        // المراقب يقرأ منه كم نسخة مرسومة ليقسم عليها العرض الكلي
+        data-passes={looped ? '2' : '1'}
         className="flex touch-pan-y select-none gap-6 overflow-x-auto overflow-y-hidden pb-2 pt-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         // صور القطع وروابطها قابلة للسحب أصلاً في المتصفّح، وسحبها الأصلي يبتلع
         // أحداث المؤشّر فيتجمّد سحب القضيب. نمنعه فيبقى السحب لنا.

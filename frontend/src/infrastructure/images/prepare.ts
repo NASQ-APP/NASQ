@@ -2,8 +2,8 @@
  * تجهيز الصور في المتصفح: تصغير قبل الإرسال، وقص مربّع قبل الحفظ.
  *
  * ليش نصغّر: صورة الجوال ٤ ميجا، ورفعها كما هي يبطّئ المعالجة بلا فائدة —
- * القطعة تُقرأ بوضوح عند ١٦٠٠ بكسل. وليش نقصّ مربّع قبل الحفظ: البطاقات
- * مربّعة، فالقص هنا يمنع تشويه الشبكة لاحقًا.
+ * القطعة تُقرأ بوضوح عند ١٦٠٠ بكسل. وليش مربّع قبل الحفظ: البطاقات
+ * مربّعة، فتوحيد المقاس هنا يمنع تشويه الشبكة لاحقًا — باحتواء لا بقصّ.
  *
  * **الشفافية تُحفظ**: الصورة المنقّاة تُرمّز PNG، فما تنقلب خلفيتها سوداء أو
  * بيضاء بعد المعالجة.
@@ -103,31 +103,34 @@ export async function prepareForUpload(file: File): Promise<Blob> {
 }
 
 /**
- * قص مربّع من المنتصف بحجم العرض، **على خلفية بيضاء دائمًا**.
+ * مربّع يسع القطعة كاملة، **على خلفية بيضاء دائمًا**.
  *
- * الصورة بعد إزالة الخلفية تجي شفافة، والشفافية تنقلب سوداء في أي صيغة ما
- * تدعمها. نسطّحها على أبيض هنا فتطلع القطعة على خلفية نظيفة موحّدة في كل
- * الشاشات، ويصير الخرج JPEG أخفّ.
+ * كان قصًا من المنتصف بضلع أقصر الأبعاد — وصور الملابس طولية غالبًا، فالفستان
+ * بـ١٠٠٠×١٥٠٠ يفقد ٢٥٠ بكسل من فوق ومثلها من تحت: يروح الذيل والأكمام وتبقى
+ * الوسط وحده. والمستخدمة صوّرت قطعتها كاملة، فقصّها يحذف ما قصدته بلا ما تدري.
+ *
+ * الحين **نحتوي لا نقصّ**: المربّع يبقى (البطاقات مربّعة والشبكة تحتاج مقاسًا
+ * واحدًا)، لكن القطعة تُقاس داخله بكاملها ويُملأ الفارغ أبيض. خلفية بيضاء أوسع
+ * أرخص من فستان مقطوع.
+ *
+ * والشفافية تُسطّح على أبيض: الصورة بعد إزالة الخلفية تجي شفافة، والشفافية
+ * تنقلب سوداء في أي صيغة ما تدعمها.
  */
 export async function prepareForStorage(source: Blob): Promise<PreparedImage> {
   const bitmap = await decode(source)
-  const side = Math.min(bitmap.width, bitmap.height)
-  const edge = Math.min(side, STORAGE_EDGE)
+
+  // الضلع يتبع أطول بُعد لا أقصره، وما نمدّ صورة صغيرة فوق حجمها
+  const longest = Math.max(bitmap.width, bitmap.height)
+  const edge = Math.min(longest, STORAGE_EDGE)
+
+  const scale = edge / longest
+  const width = Math.round(bitmap.width * scale)
+  const height = Math.round(bitmap.height * scale)
 
   const context = draw(edge, edge)
   context.fillStyle = '#ffffff'
   context.fillRect(0, 0, edge, edge)
-  context.drawImage(
-    bitmap,
-    (bitmap.width - side) / 2,
-    (bitmap.height - side) / 2,
-    side,
-    side,
-    0,
-    0,
-    edge,
-    edge,
-  )
+  context.drawImage(bitmap, (edge - width) / 2, (edge - height) / 2, width, height)
   bitmap.close?.()
 
   return encode(context)
