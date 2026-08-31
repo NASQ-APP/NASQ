@@ -13,41 +13,42 @@ export type ImportSource = {
   mark: string
   /** الموقع الرسمي — يُفتح في تبويب جديد */
   url: string
-  /**
-   * هل يسمح المتجر بقراءة صفحته من خادمنا؟
-   *
-   * بعضها يسقط الاتصال بصمت لأي عميل غير متصفّح. نصرّح بذلك بدل ما نترك
-   * المستخدمة تجرّب وتفشل وتظن العطل عندنا.
-   */
-  serverReadable: boolean
 }
 
 export const IMPORT_SOURCES: ImportSource[] = [
-  /* ---------------- تُقرأ من الخادم: الرابط وحده يكفي ---------------- */
-  { id: 'shein', name: 'شي إن', latin: 'SHEIN', mark: 'S', url: 'https://ar.shein.com/', serverReadable: true },
-  { id: 'voga', name: 'فوغا كلوسيت', latin: 'VogaCloset', mark: 'V', url: 'https://vogacloset.com/saudi/ar/', serverReadable: true },
-  { id: 'ounass', name: 'أُناس', latin: 'Ounass', mark: 'O', url: 'https://www.ounass.com/', serverReadable: true },
-  { id: 'nisnass', name: 'نس نس', latin: 'Nisnass', mark: 'NS', url: 'https://www.nisnass.com/sa-ar/', serverReadable: true },
-  { id: 'trendyol', name: 'ترينديول', latin: 'Trendyol', mark: 'T', url: 'https://www.trendyol.com/', serverReadable: true },
-  { id: 'mango', name: 'مانجو', latin: 'MANGO', mark: 'M', url: 'https://shop.mango.com/sa/ar', serverReadable: true },
-  { id: 'centrepoint', name: 'سنتربوينت', latin: 'Centrepoint', mark: 'C', url: 'https://www.centrepointstores.com/sa/ar/', serverReadable: true },
-  { id: 'amazon', name: 'أمازون', latin: 'Amazon.sa', mark: 'AZ', url: 'https://www.amazon.sa/', serverReadable: true },
-  { id: 'ali', name: 'علي إكسبرس', latin: 'AliExpress', mark: 'A', url: 'https://www.aliexpress.com/', serverReadable: true },
-  { id: 'temu', name: 'تيمو', latin: 'Temu', mark: 'TM', url: 'https://www.temu.com/', serverReadable: true },
-  { id: 'plt', name: 'بريتي ليتل ثينج', latin: 'PrettyLittleThing', mark: 'PL', url: 'https://www.prettylittlething.com/', serverReadable: true },
-  { id: 'boohoo', name: 'بوهو', latin: 'boohoo', mark: 'B', url: 'https://www.boohoo.com/', serverReadable: true },
+  /*
+    قياس وقت كتابة هذا الملف: هذي المتاجر ردّت على القراءة من الخادم في ثانية
+    أو ثانيتين. **توثيق لا شرط** — ما نبني عليه فرعًا في الكود، لأن المتجر
+    يغيّر حمايته متى شاء، والقائمة ما تغطي كل متجر تلصق منه المستخدمة.
+    كل رابط يمرّ بالمحاولة نفسها، وما يفشل يُشرح.
+  */
+  { id: 'shein', name: 'شي إن', latin: 'SHEIN', mark: 'S', url: 'https://ar.shein.com/' },
+  { id: 'voga', name: 'فوغا كلوسيت', latin: 'VogaCloset', mark: 'V', url: 'https://vogacloset.com/saudi/ar/' },
+  { id: 'ounass', name: 'أُناس', latin: 'Ounass', mark: 'O', url: 'https://www.ounass.com/' },
+  { id: 'nisnass', name: 'نس نس', latin: 'Nisnass', mark: 'NS', url: 'https://www.nisnass.com/sa-ar/' },
+  { id: 'trendyol', name: 'ترينديول', latin: 'Trendyol', mark: 'T', url: 'https://www.trendyol.com/' },
+  { id: 'mango', name: 'مانجو', latin: 'MANGO', mark: 'M', url: 'https://shop.mango.com/sa/ar' },
+  { id: 'centrepoint', name: 'سنتربوينت', latin: 'Centrepoint', mark: 'C', url: 'https://www.centrepointstores.com/sa/ar/' },
+  { id: 'amazon', name: 'أمازون', latin: 'Amazon.sa', mark: 'AZ', url: 'https://www.amazon.sa/' },
+  { id: 'ali', name: 'علي إكسبرس', latin: 'AliExpress', mark: 'A', url: 'https://www.aliexpress.com/' },
+  { id: 'temu', name: 'تيمو', latin: 'Temu', mark: 'TM', url: 'https://www.temu.com/' },
+  { id: 'plt', name: 'بريتي ليتل ثينج', latin: 'PrettyLittleThing', mark: 'PL', url: 'https://www.prettylittlething.com/' },
+  { id: 'boohoo', name: 'بوهو', latin: 'boohoo', mark: 'B', url: 'https://www.boohoo.com/' },
   // مب متجرًا: مصدر صور. تدخل منه القطعة بنفس المسار، لكن بلا سعر ولا ماركة.
-  { id: 'pinterest', name: 'بنترست', latin: 'Pinterest', mark: 'P', url: 'https://www.pinterest.com/', serverReadable: true },
+  { id: 'pinterest', name: 'بنترست', latin: 'Pinterest', mark: 'P', url: 'https://www.pinterest.com/' },
 
-  /* ---------------- تحجب القراءة الآلية ---------------- */
-  { id: 'namshi', name: 'نمشي', latin: 'Namshi', mark: 'N', url: 'https://www.namshi.com/saudi-ar/', serverReadable: false },
-  { id: 'noon', name: 'نون', latin: 'noon', mark: 'n', url: 'https://www.noon.com/saudi-ar/', serverReadable: false },
-  { id: 'zara', name: 'زارا', latin: 'ZARA', mark: 'Z', url: 'https://www.zara.com/sa/ar/', serverReadable: false },
-  { id: 'asos', name: 'ايسوس', latin: 'ASOS', mark: 'AS', url: 'https://www.asos.com/', serverReadable: false },
-  { id: 'hm', name: 'إتش آند إم', latin: 'H&M', mark: 'H', url: 'https://www2.hm.com/ar_sa/index.html', serverReadable: false },
-  { id: 'max', name: 'ماكس', latin: 'Max Fashion', mark: 'MX', url: 'https://www.maxfashion.com/sa/ar/', serverReadable: false },
-  { id: '6th', name: 'ذا سيكست ستريت', latin: '6thStreet', mark: '6', url: 'https://en.6thstreet.com/', serverReadable: false },
-  { id: 'styli', name: 'ستايلي', latin: 'Styli', mark: 'ST', url: 'https://www.styli.com/sa-ar/', serverReadable: false },
+  /*
+    وهذي رفضت وقت القياس: تقبل الاتصال وتكمّل TLS ثم ما ترسل ولا بايت، أو
+    ترد 403. طريقها رفع الصورة — والواجهة تشرحه لما تفشل المحاولة.
+  */
+  { id: 'namshi', name: 'نمشي', latin: 'Namshi', mark: 'N', url: 'https://www.namshi.com/saudi-ar/' },
+  { id: 'noon', name: 'نون', latin: 'noon', mark: 'n', url: 'https://www.noon.com/saudi-ar/' },
+  { id: 'zara', name: 'زارا', latin: 'ZARA', mark: 'Z', url: 'https://www.zara.com/sa/ar/' },
+  { id: 'asos', name: 'ايسوس', latin: 'ASOS', mark: 'AS', url: 'https://www.asos.com/' },
+  { id: 'hm', name: 'إتش آند إم', latin: 'H&M', mark: 'H', url: 'https://www2.hm.com/ar_sa/index.html' },
+  { id: 'max', name: 'ماكس', latin: 'Max Fashion', mark: 'MX', url: 'https://www.maxfashion.com/sa/ar/' },
+  { id: '6th', name: 'ذا سيكست ستريت', latin: '6thStreet', mark: '6', url: 'https://en.6thstreet.com/' },
+  { id: 'styli', name: 'ستايلي', latin: 'Styli', mark: 'ST', url: 'https://www.styli.com/sa-ar/' },
 ]
 
 export const sourceById = (id?: string): ImportSource | undefined =>
@@ -92,3 +93,4 @@ export function storeIdFromUrl(link: string): string | undefined {
     return undefined
   }
 }
+
