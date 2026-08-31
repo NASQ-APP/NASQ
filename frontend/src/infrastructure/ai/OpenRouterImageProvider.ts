@@ -104,7 +104,7 @@ async function generate(
         'content-type': 'application/json',
         // يعرّفان التطبيق في لوحة OpenRouter — اختياريان ومفيدان لتتبّع الاستهلاك
         'HTTP-Referer': window.location.origin,
-        'X-Title': 'NASAQ',
+        'X-Title': 'NASQ',
       },
       body: JSON.stringify({
         model: env.openRouterImageModel,

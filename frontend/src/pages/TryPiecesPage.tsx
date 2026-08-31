@@ -5,12 +5,11 @@
  * ما فيه شي يُشترى هنا: القطعة تُسحب، تُجرّب على موديلك، وإما تنتقل لخزانتك
  * (لأنك اشتريتيها فعلاً) أو تنحذف (المبدأ ١ · I-02 · I-03).
  */
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Check, ExternalLink, Link2, Trash2, Wand2 } from 'lucide-react'
+import { Check, Link2, Trash2, Wand2 } from 'lucide-react'
 import {
   Button,
-  ButtonAnchor,
   EmptyState,
   Modal,
   PageHeader,
@@ -22,11 +21,16 @@ import { TryPiecesRail } from '@/features/try-pieces/components/TryPiecesRail'
 import { itemBySourceLink, useWardrobe } from '@/features/wardrobe/store'
 import { useStudio } from '@/features/studio/store'
 import { CATEGORIES, categoryById, ITEM_COLORS, shapesForSlot } from '@/domain/wardrobe'
-import { IMPORT_SOURCES, sourceById } from '@/features/try-pieces/sources'
+import { sourceById } from '@/features/try-pieces/sources'
 import { importFromUrl } from '@/features/try-pieces/import'
 import { useImportedImageAudit } from '@/features/try-pieces/audit'
 import { cn } from '@/shared/lib'
 import { ROUTES } from '@/shared/config'
+import type { WardrobeItem } from '@/domain/wardrobe'
+
+/** ختم أحدث قطعة في مجموعة — عليه يُرتّب المصدر. */
+const newest = (pieces: WardrobeItem[]): number =>
+  pieces.reduce((max, piece) => Math.max(max, Date.parse(piece.addedAt) || 0), 0)
 
 const IMPORT_STEPS = ['فتح صفحة القطعة', 'سحب الصورة', 'إزالة الخلفية', 'تحديد الفئة واللون']
 
@@ -43,6 +47,37 @@ export function TryPiecesPage() {
   const [step, setStep] = useState(0)
 
   const tryItems = items.filter((i) => i.source === 'try')
+
+  /*
+    القطع مرتّبة **تحت مصدرها**، لا مرصوفة في رفّ واحد.
+
+    ما عاد فيه «افتحي المتجر»: القطعة تدخل برابط تلصقينه أو بمشاركة من المتجر
+    نفسه، فقائمة متاجر تُفتح صارت تملأ الصفحة بما لا يُستعمل. واسم المتجر أنفع
+    عنوانًا لقطعه — تقارنين فساتين فوغا جنب بعض، مو مبعثرة بين قطع شي إن.
+
+    الترتيب بأحدث قطعة في كل مجموعة: ما استوردتيه قبل شوي يطلع فوق بلا ما تدوّرين.
+    وقطعة من موقع ما نعرفه تجي تحت «مصادر أخرى» — المشاركة تقبل أي موقع،
+    فإخفاؤها يعني قطعة دخلت وما تبين في أي مكان.
+  */
+  const grouped = useMemo(() => {
+    const groups = new Map<string, WardrobeItem[]>()
+    for (const item of tryItems) {
+      const key = item.storeId ?? 'other'
+      groups.set(key, [...(groups.get(key) ?? []), item])
+    }
+
+    return [...groups.entries()]
+      .map(([id, pieces]) => {
+        const source = sourceById(id)
+        return {
+          id,
+          name: source?.name ?? 'مصادر أخرى',
+          latin: source?.latin ?? 'Other',
+          pieces,
+        }
+      })
+      .toSorted((a, b) => newest(b.pieces) - newest(a.pieces))
+  }, [tryItems])
 
   /* ---------------- الاستيراد بالرابط ---------------- */
 
@@ -149,38 +184,7 @@ export function TryPiecesPage() {
         <Button onClick={startImport}>استيراد</Button>
       </div>
 
-      {/* ---------------- sources ---------------- */}
-      <SectionHeader eyebrow="Sources" title="مصادر الاستيراد" />
-      <p className="mb-5 max-w-[560px] text-[12.5px] leading-7 text-muted">
-        افتحي المتجر ← انسخي رابط القطعة ← الصقيه فوق.
-      </p>
-      <div className="mb-14 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {IMPORT_SOURCES.map((s) => (
-          <div key={s.id} className="flex flex-col gap-4 rounded-md border border-line p-5">
-            <div className="flex items-center gap-4">
-              <span className="lat grid h-12 w-12 flex-none place-items-center rounded-md border border-line bg-surface text-[14px] text-faint">
-                {s.mark}
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="text-[14px]">{s.name}</p>
-                <p className="lat text-[10px] text-faint">{s.latin}</p>
-              </div>
-            </div>
-            <ButtonAnchor
-              href={s.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              size="sm"
-              variant="secondary"
-            >
-              <ExternalLink size={13} strokeWidth={1.5} />
-              افتحي المتجر
-            </ButtonAnchor>
-          </div>
-        ))}
-      </div>
-
-      {/* ---------------- imported pieces ---------------- */}
+      {/* ---------------- imported pieces, by store ---------------- */}
       <SectionHeader
         eyebrow="Not in your wardrobe"
         title="قطع تحت التجربة"
@@ -191,7 +195,7 @@ export function TryPiecesPage() {
               variant="secondary"
               onClick={() => {
                 studio.replaceAll(tryItems.map((i) => i.id))
-                navigate('/studio')
+                navigate(ROUTES.studio)
               }}
             >
               <Wand2 size={13} strokeWidth={1.5} />
@@ -200,30 +204,50 @@ export function TryPiecesPage() {
           )
         }
       />
+
       {tryItems.length === 0 ? (
         <EmptyState
           title="ما فيه قطع للتجربة."
-          body="الصقي رابط قطعة عشان تشوفينها على موديلك قبل ما تشترينها."
+          body="الصقي رابط قطعة فوق، أو شاركيها لـ«نَسّق» من أي متجر."
         />
       ) : (
         <>
-          {/*
-            نعرض صورة المتجر كما هي، حتى لو فيها عارضة. حجبها كان يترك الرفّ
-            لوحات فاضية: أغلب صور الفساتين على عارضة، فتختفي القطعة كلها ولا
-            تعرف المستخدمة وش استوردت. الصورة الناقصة أسوأ من عارضة فيها.
-            تبديل الصورة يبقى متاحًا من صفحة القطعة.
-          */}
-          <TryPiecesRail
-            pieces={tryItems.map((i) => ({
-              id: i.id,
-              name: i.name,
-              imageUrl: i.imageUrl,
-              meta: [categoryById(i.categoryId)?.name, i.price].filter(Boolean).join(' · ') || undefined,
-              badge: sourceById(i.storeId)?.latin,
-            }))}
-            onSelect={(id) => navigate(ROUTES.item(id))}
-          />
-          <div className="mt-6 flex flex-wrap gap-2">
+          <div className="flex flex-col gap-12">
+            {grouped.map((group) => (
+              <section key={group.id}>
+                {/*
+                  اسم المتجر عنوان لما تحته، مو بطاقة تُفتح. ما فيه وين تروحين:
+                  القطعة تدخل برابط تلصقينه أو بمشاركة من المتجر نفسه.
+                */}
+                <div className="mb-5 flex items-baseline gap-3 border-b border-line pb-3">
+                  <h3 className="text-[15px]">{group.name}</h3>
+                  <span className="lat text-[10.5px] text-faint">{group.latin}</span>
+                  <span className="me-0 ms-auto text-[11.5px] text-faint">
+                    {group.pieces.length} {group.pieces.length === 1 ? 'قطعة' : 'قطع'}
+                  </span>
+                </div>
+
+                {/*
+                  نعرض صورة المتجر كما هي، حتى لو فيها عارضة. حجبها كان يترك الرفّ
+                  لوحات فاضية: أغلب صور الفساتين على عارضة، فتختفي القطعة كلها ولا
+                  تعرف المستخدمة وش استوردت. الصورة الناقصة أسوأ من عارضة فيها.
+                */}
+                <TryPiecesRail
+                  pieces={group.pieces.map((i) => ({
+                    id: i.id,
+                    name: i.name,
+                    imageUrl: i.imageUrl,
+                    meta:
+                      [categoryById(i.categoryId)?.name, i.price].filter(Boolean).join(' · ') ||
+                      undefined,
+                  }))}
+                  onSelect={(id) => navigate(ROUTES.item(id))}
+                />
+              </section>
+            ))}
+          </div>
+
+          <div className="mt-10 flex flex-wrap gap-2">
             <Button
               variant="danger"
               size="sm"

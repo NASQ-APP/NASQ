@@ -45,7 +45,7 @@ function Bracket({ side }: { side: 'start' | 'end' }) {
 function Piece({ piece, onSelect }: { piece: RailPiece; onSelect?: (id: string) => void }) {
   const clickable = Boolean(onSelect)
   /* شبكات المتاجر تحمي روابطها، فصورة تُعرض اليوم قد تنكسر بكرة. الأيقونة
-     المكسورة تبان عطلًا في نَسَق، واللوح الفاتح يقول الحقيقة بهدوء. */
+     المكسورة تبان عطلًا في نَسّق، واللوح الفاتح يقول الحقيقة بهدوء. */
   const [broken, setBroken] = useState(false)
 
   return (

@@ -7,7 +7,12 @@
 import { APP } from '@/shared/config'
 import { cn } from '@/shared/lib'
 
-/** علاّقة ملابس: خطّاف يعلو ومثلث ينزل لقاعدة مستقيمة. */
+/**
+ * علاّقة ملابس: خطّاف يعلو ومثلث ينزل لقاعدة مستقيمة.
+ *
+ * الخطّاف **مفتوح من فوق يمين**: الحلقة المقفولة تقرأ نقطة عند ٣٢ بكسل،
+ * والفتحة تبقيه علاّقة حتى لمّا تصغر.
+ */
 export function LogoMark({ size = 24, className }: { size?: number; className?: string }) {
   return (
     <svg
@@ -22,7 +27,7 @@ export function LogoMark({ size = 24, className }: { size?: number; className?: 
       aria-hidden
       className={className}
     >
-      <path d="M12 8.6V7a2 2 0 1 1 2 2" />
+      <path d="M12 8.6V7a2 2 0 1 1 3.9 -0.2" />
       <path d="M12 8.6 5.2 14.3a1.2 1.2 0 0 0 .8 2.1h12a1.2 1.2 0 0 0 .8-2.1L12 8.6Z" />
     </svg>
   )
