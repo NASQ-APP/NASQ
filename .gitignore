@@ -9,3 +9,8 @@ dist
 # Supabase
 backend/supabase/.temp
 backend/supabase/.branches
+
+# إضافة المتصفّح — مخرجات الحزم
+# `.pem` **مفتاح توقيع خاص**: من يملكه يوقّع إضافة باسمنا، فما ينرفع أبدًا.
+*.pem
+*.crx

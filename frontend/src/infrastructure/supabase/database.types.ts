@@ -276,38 +276,40 @@ export type Database = {
       models: {
         Row: {
           age_group: string | null
-          body_shape: string
+          body_shape: string | null
           created_at: string
           gender: Database['public']['Enums']['gender']
           hair_color: string | null
           hair_style: string | null
-          height_cm: number
+          height_cm: number | null
           id: string
           is_default: boolean
           measurements: Json
           name: string
           preview_image_url: string | null
+          refinement: string | null
           seed: number
-          skin_tone: string
+          skin_tone: string | null
           updated_at: string
           user_id: string
           weight_kg: number | null
         }
         Insert: {
           age_group?: string | null
-          body_shape: string
+          body_shape?: string | null
           created_at?: string
           gender: Database['public']['Enums']['gender']
           hair_color?: string | null
           hair_style?: string | null
-          height_cm: number
+          height_cm?: number | null
           id?: string
           is_default?: boolean
           measurements?: Json
           name: string
           preview_image_url?: string | null
+          refinement?: string | null
           seed: number
-          skin_tone: string
+          skin_tone?: string | null
           updated_at?: string
           user_id: string
           weight_kg?: number | null
@@ -379,6 +381,7 @@ export type Database = {
           model_id: string | null
           name: string
           notes: string | null
+          number: number | null
           occasion: string | null
           result_image_url: string | null
           seasons: string[]
@@ -396,6 +399,7 @@ export type Database = {
           model_id?: string | null
           name: string
           notes?: string | null
+          number?: number | null
           occasion?: string | null
           result_image_url?: string | null
           seasons?: string[]
@@ -419,6 +423,7 @@ export type Database = {
         Row: {
           city: string | null
           created_at: string
+          declared_style: Json
           gender: Database['public']['Enums']['gender']
           id: string
           locale: string
@@ -430,6 +435,7 @@ export type Database = {
         Insert: {
           city?: string | null
           created_at?: string
+          declared_style?: Json
           gender?: Database['public']['Enums']['gender']
           id: string
           locale?: string

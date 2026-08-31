@@ -16,6 +16,10 @@ import { currentUser } from '@/infrastructure/auth'
 import { hasBackend } from '@/shared/config'
 import { ROUTES } from '@/shared/config'
 import { useWardrobe } from '@/features/wardrobe/store'
+import { useLooks } from '@/features/looks/store'
+import { useAiModels } from '@/features/ai-model/store'
+import { useTravel } from '@/features/travel/store'
+import { useOnboarding } from '@/features/onboarding/store'
 import { useAuth } from './store'
 
 export function RequireAuth() {
@@ -54,12 +58,33 @@ export function RequireAuth() {
     }
   }, [setUser])
 
-  // خزانة المستخدمة تُقرأ **بعد** ما تُحسم هويتها، وتُنسى مع خروجها: القراءة
-  // قبل الجلسة ترجع فاضية، والإبقاء بعد الخروج يعرض خزانتها لمن يجي بعدها.
+  /*
+    بيانات المستخدمة تُقرأ **بعد** ما تُحسم هويتها، وتُنسى مع خروجها: القراءة
+    قبل الجلسة ترجع فاضية، والإبقاء بعد الخروج يعرض خزانتها لمن يجي بعدها.
+
+    الخزانة أولًا ووحدها بانتظار: الإطلالة تقرأ فئة قطعها من الخزانة لتعرف ميلها في
+    الجسم، فلو وصلت قبلها سقطت القطع على القيمة الاحتياطية. الباقي مستقل فيمشي معًا.
+  */
   useEffect(() => {
     if (!checked) return
-    if (userId) void useWardrobe.getState().load()
-    else useWardrobe.getState().reset()
+
+    if (!userId) {
+      useWardrobe.getState().reset()
+      useLooks.getState().reset()
+      useAiModels.getState().reset()
+      useTravel.getState().reset()
+      return
+    }
+
+    void (async () => {
+      await useWardrobe.getState().load()
+      await Promise.all([
+        useLooks.getState().load(),
+        useAiModels.getState().load(),
+        useTravel.getState().load(),
+        useOnboarding.getState().load(),
+      ])
+    })()
   }, [checked, userId])
 
   if (!checked) {

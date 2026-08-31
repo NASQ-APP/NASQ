@@ -9,6 +9,8 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { storageKey } from '@/infrastructure/storage'
+import { hasBackend } from '@/shared/config'
+import { fetchPreferences, saveDeclaredStyle } from '@/infrastructure/profile/repository'
 import { EMPTY_DECLARED } from '@/domain/style/types'
 import type { AvoidRule, DeclaredStyle } from '@/domain/style/types'
 import type { ItemColor } from '@/domain/wardrobe'
@@ -27,6 +29,8 @@ type OnboardingState = {
   complete: () => void
   /** يعيد التعارف من الإعدادات — يمسح كل شي بما فيه القيود */
   reset: () => void
+  /** يقرأ ذوقها المصرَّح من ملفها على الخادم. */
+  load: () => Promise<void>
 }
 
 /**
@@ -43,7 +47,7 @@ const flip = <T,>(list: T[], value: T, same: (a: T, b: T) => boolean, max?: numb
 
 export const useOnboarding = create<OnboardingState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       declared: EMPTY_DECLARED,
 
       patch: (patch) =>
@@ -81,14 +85,44 @@ export const useOnboarding = create<OnboardingState>()(
           },
         })),
 
-      complete: () =>
+      /*
+        الحفظ على الخادم يصير **عند الختم فقط**، لا مع كل لمسة.
+
+        الخطوات مسودّة تتغيّر عشرات المرات قبل ما تستقر، وإرسال كل وسم يعني طلبًا
+        لكل ضغطة. ومن تخرج قبل الختم ما صرّحت بشيء بعد.
+      */
+      complete: () => {
         set((state) => ({
           declared: { ...state.declared, completedAt: new Date().toISOString() },
-        })),
+        }))
+        if (hasBackend()) void saveDeclaredStyle(get().declared).catch(() => {})
+      },
 
-      reset: () => set({ declared: EMPTY_DECLARED }),
+      reset: () => {
+        set({ declared: EMPTY_DECLARED })
+        if (hasBackend()) void saveDeclaredStyle(EMPTY_DECLARED).catch(() => {})
+      },
+
+      load: async () => {
+        if (!hasBackend()) return
+        try {
+          const { declared } = await fetchPreferences()
+          if (declared) set({ declared: { ...EMPTY_DECLARED, ...declared } })
+        } catch {
+          // القراءة فشلت: يبدأ التعارف من جديد بدل ذوق مستخدمة قبلها
+        }
+      },
     }),
-    { name: storageKey('onboarding') },
+    {
+      name: storageKey('onboarding'),
+      version: 1,
+      // الذوق المصرَّح ملك للمستخدمة لا للجهاز، فمع الخادم يُقرأ منه وحده
+      partialize: (state) => (hasBackend() ? {} : { declared: state.declared }),
+      migrate: (persisted, version) =>
+        hasBackend() || version < 1
+          ? { declared: EMPTY_DECLARED }
+          : (persisted as OnboardingState),
+    },
   ),
 )
 

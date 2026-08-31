@@ -8,7 +8,10 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { storageKey } from '@/infrastructure/storage'
-import { seedFrom, uid } from '@/shared/lib'
+import { hasBackend } from '@/shared/config'
+import { seedFrom, uid, uuid } from '@/shared/lib'
+import { toast } from '@/shared/components/ui'
+import * as remote from '@/infrastructure/model/repository'
 import type { AiModel, ModelCharacteristics, ModelSource, UserPhoto } from '@/domain/model'
 import type { Gender } from '@/domain/wardrobe'
 import { readyModelFor } from '@/domain/model'
@@ -20,6 +23,11 @@ type ModelState = {
   photo?: UserPhoto
   /** آخر وضع اختارته المستخدمة في الاستوديو */
   preferredSource: ModelSource
+
+  /** يقرأ موديلات المستخدمة من الخادم بعد ما تُحسم الجلسة. */
+  load: () => Promise<void>
+  /** ينسى موديلات الجلسة عند الخروج. */
+  reset: () => void
 
   saveModel: (characteristics: ModelCharacteristics, name?: string) => AiModel
   updateModel: (id: string, characteristics: ModelCharacteristics) => void
@@ -51,13 +59,39 @@ const defaultName = (g: Gender) => (g === 'female' ? 'موديلي النسائ�
 
 export const useAiModels = create<ModelState>()(
   persist(
-    (set, get) => ({
+    (set, get) => {
+      let queue: Promise<void> = Promise.resolve()
+
+      const push = (action: () => Promise<void>, whatFailed: string) => {
+        if (!hasBackend()) return
+        queue = queue.then(action).catch(() => {
+          toast.error(`ما قدرنا نحفظ ${whatFailed} على الخادم — رجّعنا آخر نسخة محفوظة.`)
+          return get().load()
+        })
+      }
+
+      /** الموديل بمعرّفه من الحالة الحيّة — الكتابة ترسل الصفّ كاملًا. */
+      const modelById = (id: string) => get().models.find((m) => m.id === id)
+
+      return {
       models: [],
       preferredSource: 'model',
 
+      load: async () => {
+        if (!hasBackend()) return
+        try {
+          const models = await remote.fetchModels()
+          set({ models })
+        } catch {
+          // القراءة فشلت: قائمة فاضية أصدق من موديلات مستخدمة قبلها
+        }
+      },
+
+      reset: () => set({ models: [], activeModelId: undefined, readyModelId: undefined }),
+
       saveModel: (characteristics, name) => {
         const model: AiModel = {
-          id: uid('model'),
+          id: hasBackend() ? uuid() : uid('model'),
           name: name?.trim() || defaultName(characteristics.gender),
           characteristics,
           seed: seedFrom(JSON.stringify(characteristics)),
@@ -66,10 +100,11 @@ export const useAiModels = create<ModelState>()(
           createdAt: new Date().toISOString(),
         }
         set((state) => ({ models: [...state.models, model], activeModelId: model.id }))
+        push(() => remote.insertModel(model), 'الموديل')
         return model
       },
 
-      updateModel: (id, characteristics) =>
+      updateModel: (id, characteristics) => {
         set((state) => ({
           models: state.models.map((m) =>
             m.id === id
@@ -81,26 +116,29 @@ export const useAiModels = create<ModelState>()(
                 }
               : m,
           ),
-        })),
+        }))
+        const updated = modelById(id)
+        if (updated) push(() => remote.updateModel(updated), 'تعديل الموديل')
+      },
 
-      deleteModel: (id) =>
+      deleteModel: (id) => {
         set((state) => ({
           models: state.models.filter((m) => m.id !== id),
           activeModelId: state.activeModelId === id ? undefined : state.activeModelId,
-        })),
+        }))
+        push(() => remote.deleteModel(id), 'حذف الموديل')
+      },
 
-      setDefault: (id) =>
-        set((state) => {
-          const target = state.models.find((m) => m.id === id)
-          if (!target) return state
-          return {
-            models: state.models.map((m) =>
-              m.characteristics.gender === target.characteristics.gender
-                ? { ...m, isDefault: m.id === id }
-                : m,
-            ),
-          }
-        }),
+      setDefault: (id) => {
+        const gender = modelById(id)?.characteristics.gender
+        if (!gender) return
+        set((state) => ({
+          models: state.models.map((m) =>
+            m.characteristics.gender === gender ? { ...m, isDefault: m.id === id } : m,
+          ),
+        }))
+        push(() => remote.setDefaultModel(id, gender), 'الموديل الافتراضي')
+      },
 
       setActive: (activeModelId) => set({ activeModelId }),
 
@@ -121,16 +159,34 @@ export const useAiModels = create<ModelState>()(
           return { photo: undefined }
         }),
       setPreferredSource: (source) => set({ preferredSource: source }),
-    }),
+      }
+    },
     {
       name: storageKey('models'),
-      // الصورة الشخصية مستثناة عمدًا من التخزين (§17)
+      version: 1,
+      /*
+        الموديلات على الخادم، فما نحفظ نسخة تزاحمه. ويبقى محليًا ما هو **خيار جهاز**
+        لا ملكًا: أي موديل مثبّت الآن، وأي وضع عرض اختارته. رفعهما للخادم يعني
+        أن تفتح جهازًا فيقفز لموديل ثبّتته على جهاز ثانٍ.
+
+        والصورة الشخصية مستثناة عمدًا من التخزين كلّه (§17).
+      */
       partialize: (state) => ({
-        models: state.models,
+        ...(hasBackend() ? {} : { models: state.models }),
         activeModelId: state.activeModelId,
         readyModelId: state.readyModelId,
         preferredSource: state.preferredSource,
       }),
+      /** الإصدار ١: انتقلت الموديلات للخادم — أي نسخة محفوظة تُسقط. */
+      migrate: (persisted, version) => {
+        const state = (persisted ?? {}) as Partial<ModelState>
+        return {
+          activeModelId: state.activeModelId,
+          readyModelId: state.readyModelId,
+          preferredSource: state.preferredSource ?? 'model',
+          models: hasBackend() || version < 1 ? [] : (state.models ?? []),
+        }
+      },
     },
   ),
 )
