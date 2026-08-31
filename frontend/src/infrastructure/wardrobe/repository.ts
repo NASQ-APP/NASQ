@@ -111,11 +111,29 @@ export async function deleteWardrobe(id: string, fallbackId: string | null): Pro
 
 /* ---------------- القطع ---------------- */
 
+/**
+ * رفضتها القاعدة لأنها موجودة أصلًا — ليس عطلًا يستاهل «صار خطأ».
+ *
+ * الحارس في الواجهة يمسك الحالة الشائعة، لكنه يقرأ ذاكرة تبويب واحد. تبويبان
+ * يستوردان نفس الرابط معًا يمرّان منه، وتحسمها القاعدة.
+ */
+export class DuplicateItemError extends Error {
+  constructor() {
+    super('duplicate-item')
+    this.name = 'DuplicateItemError'
+  }
+}
+
+/** انتهاك قيد فرادة في Postgres. */
+const isUniqueViolation = (error: unknown): boolean =>
+  Boolean(error && typeof error === 'object' && 'code' in error && error.code === '23505')
+
 export async function insertItem(item: WardrobeItem): Promise<void> {
   const db = requireSupabase()
   const userId = await currentUserId()
 
   const { error } = await db.from('items').insert(toItemInsert(item, userId))
+  if (isUniqueViolation(error)) throw new DuplicateItemError()
   if (error) throw error
 
   if (item.wardrobeId) {

@@ -13,7 +13,7 @@
  * نوقفها في `pending` ونسأل، والإضافة ما تصير إلا بعد اختيارها.
  */
 import { useEffect, useRef, useState } from 'react'
-import { useWardrobe } from '@/features/wardrobe/store'
+import { itemBySourceLink, useWardrobe } from '@/features/wardrobe/store'
 import { toast } from '@/shared/components/ui'
 import { CATEGORIES, ITEM_COLORS, categoryById, shapesForSlot } from '@/domain/wardrobe'
 import { productFromRaw, type ImportedProduct, type RawProduct } from './import'
@@ -139,6 +139,20 @@ export function useStoreBridge() {
 
         const store = sourceById(product.storeId)
 
+        /*
+          وصلت قبل: نقول وما نضيف.
+
+          الإضافة ترسل مرتين بسهولة — ضغطة مكررة، أو تبويب ثانٍ مفتوح يستلم
+          نفس الطابور. والحراسة هنا لا في المخزن، لأن المستخدمة تستاهل جوابًا
+          يقول وش صار بدل صمت.
+        */
+        const existing = itemBySourceLink(product.sourceLink)
+        if (existing) {
+          toast.info(`${existing.name} موجودة عندك من قبل.`)
+          ack()
+          return
+        }
+
         /* بلا فئة موثوقة ما نخمّن — نسأل. بنترست الحالة الوحيدة اليوم. */
         if (product.storeId === 'pinterest') {
           setPending((queue) => [...queue, { product, storeName: store?.name }])
@@ -184,6 +198,13 @@ export function useStoreBridge() {
     if (!next) return
     const slot = categoryById(categoryId)?.slot ?? 'top'
     const { product } = next
+
+    const existing = itemBySourceLink(product.sourceLink)
+    if (existing) {
+      toast.info(`${existing.name} موجودة عندك من قبل.`)
+      setPending((queue) => queue.slice(1))
+      return
+    }
 
     addItem({
       name: product.name ?? `قطعة من ${next.storeName ?? 'بنترست'}`,

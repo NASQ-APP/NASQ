@@ -19,7 +19,7 @@ import {
 } from '@/shared/components/ui'
 import { PageContainer } from '@/shared/components/layout'
 import { TryPiecesRail } from '@/features/try-pieces/components/TryPiecesRail'
-import { useWardrobe } from '@/features/wardrobe/store'
+import { itemBySourceLink, useWardrobe } from '@/features/wardrobe/store'
 import { useStudio } from '@/features/studio/store'
 import { CATEGORIES, categoryById, ITEM_COLORS, shapesForSlot } from '@/domain/wardrobe'
 import { IMPORT_SOURCES, sourceById } from '@/features/try-pieces/sources'
@@ -59,6 +59,21 @@ export function TryPiecesPage() {
       setImporting(false)
       setStep(0)
       toast.error(product.reason ?? 'ما قدرنا نقرأ القطعة من الرابط.')
+      return
+    }
+
+    /*
+      رابط لصقتيه قبل: نوديك للقطعة الموجودة بدل ما نضيف نسخة ثانية.
+      قصدك تجرّبين هذي القطعة، وهي عندك أصلًا — فنوصّلك لها.
+    */
+    const existing = itemBySourceLink(product.sourceLink)
+    if (existing) {
+      setImporting(false)
+      setStep(0)
+      setLink('')
+      studio.add(existing.id)
+      toast.info(`${existing.name} موجودة عندك — جهّزناها للتجربة.`)
+      navigate(ROUTES.studio)
       return
     }
 

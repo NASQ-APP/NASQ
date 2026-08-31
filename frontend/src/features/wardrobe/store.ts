@@ -76,8 +76,13 @@ export const useWardrobe = create<WardrobeState>()(
        */
       const push = (action: () => Promise<void>, whatFailed: string) => {
         if (!hasBackend()) return
-        queue = queue.then(action).catch(() => {
-          toast.error(`ما قدرنا نحفظ ${whatFailed} على الخادم — رجّعنا آخر نسخة محفوظة.`)
+        queue = queue.then(action).catch((error: unknown) => {
+          // قطعة مكررة ما هي عطل: القاعدة رفضت نسخة ثانية لشيء تملكينه
+          if (error instanceof remote.DuplicateItemError) {
+            toast.info('هذي القطعة عندك من قبل.')
+          } else {
+            toast.error(`ما قدرنا نحفظ ${whatFailed} على الخادم — رجّعنا آخر نسخة محفوظة.`)
+          }
           return get().load()
         })
       }
@@ -249,3 +254,16 @@ export const itemById = (id: string): WardrobeItem | undefined =>
 
 export const wardrobeById = (id?: string | null): Wardrobe | undefined =>
   useWardrobe.getState().wardrobes.find((wardrobe) => wardrobe.id === id)
+
+/**
+ * قطعة مستوردة من نفس رابط المتجر — حارس التكرار.
+ *
+ * نفس الرابط يعني نفس المنتج. والاستيراد يتكرّر بلا قصد بسهولة: ضغطتين
+ * على زر الإضافة، أو لصق رابط نسيت إنك لصقتيه أمس. والنتيجة خزانة فيها نفس
+ * الفستان ثلاث مرات — توهم المستخدمة إنها تملك ثلاثًا، وتزاحم قطعها الحقيقية.
+ *
+ * المقارنة على الرابط وحده لا على الاسم: المتجر يغيّر اسم المنتج، ومنتجات
+ * مختلفة تتشابه أسماؤها.
+ */
+export const itemBySourceLink = (link?: string): WardrobeItem | undefined =>
+  link ? useWardrobe.getState().items.find((item) => item.sourceLink === link) : undefined
