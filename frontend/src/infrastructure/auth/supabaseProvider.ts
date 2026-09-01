@@ -107,6 +107,25 @@ export const supabaseAuthProvider: AuthProvider = {
 
     return toAuthUser(data.user)
   },
+
+  /**
+   * الحذف يصير في القاعدة لا هنا.
+   *
+   * `auth.users` مخطّط محمي ما يلمسه عميل المتصفح، وكل جداولها معلّقة عليه
+   * بـ`on delete cascade` — فصفّ واحد يُحذف هناك يمسح خزانتها كلها. الدالة
+   * `delete_account` تعمل بصلاحيات مالكها وتقرأ هويّة المستدعية من رمزها
+   * الموقّع، فما فيه معرّف تمرّره الواجهة ليحذف حساب غيرها.
+   *
+   * والخروج بعده لا قبله: لو خرجنا أولًا ضاع الرمز الذي تُعرَف به.
+   */
+  async deleteAccount(): Promise<void> {
+    const db = requireSupabase()
+    const { error } = await db.rpc('delete_account')
+    if (error) throw error.message.toLowerCase().includes('fetch')
+      ? authError('network')
+      : authError('unknown')
+    await db.auth.signOut()
+  },
 }
 
 /** الجلسة القائمة عند إقلاع التطبيق — أو لا شيء. */

@@ -7,7 +7,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Camera, Check, Link2, Trash2, Wand2 } from 'lucide-react'
+import { Camera, Check, Link2, Wand2 } from 'lucide-react'
 import {
   Button,
   EmptyState,
@@ -37,7 +37,7 @@ const IMPORT_STEPS = ['فتح صفحة القطعة', 'سحب الصورة', 'إ
 
 export function TryPiecesPage() {
   const navigate = useNavigate()
-  const { items, addItem, deleteItem } = useWardrobe()
+  const { items, addItem } = useWardrobe()
   const studio = useStudio()
   const { openAdd } = useAppShell()
 
@@ -270,20 +270,6 @@ export function TryPiecesPage() {
                 />
               </section>
             ))}
-          </div>
-
-          <div className="mt-10 flex flex-wrap gap-2">
-            <Button
-              variant="danger"
-              size="sm"
-              onClick={() => {
-                tryItems.forEach((i) => deleteItem(i.id))
-                toast.ok('نظّفنا قطع التجربة')
-              }}
-            >
-              <Trash2 size={13} strokeWidth={1.5} />
-              حذف كل قطع التجربة
-            </Button>
           </div>
         </>
       )}

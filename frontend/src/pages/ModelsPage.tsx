@@ -8,9 +8,18 @@
  * `sm` تصير في سطر واحد. وأيقونة الحذف وحدها بلا نص لكنها تحمل `aria-label` —
  * زر بلا اسم لا يقرأه قارئ الشاشة.
  */
+import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Camera, Check, Pencil, Trash2, UserRound } from 'lucide-react'
-import { Badge, Button, ButtonLink, EmptyState, PageHeader, toast } from '@/shared/components/ui'
+import {
+  Badge,
+  Button,
+  ButtonLink,
+  ConfirmDialog,
+  EmptyState,
+  PageHeader,
+  toast,
+} from '@/shared/components/ui'
 import { Reveal, RevealItem } from '@/shared/components/motion'
 import { PageContainer } from '@/shared/components/layout'
 import { READY_MODELS } from '@/domain/model'
@@ -22,6 +31,12 @@ export function ModelsPage() {
   const { models, deleteModel, setDefault, photo, clearPhoto, readyModelId, setReadyModel } =
     useAiModels()
   const navigate = useNavigate()
+
+  /*
+    ما يُحذف يُسأل عنه أولًا — والحالة تحمل **ما سيُحذف** لا مجرد «مفتوحة».
+    الموديل يحتاج اسمه في السؤال، فلو حفظنا رايةً وحدها ضاع الاسم.
+  */
+  const [confirm, setConfirm] = useState<{ modelId: string; name: string } | 'photo'>()
 
   return (
     <PageContainer width="content">
@@ -168,10 +183,7 @@ export function ModelsPage() {
                         aria-label={`حذف ${model.name}`}
                         title="حذف"
                         className="w-full sm:w-9 sm:flex-none sm:px-0"
-                        onClick={() => {
-                          deleteModel(model.id)
-                          toast.ok('حذفنا الموديل')
-                        }}
+                        onClick={() => setConfirm({ modelId: model.id, name: model.name })}
                       >
                         <Trash2 size={13} strokeWidth={1.5} aria-hidden />
                         <span className="sm:hidden">حذف</span>
@@ -207,10 +219,7 @@ export function ModelsPage() {
                 variant="danger"
                 size="sm"
                 className="mt-3 w-full sm:w-auto"
-                onClick={() => {
-                  clearPhoto()
-                  toast.ok('حذفنا صورتك')
-                }}
+                onClick={() => setConfirm('photo')}
               >
                 <Trash2 size={13} strokeWidth={1.5} aria-hidden />
                 حذف صورتي
@@ -227,6 +236,28 @@ export function ModelsPage() {
           </p>
         )}
       </section>
+
+      <ConfirmDialog
+        open={Boolean(confirm)}
+        onClose={() => setConfirm(undefined)}
+        onConfirm={() => {
+          if (confirm === 'photo') {
+            clearPhoto()
+            toast.ok('حذفنا صورتك')
+          } else if (confirm) {
+            deleteModel(confirm.modelId)
+            toast.ok('حذفنا الموديل')
+          }
+          setConfirm(undefined)
+        }}
+        eyebrow="Delete"
+        title={confirm === 'photo' ? 'حذف صورتك؟' : `حذف ${confirm ? confirm.name : ''}؟`}
+        confirmLabel={confirm === 'photo' ? 'حذف الصورة' : 'حذف الموديل'}
+      >
+        {confirm === 'photo'
+          ? 'الصورة تنمسح من متصفحك بلا رجعة. إطلالاتك المحفوظة تبقى كما هي.'
+          : 'الموديل ينحذف بلا رجعة. إطلالاتك المحفوظة تبقى، بس ما عاد لها موديل تنعرض عليه.'}
+      </ConfirmDialog>
     </PageContainer>
   )
 }

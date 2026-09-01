@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Plus } from 'lucide-react'
-import { Button, Field, Modal, PageHeader, SearchInput, TextInput, toast } from '@/shared/components/ui'
+import { Button, Field, Modal, PageHeader, TextInput, toast } from '@/shared/components/ui'
 import { PageContainer } from '@/shared/components/layout'
 import { WardrobeCard } from '@/features/wardrobe/components/WardrobeCard'
 import { ItemGrid } from '@/features/wardrobe/components/ItemGrid'
@@ -14,7 +14,6 @@ export function WardrobesPage() {
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
   const [latin, setLatin] = useState('')
-  const [term, setTerm] = useState('')
 
   // البحث العام من الشريط العلوي ينزل هنا ويدوّر داخل القطع (W-08)
   const query = params.get('q') ?? ''
@@ -24,13 +23,6 @@ export function WardrobesPage() {
         { search: query },
       )
     : []
-
-  const visible = wardrobes.filter(
-    (w) =>
-      !term.trim() ||
-      w.name.includes(term.trim()) ||
-      w.nameLatin.toLowerCase().includes(term.trim().toLowerCase()),
-  )
 
   const create = () => {
     if (!name.trim()) {
@@ -86,20 +78,14 @@ export function WardrobesPage() {
         </section>
       )}
 
-      <div className="mb-8 flex flex-wrap items-center gap-4 border-b border-line pb-5">
-        <SearchInput
-          value={term}
-          onChange={setTerm}
-          placeholder="ابحثي في الخزائن…"
-          className="w-full max-w-[300px]"
-        />
-        <span className="lat me-0 ms-auto text-[11px] text-faint">
+      <div className="mb-8 flex items-center border-b border-line pb-5">
+        <span className="lat text-[11px] text-faint">
           {wardrobes.length} wardrobes · {items.filter((i) => i.source === 'wardrobe').length} pieces
         </span>
       </div>
 
       <div className="grid grid-cols-2 gap-5 md:grid-cols-3 xl:grid-cols-5">
-        {visible.map((w) => (
+        {wardrobes.map((w) => (
           <WardrobeCard key={w.id} wardrobe={w} />
         ))}
         <button

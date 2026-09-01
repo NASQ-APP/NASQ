@@ -66,4 +66,6 @@ export type AuthProvider = {
   signOut(): Promise<void>
   /** يعدّل الاسم المعروض ويعيد المستخدمة بعد التعديل. */
   updateName(name: string): Promise<AuthUser>
+  /** يحذف الحساب وكل ما تحته، ثم ينهي الجلسة. لا رجعة. */
+  deleteAccount(): Promise<void>
 }

@@ -27,6 +27,8 @@ type AuthState = {
   setUser: (user?: AuthUser) => void
   /** يعدّل الاسم المعروض على الخادم ثم في الجلسة. */
   updateName: (name: string) => Promise<AuthError | undefined>
+  /** يحذف الحساب وكل ما تحته ثم يُنهي الجلسة. لا رجعة. */
+  deleteAccount: () => Promise<AuthError | undefined>
 }
 
 /** يحوّل أي خطأ لصيغة الواجهة — الخطأ الخام ما يوصل الصفحة. */
@@ -69,6 +71,25 @@ export const useAuth = create<AuthState>()(
       signOut: async () => {
         await authProvider.signOut()
         set({ user: undefined })
+      },
+
+      /*
+        الجلسة تُفكّ **بعد** ما يؤكّد الخادم الحذف.
+
+        لو فكّيناها أولًا وفشل الحذف، طلعت المستخدمة من حسابٍ لا يزال قائمًا
+        وظنّت إنه راح. والحارس يصفّر مخازنها بمجرد ما تصير بلا هوية.
+      */
+      deleteAccount: async () => {
+        set({ busy: true })
+        try {
+          await authProvider.deleteAccount()
+          set({ user: undefined })
+          return undefined
+        } catch (error) {
+          return toAuthError(error)
+        } finally {
+          set({ busy: false })
+        }
       },
 
       updateName: async (name) => {

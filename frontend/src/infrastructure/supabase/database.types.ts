@@ -606,6 +606,7 @@ export type Database = {
     }
     Views: Record<never, never>
     Functions: {
+      delete_account: { Args: Record<PropertyKey, never>; Returns: undefined }
       owns_closet: { Args: { target: string }; Returns: boolean }
       owns_item: { Args: { target: string }; Returns: boolean }
       owns_model: { Args: { target: string }; Returns: boolean }

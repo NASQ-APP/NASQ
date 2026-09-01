@@ -1,10 +1,19 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ChevronLeft, Heart, MoveRight, Trash2, Wand2 } from 'lucide-react'
-import { Button, ButtonLink, Field, Select, Modal, SectionHeader, EmptyState, toast } from '@/shared/components/ui'
+import {
+  Button,
+  ButtonLink,
+  ConfirmDialog,
+  Field,
+  Select,
+  Modal,
+  SectionHeader,
+  EmptyState,
+  toast,
+} from '@/shared/components/ui'
 import { PageContainer } from '@/shared/components/layout'
 import { ItemImage } from '@/shared/components/media/ItemImage'
-import { ItemPhotoPicker } from '@/features/wardrobe/components/ItemPhotoPicker'
 import { ItemImagePicker } from '@/features/wardrobe/components/ItemImagePicker'
 import { categoryById, occasionName } from '@/domain/wardrobe'
 import { sourceById } from '@/features/try-pieces/sources'
@@ -24,6 +33,7 @@ export function ItemPage() {
   const looks = useLooks((s) => s.looks)
 
   const [moveOpen, setMoveOpen] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const [target, setTarget] = useState('')
 
   const item = items.find((i) => i.id === id)
@@ -91,9 +101,8 @@ export function ItemPage() {
 
       <div className="grid gap-14 lg:grid-cols-[1.05fr_1fr]">
         <div>
-          <div className="relative grid aspect-square place-items-center overflow-hidden rounded-md border border-line bg-surface">
+          <div className="grid aspect-square place-items-center overflow-hidden rounded-md border border-line bg-surface">
             <ItemImage item={item} className="h-[86%] w-[86%]" />
-            <ItemPhotoPicker itemId={item.id} className="absolute bottom-4 left-4" />
           </div>
           <ItemImagePicker
             itemId={item.id}
@@ -153,11 +162,8 @@ export function ItemPage() {
             <Button
               size="lg"
               variant="danger"
-              onClick={() => {
-                deleteItem(item.id)
-                toast.ok('حذفنا القطعة')
-                navigate(isTry ? '/try' : `/wardrobe/${item.wardrobeId}`)
-              }}
+              aria-label="حذف القطعة"
+              onClick={() => setConfirmDelete(true)}
             >
               <Trash2 size={15} strokeWidth={1.5} />
             </Button>
@@ -239,6 +245,24 @@ export function ItemPage() {
           </Select>
         </Field>
       </Modal>
+
+      <ConfirmDialog
+        open={confirmDelete}
+        onClose={() => setConfirmDelete(false)}
+        onConfirm={() => {
+          setConfirmDelete(false)
+          deleteItem(item.id)
+          toast.ok('حذفنا القطعة')
+          navigate(isTry ? '/try' : `/wardrobe/${item.wardrobeId}`)
+        }}
+        eyebrow="Delete"
+        title={`حذف ${item.name}؟`}
+        confirmLabel="حذف القطعة"
+      >
+        {wornIn.length > 0
+          ? `القطعة مستخدمة في ${wornIn.length} إطلالة محفوظة — الإطلالات تبقى، والقطعة تروح بلا رجعة.`
+          : 'القطعة تنحذف من خزانتك بلا رجعة.'}
+      </ConfirmDialog>
     </PageContainer>
   )
 }

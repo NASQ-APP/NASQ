@@ -79,4 +79,14 @@ export const localAuthProvider: AuthProvider = {
     write(updated)
     return updated
   },
+
+  // بلا خادم الحساب ملفٌّ في المتصفح، فحذفه محوُ مفتاحه. وبقية الخزانة
+  // تُصفَّر من مخازنها عند الخروج، مثل ما يصير مع الخادم بالضبط.
+  async deleteAccount() {
+    try {
+      localStorage.removeItem(KEY)
+    } catch {
+      // التخزين معطّل — ما فيه ملف نحذفه أصلاً
+    }
+  },
 }

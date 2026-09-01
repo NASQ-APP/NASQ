@@ -5,7 +5,7 @@
  * هادئة، وزر الحفظ الأساسي.
  */
 import { useState } from 'react'
-import { ChevronRight, Focus, Images, MoreHorizontal, Save, Trash2, UserRound } from 'lucide-react'
+import { ChevronRight, Focus, Images, MoreHorizontal, Save, Trash2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Button, ButtonLink } from '@/shared/components/ui'
 import { ROUTES } from '@/shared/config'
@@ -17,7 +17,6 @@ export function StudioHeader({
   onToggleFocus,
   onSave,
   onClear,
-  onUsePhoto,
 }: {
   focusMode: boolean
   canSave: boolean
@@ -25,13 +24,11 @@ export function StudioHeader({
   onToggleFocus: () => void
   onSave: () => void
   onClear: () => void
-  onUsePhoto: () => void
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
 
   const menu = [
     { icon: Focus, label: focusMode ? 'الخروج من وضع التركيز' : 'وضع التركيز', action: onToggleFocus },
-    { icon: UserRound, label: 'طريقة المعاينة', action: onUsePhoto },
     { icon: Trash2, label: 'تفريغ الإطلالة', action: onClear },
   ]
 

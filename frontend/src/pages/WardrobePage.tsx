@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
-import { ChevronLeft, GalleryHorizontal, Grid3x3, Heart, Plus, Rows3, Trash2 } from 'lucide-react'
+import { ChevronLeft, GalleryHorizontal, Grid3x3, Heart, Rows3, Trash2 } from 'lucide-react'
 import {
   Button,
   ButtonLink,
@@ -14,7 +14,6 @@ import {
 } from '@/shared/components/ui'
 import { PageContainer } from '@/shared/components/layout'
 import { SLOT_FILTERS, filterItems } from '@/domain/wardrobe'
-import { AddItemModal } from '@/features/wardrobe/components/AddItemModal'
 import { ItemGrid } from '@/features/wardrobe/components/ItemGrid'
 import { WardrobeRails } from '@/features/wardrobe/components/WardrobeRails'
 import { useWardrobe } from '@/features/wardrobe/store'
@@ -25,7 +24,6 @@ export function WardrobePage() {
   const { id } = useParams()
   const [params, setParams] = useSearchParams()
   const { wardrobes, items, deleteWardrobe } = useWardrobe()
-  const [addOpen, setAddOpen] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [view, setView] = useState<'rails' | 'grid' | 'compact'>('rails')
 
@@ -76,17 +74,6 @@ export function WardrobePage() {
         eyebrow={wardrobe.nameLatin}
         title={`خزانة ${wardrobe.name}`}
         description={`${total} قطعة · آخر تحديث ${formatDate(wardrobe.updatedAt)}`}
-        action={
-          <div className="flex gap-2">
-            <Button variant="secondary" onClick={() => setConfirmDelete(true)} aria-label="حذف الخزانة">
-              <Trash2 size={14} strokeWidth={1.5} />
-            </Button>
-            <Button onClick={() => setAddOpen(true)}>
-              <Plus size={14} strokeWidth={1.6} />
-              إضافة قطعة
-            </Button>
-          </div>
-        }
       />
 
       <div className="mb-8 flex flex-wrap items-center gap-3 border-b border-line pb-5">
@@ -123,8 +110,7 @@ export function WardrobePage() {
       {visible.length === 0 ? (
         <EmptyState
           title="ما فيه شيء هنا بعد."
-          body="أضيفي أول قطعة لهذي الخزانة وابدئي التنسيق."
-          action={<Button onClick={() => setAddOpen(true)}>إضافة قطعة</Button>}
+          body="أضيفي أول قطعة من «إضافة قطعة» فوق، وابدئي التنسيق."
         />
       ) : view === 'rails' ? (
         <WardrobeRails items={visible} />
@@ -132,7 +118,12 @@ export function WardrobePage() {
         <ItemGrid items={visible} compact={view === 'compact'} />
       )}
 
-      <AddItemModal open={addOpen} onClose={() => setAddOpen(false)} wardrobeId={wardrobe.id} />
+      <div className="mt-24 flex justify-end border-t border-line pt-6">
+        <Button variant="secondary" onClick={() => setConfirmDelete(true)}>
+          <Trash2 size={14} strokeWidth={1.5} />
+          حذف الخزانة
+        </Button>
+      </div>
 
       <ConfirmDialog
         open={confirmDelete}
