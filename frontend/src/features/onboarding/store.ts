@@ -20,10 +20,10 @@ type OnboardingState = {
   declared: DeclaredStyle
   /** يحدّث جزءًا أثناء الخطوات — بلا ختم إكمال */
   patch: (patch: Partial<DeclaredStyle>) => void
-  /** يضيف أو يشيل وسمًا — بحدّ أعلى */
-  toggleTag: (tag: string, max: number) => void
-  /** يضيف أو يشيل لونًا — بحدّ أعلى */
-  toggleColor: (color: ItemColor, max: number) => void
+  /** يضيف أو يشيل وسمًا — بلا سقف */
+  toggleTag: (tag: string) => void
+  /** يضيف أو يشيل لونًا — بلا سقف */
+  toggleColor: (color: ItemColor) => void
   toggleContext: (id: string) => void
   toggleAvoid: (rule: AvoidRule) => void
   /** يختم التعارف: يثبّت التاريخ فيصير الملف «مُصرَّحًا» */
@@ -51,19 +51,19 @@ export const useOnboarding = create<OnboardingState>()(
       patch: (patch) =>
         set((state) => ({ declared: { ...state.declared, ...patch } })),
 
-      toggleTag: (tag, max) =>
+      toggleTag: (tag) =>
         set((state) => ({
           declared: {
             ...state.declared,
-            tags: toggleIn(state.declared.tags, tag, (a, b) => a === b, max),
+            tags: toggleIn(state.declared.tags, tag, (a, b) => a === b),
           },
         })),
 
-      toggleColor: (color, max) =>
+      toggleColor: (color) =>
         set((state) => ({
           declared: {
             ...state.declared,
-            colors: toggleIn(state.declared.colors, color, (a, b) => a.name === b.name, max),
+            colors: toggleIn(state.declared.colors, color, (a, b) => a.name === b.name),
           },
         })),
 

@@ -17,18 +17,17 @@ import { StepShell } from '@/features/onboarding/components/StepShell'
 import { ChoiceChip } from '@/features/onboarding/components/ChoiceChip'
 import { useOnboarding } from '@/features/onboarding/store'
 import {
-  AVOID_OPTIONS,
+  avoidFor,
   COLOR_OPTIONS,
   CONTEXT_OPTIONS,
-  MAX_COLORS,
   GENDER_OPTIONS,
   MAX_NOTE,
-  MAX_TAGS,
   MIN_TAGS,
-  TAG_OPTIONS,
+  tagsFor,
   confidenceOf,
 } from '@/domain/style/onboarding'
 import { occasionName } from '@/domain/wardrobe'
+import { forGender } from '@/domain/shared'
 import { APP, ROUTES } from '@/shared/config'
 import type { AvoidRule } from '@/domain/style/types'
 import type { ItemColor } from '@/domain/wardrobe'
@@ -45,6 +44,15 @@ export function WelcomePage() {
   const { declared, patch, complete, toggleTag, toggleColor, toggleContext, toggleAvoid } =
     useOnboarding()
   const [step, setStep] = useState(1)
+
+  /*
+    الجنس يُقرأ من الجواب نفسه لا من مخزن آخر: هو السؤال الأول، وكل ما بعده
+    يُبنى عليه — الخيارات المعروضة وصيغة الكلام معًا.
+  */
+  const he = declared.gender
+  const say = (feminine: string, masculine: string) => forGender(he, feminine, masculine)
+  const tagOptions = tagsFor(he)
+  const avoidOptions = avoidFor(he)
 
   const leave = () => navigate(ROUTES.home)
 
@@ -65,15 +73,16 @@ export function WelcomePage() {
           step={1}
           total={TOTAL}
           title="ما هو جنسك؟"
+          hint="عليه تُبنى بقيّة الأسئلة وصيغة مخاطبتك في التطبيق."
+          /*
+            **بلا تخطٍّ.** بقيّة الأسئلة تختلف باختلافه — القيود والمناسبات
+            وصيغة الكلام — فتخطّيه يعني أن نخمّن الجواب ونمضي على تخمين. وهو
+            سؤال بضغطة، أرخص من أن يُخمَّن.
+          */
           footer={
-            <>
-              <Button disabled={!gender} onClick={() => setStep(2)}>
-                تمام
-              </Button>
-              <button onClick={leave} className={QUIET}>
-                تخطّي
-              </button>
-            </>
+            <Button disabled={!gender} onClick={() => setStep(2)}>
+              تمام
+            </Button>
           }
         >
           <div className="flex flex-wrap gap-2">
@@ -102,7 +111,7 @@ export function WelcomePage() {
           step={2}
           total={TOTAL}
           title="وش يوصف ذوقك؟"
-          hint="اختاري ثنتين أو ثلاث."
+          hint={say('اختاري ما ينطبق عليك — بلا حد.', 'اختر ما ينطبق عليك — بلا حد.')}
           footer={
             <>
               <Button disabled={tags.length < MIN_TAGS} onClick={() => setStep(3)}>
@@ -115,13 +124,12 @@ export function WelcomePage() {
           }
         >
           <div className="flex flex-wrap gap-2">
-            {TAG_OPTIONS.map((tag) => (
+            {tagOptions.map((tag) => (
               <ChoiceChip
                 key={tag}
                 label={tag}
                 active={tags.includes(tag)}
-                disabled={tags.length >= MAX_TAGS}
-                onClick={() => toggleTag(tag, MAX_TAGS)}
+                onClick={() => toggleTag(tag)}
               />
             ))}
           </div>
@@ -140,8 +148,8 @@ export function WelcomePage() {
           eyebrow="Palette"
           step={3}
           total={TOTAL}
-          title="وش الألوان اللي ترتاحين لها؟"
-          hint="حتى أربعة ألوان — اختياري."
+          title={say('وش الألوان اللي ترتاحين لها؟', 'وش الألوان اللي ترتاح لها؟')}
+          hint={say('كل لون ترتاحين له — اختياري.', 'كل لون ترتاح له — اختياري.')}
           footer={
             <>
               <Button onClick={() => setStep(4)}>تمام</Button>
@@ -157,7 +165,7 @@ export function WelcomePage() {
                   key={color.name}
                   type="button"
                   aria-pressed={active}
-                  onClick={() => toggleColor(color, MAX_COLORS)}
+                  onClick={() => toggleColor(color)}
                   className="flex flex-col items-center gap-2"
                 >
                   <span
@@ -189,8 +197,8 @@ export function WelcomePage() {
           eyebrow="Occasions"
           step={4}
           total={TOTAL}
-          title="وش المناسبات اللي تلبسين لها؟"
-          hint="اختاري كل اللي يهمك."
+          title={say('وش المناسبات اللي تلبسين لها؟', 'وش المناسبات اللي تلبس لها؟')}
+          hint={say('اختاري كل اللي يهمك.', 'اختر كل اللي يهمك.')}
           footer={
             <>
               <Button disabled={contexts.length === 0} onClick={() => setStep(5)}>
@@ -229,7 +237,7 @@ export function WelcomePage() {
           eyebrow="Limits"
           step={5}
           total={TOTAL}
-          title="وش تحبين أتجنّبه؟"
+          title={say('وش تحبين أتجنّبه؟', 'وش تحب أتجنّبه؟')}
           hint="بستبعده من كل اقتراح."
           footer={
             <>
@@ -239,7 +247,7 @@ export function WelcomePage() {
           }
         >
           <div className="flex flex-wrap gap-2">
-            {AVOID_OPTIONS.map((rule) => (
+            {avoidOptions.map((rule) => (
               <ChoiceChip
                 key={rule.id}
                 label={rule.name}
@@ -279,7 +287,7 @@ export function WelcomePage() {
           step={6}
           total={TOTAL}
           title="فيه شيء ثاني ودّك أعرفه عن ذوقك؟"
-          hint="اكتبي أي تفضيل أو ملاحظة تساعدني أفهم ستايلك أكثر."
+          hint={say('اكتبي أي تفضيل أو ملاحظة تساعدني أفهم ستايلك أكثر.', 'اكتب أي تفضيل أو ملاحظة تساعدني أفهم ستايلك أكثر.')}
           footer={
             <>
               <Button onClick={() => setStep(SUMMARY)}>تمام</Button>
@@ -319,15 +327,15 @@ export function WelcomePage() {
         <div className="mt-2.5 h-px w-full bg-ink" />
 
         <h1 className="mt-7 text-[21px] leading-snug sm:text-[23px]">هذا اللي فهمته عن ذوقك</h1>
-        <p className="mt-1.5 text-[12px] text-muted">عدّلي أي شي قبل ما أحفظه.</p>
+        <p className="mt-1.5 text-[12px] text-muted">{say('عدّلي أي شي قبل ما أحفظه.', 'عدّل أي شي قبل ما أحفظه.')}</p>
 
         <dl className="mt-6 border-t border-line">
           <SummaryRow label="التخصيص" onEdit={() => setStep(1)}>
-            {GENDER_OPTIONS.find((o) => o.id === declared.gender)?.name ?? 'ما حدّدتِ'}
+            {GENDER_OPTIONS.find((o) => o.id === declared.gender)?.name ?? say('ما حدّدتِ', 'ما حدّدت')}
           </SummaryRow>
 
           <SummaryRow label="الذوق" onEdit={() => setStep(2)}>
-            {declared.tags.length > 0 ? declared.tags.join(' · ') : 'ما اخترتِ ذوقًا'}
+            {declared.tags.length > 0 ? declared.tags.join(' · ') : say('ما اخترتِ ذوقًا', 'ما اخترت ذوقًا')}
           </SummaryRow>
 
           <SummaryRow label="الألوان" onEdit={() => setStep(3)}>
@@ -354,7 +362,7 @@ export function WelcomePage() {
           <SummaryRow label="أتجنّب" onEdit={() => setStep(5)}>
             {declared.avoid.length > 0 ? (
               declared.avoid
-                .map((id: AvoidRule) => AVOID_OPTIONS.find((r) => r.id === id)?.name)
+                .map((id: AvoidRule) => avoidOptions.find((r) => r.id === id)?.name)
                 .join(' · ')
             ) : (
               <span className="text-muted">ما عندك قيود، بقترح لك من كل شي</span>

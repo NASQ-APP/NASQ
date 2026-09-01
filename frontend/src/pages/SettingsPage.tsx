@@ -28,18 +28,17 @@ import { useAiModels } from '@/features/ai-model/store'
 import { useOnboarding } from '@/features/onboarding/store'
 import { useAuth, syncsAcrossDevices } from '@/features/auth/store'
 import {
-  AVOID_OPTIONS,
+  avoidFor,
   COLOR_OPTIONS,
   CONTEXT_OPTIONS,
   GENDER_OPTIONS,
-  MAX_COLORS,
   MAX_NOTE,
-  MAX_TAGS,
-  TAG_OPTIONS,
+  tagsFor,
   toggleIn,
 } from '@/domain/style/onboarding'
 import type { AvoidRule, DeclaredStyle } from '@/domain/style/types'
 import type { ItemColor } from '@/domain/wardrobe'
+import { forGender } from '@/domain/shared'
 
 /** ما ينتظر تأكيدًا — فعلٌ بلا رجعة، أو خروج يفقد ما لم يُحفظ. */
 type Pending = 'signOut' | 'deleteAccount'
@@ -80,6 +79,12 @@ export function SettingsPage() {
   const style = draft ?? declared
 
   const edit = (patch: Partial<DeclaredStyle>) => setDraft({ ...style, ...patch })
+
+  /* الخيارات والصيغة يتبعان جنسها المُصرَّح — نفس ما يصير في التعارف. */
+  const say = (feminine: string, masculine: string) =>
+    forGender(style.gender, feminine, masculine)
+  const tagOptions = tagsFor(style.gender)
+  const avoidOptions = avoidFor(style.gender)
 
   const joined = user?.createdAt
     ? new Date(user.createdAt).toLocaleDateString('ar-SA-u-nu-latn', {
@@ -171,23 +176,28 @@ export function SettingsPage() {
             </div>
           </Question>
 
-          <Question title="وش يوصف ذوقك؟" hint="اختاري ثنتين أو ثلاث.">
+          <Question
+            title="وش يوصف ذوقك؟"
+            hint={say('اختاري ما ينطبق عليك — بلا حد.', 'اختر ما ينطبق عليك — بلا حد.')}
+          >
             <div className="flex flex-wrap gap-2">
-              {TAG_OPTIONS.map((tag) => (
+              {tagOptions.map((tag) => (
                 <ChoiceChip
                   key={tag}
                   label={tag}
                   active={style.tags.includes(tag)}
-                  disabled={style.tags.length >= MAX_TAGS}
                   onClick={() =>
-                    edit({ tags: toggleIn(style.tags, tag, (a, b) => a === b, MAX_TAGS) })
+                    edit({ tags: toggleIn(style.tags, tag, (a, b) => a === b) })
                   }
                 />
               ))}
             </div>
           </Question>
 
-          <Question title="وش الألوان اللي ترتاحين لها؟" hint="حتى أربعة ألوان — اختياري.">
+          <Question
+            title={say('وش الألوان اللي ترتاحين لها؟', 'وش الألوان اللي ترتاح لها؟')}
+            hint={say('كل لون ترتاحين له — اختياري.', 'كل لون ترتاح له — اختياري.')}
+          >
             <div className="flex flex-wrap gap-x-5 gap-y-4">
               {COLOR_OPTIONS.map((color) => {
                 const active = style.colors.some((picked) => picked.name === color.name)
@@ -202,7 +212,6 @@ export function SettingsPage() {
                           style.colors,
                           color,
                           (a, b) => a.name === b.name,
-                          MAX_COLORS,
                         ),
                       })
                     }
@@ -224,7 +233,10 @@ export function SettingsPage() {
             </div>
           </Question>
 
-          <Question title="وش المناسبات اللي تلبسين لها؟" hint="اختاري كل اللي يهمك.">
+          <Question
+            title={say('وش المناسبات اللي تلبسين لها؟', 'وش المناسبات اللي تلبس لها؟')}
+            hint={say('اختاري كل اللي يهمك.', 'اختر كل اللي يهمك.')}
+          >
             <div className="flex flex-wrap gap-2">
               {CONTEXT_OPTIONS.map((occasion) => (
                 <ChoiceChip
@@ -239,9 +251,12 @@ export function SettingsPage() {
             </div>
           </Question>
 
-          <Question title="وش تحبين نَسّق يتجنّبه؟" hint="يستبعده من كل اقتراح.">
+          <Question
+            title={say('وش تحبين نَسّق يتجنّبه؟', 'وش تحب نَسّق يتجنّبه؟')}
+            hint="يستبعده من كل اقتراح."
+          >
             <div className="flex flex-wrap gap-2">
-              {AVOID_OPTIONS.map((rule) => (
+              {avoidOptions.map((rule) => (
                 <ChoiceChip
                   key={rule.id}
                   label={rule.name}

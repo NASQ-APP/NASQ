@@ -8,19 +8,36 @@
  * ما فيه استنتاج هنا: اختيار المستخدمة **هو** المُصرَّح، بلا وسيط.
  */
 import { ITEM_COLORS, OCCASIONS } from '@/domain/wardrobe'
-import { AVOID_RULES, STYLE_TAGS } from './types'
+import { FEMALE_AVOID, FEMALE_TAGS, MALE_AVOID, MALE_TAGS, SHARED_TAGS } from './types'
 import type { ItemColor } from '@/domain/wardrobe'
 import type { DeclaredStyle } from './types'
 import type { Gender } from '@/domain/shared/types'
 
-/** الحد الأعلى لكل سؤال — أكثر من هذا يصير الجواب بلا معنى. */
-export const MAX_TAGS = 3
-export const MIN_TAGS = 2
-export const MAX_COLORS = 4
+/**
+ * الاختيار **مفتوح**، والحد الأدنى واحد.
+ *
+ * كان لكل سؤال سقف: ثلاثة أوصاف وأربعة ألوان. والسقف يحكم على ذوق لا نعرفه —
+ * من ترتاح لستة ألوان تُجبَر على إسقاط اثنين، فيصير الملف أفقر مما هي عليه.
+ * والحد الأدنى يبقى واحدًا لا اثنين: جواب واحد صادق خير من ثانٍ يُنتزع لتُفتح
+ * الخطوة التالية.
+ */
+export const MIN_TAGS = 1
 
-export const TAG_OPTIONS = STYLE_TAGS
+/**
+ * خيارات السؤال حسب الجنس.
+ *
+ * المناسبات والألوان مشتركة — «العمل» و«الكحلي» لا يخصّان أحدًا دون آخر.
+ * أما الأوصاف والقيود فتختلف، ولهذا تُطلب بدالة لا تُقرأ ثابتًا.
+ */
+export const tagsFor = (gender: Gender | undefined): readonly string[] => [
+  ...SHARED_TAGS,
+  ...(gender === 'male' ? MALE_TAGS : FEMALE_TAGS),
+]
+
+export const avoidFor = (gender: Gender | undefined) =>
+  gender === 'male' ? MALE_AVOID : FEMALE_AVOID
+
 export const CONTEXT_OPTIONS = OCCASIONS
-export const AVOID_OPTIONS = AVOID_RULES
 
 /**
  * ألوان التعارف — تسعة تمثّل العائلات اللونية، مب الستة عشر كلها.
