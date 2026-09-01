@@ -25,6 +25,24 @@ import {
 
 const API_URL = 'https://openrouter.ai/api/v1/chat/completions'
 
+/**
+ * قيمة ترويسة HTTP لا تقبل إلا ASCII.
+ *
+ * `X-Title` كانت تُبنى من `APP_NAME` مباشرة، و`APP_NAME` عربي («نَسّق»).
+ * فيرمي `fetch` **TypeError عند بناء الطلب** — قبل أي اتصال، في مللي ثانيتين،
+ * ويُصنَّف «المزوّد لا يُوصَل إليه» فيموت التوليد كله بسبب اسمٍ تجميلي.
+ *
+ * العطل كان كامنًا: الاستوديو ما كان يصل OpenRouter أصلاً (gemini ثم fal)،
+ * فما ظهر إلا حين صار المزوّد الوحيد. والدالة القديمة `tryon` تكتب `'NASQ'`
+ * ثابتًا فما مسّها.
+ *
+ * والتنظيف هنا لا في السرّ: الاسم العربي صحيح ومقصود، والخلل في حشره في
+ * ترويسة. والترويسة تعريفية للوحة الاستهلاك، فإسقاط غير الـASCII منها لا
+ * يفقد شيئًا — وسقوطها كاملة أهون من سقوط الطلب.
+ */
+export const sanitizeHeaderValue = (value: string, fallback = 'NASAQ'): string =>
+  value.replace(/[^\x20-\x7E]/g, '').trim() || fallback
+
 const key = () => optionalEnv('OPENROUTER_API_KEY')
 const model = () => optionalEnv('OPENROUTER_IMAGE_MODEL', 'google/gemini-3.1-flash-image')
 
@@ -54,7 +72,7 @@ export const openRouterImageProvider: ImageGenerationProvider = {
           authorization: `Bearer ${key()}`,
           'content-type': 'application/json',
           // يعرّف التطبيق في لوحة OpenRouter — يفيد تتبّع الاستهلاك
-          'X-Title': optionalEnv('APP_NAME', 'NASAQ'),
+          'X-Title': sanitizeHeaderValue(optionalEnv('APP_NAME', 'NASAQ')),
         },
         body: JSON.stringify({
           model: model(),

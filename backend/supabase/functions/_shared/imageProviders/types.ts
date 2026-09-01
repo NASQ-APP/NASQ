@@ -92,6 +92,16 @@ export function classify(status: number): ProviderError {
 export const transportFailure = (message = 'ما قدرنا نجهّز الإطلالة هالمرة.'): ProviderError =>
   new ProviderError('provider-failure', message, 502, true)
 
+/**
+ * المزوّد لا يقبل **شكل** المدخلات — لا المحتوى.
+ *
+ * الفرق يحسم أين يذهب الطلب: Gemini يشترط `data:` ويرفض الروابط الخارجية،
+ * وfal يقبلها. فقطعة مستوردة من متجر (رابط بلا نسخة عندنا) تُفشل Gemini
+ * وتنجح عند fal — وتصنيفها «رفض محتوى» كان يقتل الطلب قبل أن يصل إليه.
+ */
+export const unsupportedInput = (): ProviderError =>
+  new ProviderError('provider-failure', 'ما قدرنا نجهّز الإطلالة هالمرة.', 502, true)
+
 /** رفض صريح بسبب المحتوى — المزوّد الثاني يرفضه أيضًا، فما ننتقل. */
 export const contentRefusal = (): ProviderError =>
   new ProviderError('blocked', 'ما قدرنا نجهّز هذي الإطلالة.', 422, false)

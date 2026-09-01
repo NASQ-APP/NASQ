@@ -28,7 +28,7 @@ import { HandledError, fail, ok } from '../_shared/response.ts'
 import { optionalEnv } from '../_shared/env.ts'
 import { readJson, requireUser, serviceClient } from '../_shared/supabase.ts'
 import { withinRateLimit } from '../_shared/rateLimit.ts'
-import { generateImage } from '../_shared/imageProviders/index.ts'
+import { generateImage, providersForOperation } from '../_shared/imageProviders/index.ts'
 import { encodeBase64 } from '../_shared/imageProviders/types.ts'
 import {
   buildAdaptModelPrompt,
@@ -37,6 +37,8 @@ import {
   buildReplaceGarmentPrompt,
   buildTryOnPrompt,
   type BodyParameters,
+  alignGarments,
+  buildTryOnReferences,
   type GarmentReference,
 } from '../_shared/tryonPrompts.ts'
 
@@ -274,16 +276,34 @@ async function plan(userId: string, body: Body): Promise<Plan> {
     case 'regenerate': {
       const person = image(body.personImage)
       const rows = await fetchItems(userId, ids(body.garmentIds, true))
-      const garments = rows.map(toReference)
 
-      const resolved = await Promise.all(rows.map(resolveImage))
-      const usable = resolved.filter((url): url is string => Boolean(url))
-      if (usable.length === 0) {
-        throw new HandledError('missing-garments', 'القطع المختارة ما لها صور.', 422)
+      /*
+        القطعة وصورتها **زوجٌ واحد لا قائمتان متوازيتان**.
+
+        كان الوصف يُبنى من كل الصفوف والصور تُصفّى وحدها، فقطعة تعذّرت صورتها
+        تسقط من الصور وتبقى في النص. والنص يرقّم بالموضع («٢. jeans — reference
+        image 3»)، فينزاح الرقم ويشير لصورة قطعة أخرى: يلبس النموذج القطعة
+        الغلط، أو يخترع من الاسم قطعةً لا صورة لها.
+
+        الربط قبل التصفية يجعل الانزياح مستحيلاً بالبنية، لا بانضباط من يعدّل
+        السطرين معًا.
+      */
+      const resolved = await Promise.all(
+        rows.map(async (row) => ({ garment: toReference(row), image: await resolveImage(row) })),
+      )
+
+      const aligned = alignGarments(resolved)
+      if (!aligned) {
+        throw new HandledError(
+          'missing-garments',
+          'تعذّر استخدام صورة إحدى القطع. جرّبي تحديث القطعة أو اختيار قطعة ثانية.',
+          422,
+        )
       }
 
+      const garments = aligned.map((entry) => entry.garment)
       const previous = body.previousLook == null ? undefined : image(body.previousLook)
-      const images = [person, ...usable, ...(previous ? [previous] : [])]
+      const images = buildTryOnReferences(person, aligned, previous)
 
       return body.operation === 'try-on'
         ? {
@@ -369,7 +389,13 @@ Deno.serve(async (request) => {
       throw new HandledError('rate-limited', 'طلبات كثيرة بوقت قصير.', 429)
     }
 
-    const { images, prompt } = await plan(user.id, await readJson<Body>(request))
+    /*
+      الجسم يُرفع لمتغيّر لأن `operation` تلزم مرتين: مرة لبناء البرومبت والصور،
+      ومرة لاختيار المزوّدين. كانت تُستهلك داخل `plan` وتُرمى، فيصل التوليد بلا
+      علم بالعملية التي يخدمها — وهذا سبب مرور الاستوديو على مزوّد ممنوع منه.
+    */
+    const body = await readJson<Body>(request)
+    const { images, prompt } = await plan(user.id, body)
     if (images.length > MAX_IMAGES) {
       throw new HandledError('invalid-request', 'عدد الصور أكثر من اللازم.', 413)
     }
@@ -384,7 +410,10 @@ Deno.serve(async (request) => {
     const timer = setTimeout(() => controller.abort(), TIMEOUT_MS)
 
     try {
-      const result = await generateImage({ prompt, images, signal: controller.signal })
+      const result = await generateImage(
+        { prompt, images, signal: controller.signal },
+        providersForOperation(body.operation),
+      )
       return ok({ image: result.image, createdAt: new Date().toISOString() }, request)
     } catch (error) {
       if (controller.signal.aborted) {

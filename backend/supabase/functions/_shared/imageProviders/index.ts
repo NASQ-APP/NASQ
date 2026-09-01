@@ -65,6 +65,48 @@ export function providersInOrder(
   return ordered.map((id) => registry[id]).filter((provider) => provider.isConfigured())
 }
 
+/**
+ * عمليات الاستوديو ومزوّدوها — **مثبّتة في الشيفرة لا في البيئة**.
+ *
+ * التجربة الافتراضية قرار منتج لا إعداد تشغيل: Gemini المباشر حصّته صفر
+ * (`429 limit: 0`) ويشترط `data:` فيرفض القطعة المستوردة برابطها، وOpenRouter
+ * وfal كلاهما يقبل الرابط و`data:` معًا. فوضع الترتيب في سرّ يعني أن تعديل
+ * سطر إعداد يعيد Gemini إلى مسار يعرف أنه يكسره.
+ *
+ * **والقائمة اليوم مزوّد واحد: OpenRouter.** حذف fal مؤقت وغرضه التشخيص لا
+ * المتانة: مع مزوّدين اثنين تصير كل نتيجة سؤالًا عن مصدرها — هل الإطلالة
+ * طلعت كذا لأن البرومبت ضعيف أم لأن المزوّد الثاني هو من ولّدها؟ بمزوّد واحد
+ * يصير أثر كل تغيير في البرومبت مقروءًا.
+ *
+ * وغير المهيّأ يُسقَط ولا يُستبدل بمزوّد خارج القائمة — فلو غاب المفتاح
+ * توقّفنا بخطأ مفهوم بدل أن ننزلق إلى Gemini بصمت. وإعادة fal لاحقًا سطر
+ * واحد هنا، بلا لمس الواجهة ولا الأسرار.
+ */
+const STUDIO_PROVIDERS: ProviderId[] = ['openrouter']
+
+const STUDIO_OPERATIONS = new Set([
+  'try-on',
+  'regenerate',
+  'replace-garment',
+  'remove-garment',
+  'adapt-model',
+])
+
+/**
+ * مزوّدو عملية بعينها.
+ *
+ * التوجيه على `operation` الصريحة الواصلة في الطلب — لا على كلمات في البرومبت
+ * ولا على نص المستخدمة. والعملية غير المعروفة ترجع للترتيب العالمي
+ * (`IMAGE_PROVIDER_PRIORITY`)، فما ينكسر مستهلك آخر للراوتر.
+ */
+export function providersForOperation(
+  operation: string | undefined,
+  registry: Record<ProviderId, ImageGenerationProvider> = REGISTRY,
+): ImageGenerationProvider[] {
+  if (!operation || !STUDIO_OPERATIONS.has(operation)) return providersInOrder(registry)
+  return STUDIO_PROVIDERS.map((id) => registry[id]).filter((provider) => provider.isConfigured())
+}
+
 export type GenerationOutcome = {
   image: string
   provider: ProviderId

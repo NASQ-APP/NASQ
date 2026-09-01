@@ -23,6 +23,7 @@ import {
   classify,
   contentRefusal,
   splitDataUrl,
+  unsupportedInput,
   transportFailure,
   type GenerateInput,
   type ImageGenerationProvider,
@@ -92,8 +93,16 @@ export const geminiImageProvider: ImageGenerationProvider = {
     const parts: InlinePart[] = []
     for (const image of images) {
       const split = splitDataUrl(image)
-      // Gemini ما يقبل رابطًا خارجيًا في inline_data — والصور تصلنا data: أصلاً
-      if (!split) throw contentRefusal()
+      /*
+        Gemini ما يقبل رابطًا خارجيًا في `inline_data`. والافتراض أن «الصور
+        تصلنا data: أصلاً» **غير صحيح**: القطعة المستوردة من متجر بلا نسخة
+        عندنا تُمرَّر برابطها، فيفشل هذا الشرط.
+
+        وليس رفض محتوى — بل شكل مدخلات لا يقبله **هذا** المزوّد وحده. fal
+        يقبل الروابط، فالانتقال إليه ينجح. تصنيفه رفضًا كان يوقف الطلب عند
+        أول مزوّد ويحرم المستخدمة نتيجة كانت في متناولها.
+      */
+      if (!split) throw unsupportedInput()
       parts.push({ inline_data: { mime_type: split.mimeType, data: split.data } })
     }
     parts.push({ text: prompt })

@@ -79,6 +79,49 @@ const PRESERVE_GARMENTS = [
   '- major design details',
 ].join('\n')
 
+/**
+ * التأطير — القصّة والمسافة والخلفية.
+ *
+ * النموذج يميل لإعادة تأطير المشهد حين يغيّر اللبس: يقرّب الكاميرا على القطعة
+ * الجديدة فيقصّ الرأس أو القدمين، فتطلع نتيجتان لنفس الاختيار بمقاسين
+ * مختلفين. والمستخدمة تقارن الإطلالات ببعضها، فاختلاف القصّ يفسد المقارنة
+ * حتى لو كان اللبس صحيحًا.
+ */
+const PRESERVE_FRAMING = [
+  'Keep exactly the same camera distance, framing and crop as the input image.',
+  'Do not zoom in or out.',
+  'Do not crop the head, the face or the feet.',
+  'Keep the full body visible from head to toe.',
+  'Keep the same background and the same lighting.',
+].join('\n')
+
+/**
+ * القطعة المختارة هي الإطلالة النهائية — لا طبقة فوقها.
+ *
+ * صورة الموديل الأساسية شخصٌ يلبس أصلاً (تيشيرت وبنطلون). وبلا هذا العقد يفهم
+ * النموذج «ألبسيه هذي» إضافةً لا استبدالاً، فيركّب القطع فوق ملابسه.
+ *
+ * وقاعدة الفستان أخصّ ما فيه: الفستان قطعة واحدة تلغي العلوي والسفلي معًا،
+ * والنموذج يميل لإبقاء البنطلون تحته لأن الصورة الأصلية فيها بنطلون — فتطلع
+ * إطلالة ما اختارتها المستخدمة ولا هي ممكنة أصلاً.
+ *
+ * واستثناء الطبقات الخارجية ضروري: جاكيت مختار **يجب** أن يُلبس فوق قميص
+ * مختار. بلا الاستثناء تُفهم القاعدة «اخلعي كل شيء عدا الأخير» فتضيع الطبقات
+ * المقصودة.
+ *
+ * ينطبق على `try-on` و`regenerate` وحدهما — `replace` و`remove` يبنيان على
+ * الإطلالة الحالية ويجب أن يحفظا بقيتها.
+ */
+const FINAL_OUTFIT_CONTRACT = [
+  'The clothing visible on the base person image is PLACEHOLDER clothing only.',
+  'The selected garment references define the FINAL outfit.',
+  'Completely replace the original visible outfit with the selected garment references.',
+  'Do not layer selected garments on top of the original clothing unless a selected garment is explicitly an outerwear or layering item.',
+  'No part of the original shirt, top, pants, leggings, dress or other placeholder clothing may remain visible in the final image unless physically necessary.',
+  'If a selected garment is a dress, a gown, a jumpsuit or any full-body garment, it is the complete primary outfit: remove the original top and the original pants, jeans or leggings entirely from the result.',
+  'Change only the clothing required by the selected outfit.',
+].join('\n')
+
 const FORBIDDEN = [
   'Do not redesign the garments.',
   'Do not introduce random clothing that was not supplied.',
@@ -125,6 +168,51 @@ const describe = (garment: GarmentReference, index: number): string => {
   return `${index + 1}. ${colour}${garment.category} — reference image ${index + 2}, worn on the ${garment.slot}${named}`
 }
 
+/* ------------------------- مراجع الصور وترقيمها ------------------------- */
+
+/** قطعة ومعها صورتها — الزوج الذي يمنع انزياح الترقيم. */
+export type GarmentImage = { garment: GarmentReference; image: string }
+
+/** قطعة قد تكون صورتها تعذّرت — ما يخرج من طبقة حلّ الصور قبل التحقق. */
+export type ResolvedGarment = { garment: GarmentReference; image?: string }
+
+/**
+ * يربط القطع بصورها، ويرفض المجموعة كلها إن نقصت صورة واحدة.
+ *
+ * **لماذا نرفض ولا نتجاهل**: التجربة الافتراضية تقوم على صورة القطعة لا على
+ * اسمها. تجاهل قطعة يعني إطلالة ناقصة تُعرض كأنها كاملة، والتوليد من الاسم
+ * وحده يخترع قطعة ما اختارتها المستخدمة ويعرضها كأنها من خزانتها. كلاهما
+ * يكذب عليها بصمت، والخطأ الواضح أصدق.
+ *
+ * والرفض جماعي لا فردي: الوصف والصورة يُبنيان من هذي القائمة وحدها، فيستحيل
+ * أن يصف النص قطعة لا صورة لها — بالبنية لا بالانضباط.
+ */
+export function alignGarments(entries: ResolvedGarment[]): GarmentImage[] | undefined {
+  if (entries.length === 0) return undefined
+
+  const aligned: GarmentImage[] = []
+  for (const entry of entries) {
+    if (!entry.image) return undefined
+    aligned.push({ garment: entry.garment, image: entry.image })
+  }
+  return aligned
+}
+
+/**
+ * ترتيب المراجع كما يقرأه البرومبت:
+ *   ١ = الشخص · ٢..ن+١ = القطع بترتيب اختيارها · الأخير = المحاولة السابقة.
+ *
+ * `describe` يرقّم `index + 2` اعتمادًا على أن الشخص أولاً — فالبناء هنا هو
+ * ما يجعل ذاك الافتراض صحيحًا، ومكانهما واحد عمدًا.
+ */
+export function buildTryOnReferences(
+  person: string,
+  garments: GarmentImage[],
+  previous?: string,
+): string[] {
+  return [person, ...garments.map((entry) => entry.image), ...(previous ? [previous] : [])]
+}
+
 /* --------------------------- التجربة الكاملة --------------------------- */
 
 export function buildTryOnPrompt(
@@ -136,31 +224,14 @@ export function buildTryOnPrompt(
     'Create a photorealistic virtual try-on image.',
     'Reference image 1 is the person. Use it as the primary identity reference.',
     'Dress the person using ONLY the supplied garment reference images.',
-    /*
-      **الأهم**: صورة الموديل الأساسية شخصٌ يلبس أصلاً (تيشيرت أسود ولقنز).
-      وبلا هذي القاعدة يفهم النموذج «ألبسيه هذي» إضافةً لا استبدالاً، فيركّب
-      القطع فوق ملابسه — فتطلع الكامي فوق تيشيرت أسود لم تختره المستخدمة.
-
-      واستثناء الطبقات الخارجية ضروري: جاكيت مختار **يجب** أن يُلبس فوق قميص
-      مختار. بلا الاستثناء تُفهم القاعدة «اخلعي كل شيء عدا الأخير» فتضيع
-      الطبقات المقصودة.
-
-      وتنطبق على `try-on` و`regenerate` وحدهما — `replace` و`remove` يبنيان
-      على الإطلالة الحالية ويجب أن يحفظا بقيتها.
-    */
-    [
-      'The clothing visible on the base person image is PLACEHOLDER clothing only.',
-      'Completely replace the original visible outfit with the selected garment references.',
-      'Do not layer selected garments on top of the original clothing unless a selected garment is explicitly an outerwear or layering item.',
-      'No part of the original shirt, top, pants, leggings, dress or other placeholder clothing may remain visible in the final image unless physically necessary.',
-      'The selected garment references define the final outfit.',
-    ].join('\n'),
+    FINAL_OUTFIT_CONTRACT,
     /*
       صور المتاجر أغلبها على عارضة. وبلا هذي الجملة يرى النموذج شخصين ويحتار
       أيّهما يُبقي — فيمزج الوجهين أو يستبدل الشخص بعارضة المتجر.
     */
     'A garment reference image may show a model wearing the garment. Take ONLY the garment from it — never the model, their face, body, pose or background.',
     PRESERVE_PERSON,
+    PRESERVE_FRAMING,
     PRESERVE_GARMENTS,
     `Garments to put on, in layering order:\n${garments.map(describe).join('\n')}`,
   ]
@@ -260,6 +331,7 @@ export function buildReplaceGarmentPrompt(
       kept,
     ].join('\n'),
     PRESERVE_GARMENTS,
+    PRESERVE_FRAMING,
     'Do not restyle the rest of the outfit.\nDo not change the person.\nDo not alter garments that were not named.',
     'Produce a photorealistic result that differs from the original only in the replaced garment.',
   ].join('\n\n')
@@ -280,6 +352,7 @@ export function buildRemoveGarmentPrompt(
     'Keep everything else exactly as it is:',
     ['- same person and identity', '- same pose', '- same background and lighting', kept].join('\n'),
     'Reveal whatever is naturally underneath — do not invent a replacement garment.',
+    PRESERVE_FRAMING,
     'Do not restyle the rest of the outfit.\nDo not change the person.',
     'Produce a photorealistic result.',
   ].join('\n\n')
@@ -301,7 +374,7 @@ export function buildRegeneratePrompt(
   if (!hasPrevious) return base
 
   return [
-    'A previous attempt is supplied as the last reference image.',
+    `A previous attempt is supplied as reference image ${garments.length + 2}, the last reference image.`,
     'Keep the same person, pose, framing and background as that attempt, but improve how the garments sit on the body.',
     base,
   ].join('\n\n')
