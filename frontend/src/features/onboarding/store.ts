@@ -14,12 +14,15 @@ import { fetchPreferences, saveDeclaredStyle } from '@/infrastructure/profile/re
 import { toggleIn } from '@/domain/style/onboarding'
 import { EMPTY_DECLARED } from '@/domain/style/types'
 import type { AvoidRule, DeclaredStyle } from '@/domain/style/types'
+import type { Gender } from '@/domain/shared/types'
 import type { ItemColor } from '@/domain/wardrobe'
 
 type OnboardingState = {
   declared: DeclaredStyle
   /** يحدّث جزءًا أثناء الخطوات — بلا ختم إكمال */
   patch: (patch: Partial<DeclaredStyle>) => void
+  /** يثبّت الجنس **فورًا** — لا ينتظر ختم التعارف */
+  setGender: (gender: Gender) => void
   /** يضيف أو يشيل وسمًا — بلا سقف */
   toggleTag: (tag: string) => void
   /** يضيف أو يشيل لونًا — بلا سقف */
@@ -50,6 +53,22 @@ export const useOnboarding = create<OnboardingState>()(
 
       patch: (patch) =>
         set((state) => ({ declared: { ...state.declared, ...patch } })),
+
+      /*
+        الجنس يُحفظ لحظة اختياره، خلافًا لبقيّة الأسئلة.
+
+        الباقي مسوّدة تنتظر الختم — وهذا صحيح لأنها تتغيّر عشرات المرات قبل أن
+        تستقر. أما الجنس فيُختار مرة، وعليه يُبنى كل ما بعده: الخيارات المعروضة
+        وصيغة المخاطبة في كل شاشة. فلو انتظر الختم، ضاع ممن تخطّى التعارف —
+        وهو الوحيد الذي لا يُتخطّى.
+
+        والفشل يُبتلع: الجواب باقٍ في الذاكرة لهذي الجلسة، والخطأ هنا لا يستحق
+        أن يوقف سؤالاً بضغطة.
+      */
+      setGender: (gender) => {
+        set((state) => ({ declared: { ...state.declared, gender } }))
+        if (hasBackend()) void saveDeclaredStyle(get().declared).catch(() => {})
+      },
 
       toggleTag: (tag) =>
         set((state) => ({

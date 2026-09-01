@@ -52,6 +52,7 @@ import {
 import { AdaptivePanel } from '@/shared/components/layout'
 import { useDeviceClass } from '@/shared/hooks'
 import { useOnboarding } from '@/features/onboarding/store'
+import { useVoice } from '@/features/onboarding/voice'
 import type { WardrobeItem } from '@/domain/wardrobe'
 
 /** يبلّغ الخطأ بالعربي بدل ما يُبتلع — الفشل الصامت يترك المستخدمة تخمّن. */
@@ -87,6 +88,7 @@ export function StudioPage() {
    */
   /** الجنس كما صرّح به في التعارف — يقرّر الموديل الافتراضي. */
   const declaredGender = useOnboarding((state) => state.declared.gender)
+  const say = useVoice()
 
   const tryOn = useTryOn()
   const [modelChoice, setModelChoice] = useState<ModelChoice>('ready')
@@ -235,8 +237,14 @@ export function StudioPage() {
       const anyPictured = selected.some((item) => item.imageUrl)
       toast.error(
         anyPictured
-          ? 'ما قدرنا نقرأ صور القطع المختارة. جرّبي ترفعين صورة للقطعة من صفحتها.'
-          : 'القطع المختارة ما لها صور. أضيفي صورة للقطعة من صفحتها.',
+          ? say(
+              'ما قدرنا نقرأ صور القطع المختارة. جرّبي ترفعين صورة للقطعة من صفحتها.',
+              'ما قدرنا نقرأ صور القطع المختارة. جرّب ترفع صورة للقطعة من صفحتها.',
+            )
+          : say(
+              'القطع المختارة ما لها صور. أضيفي صورة للقطعة من صفحتها.',
+              'القطع المختارة ما لها صور. أضِف صورة للقطعة من صفحتها.',
+            ),
       )
       return undefined
     }
@@ -248,7 +256,7 @@ export function StudioPage() {
 
   const generateLook = async () => {
     if (!personImageUrl) {
-      toast.error('اختاري موديلاً أو ارفعي صورتك أول.')
+      toast.error(say('اختاري موديلاً أو ارفعي صورتك أول.', 'اختر موديلاً أو ارفع صورتك أول.'))
       return
     }
     const person = await referenceFromUrl(personImageUrl)
@@ -493,7 +501,7 @@ export function StudioPage() {
         open={modelPickerOpen}
         onClose={() => setModelPickerOpen(false)}
         eyebrow="Model"
-        title="على مين تبين نجرب الإطلالة؟"
+        title={say('على مين تبين نجرب الإطلالة؟', 'على مين تبي نجرب الإطلالة؟')}
         width="lg"
       >
         <ModelPicker

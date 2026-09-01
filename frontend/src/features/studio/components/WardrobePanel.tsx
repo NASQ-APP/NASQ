@@ -12,6 +12,7 @@ import { useWardrobe } from '@/features/wardrobe/store'
 import { EmptyState } from '@/shared/components/ui'
 import { SLOT_FILTERS, matchesQuery, ownedItems, slotOfItem } from '@/domain/wardrobe'
 import { cn } from '@/shared/lib'
+import { useVoice } from '@/features/onboarding/voice'
 import type { WardrobeItem } from '@/domain/wardrobe'
 
 export function WardrobePanel({
@@ -33,6 +34,7 @@ export function WardrobePanel({
     setWardrobePanel,
   } = useStudio()
 
+  const say = useVoice()
   const [query, setQuery] = useState('')
   const [pickerOpen, setPickerOpen] = useState(false)
   const [categoryOpen, setCategoryOpen] = useState(false)
@@ -70,7 +72,9 @@ export function WardrobePanel({
                 {visible.length}
               </span>
             </div>
-            <p className="mt-1 text-[10.5px] text-faint">اختاري أو اسحبي القطع إلى الموديل</p>
+            <p className="mt-1 text-[10.5px] text-faint">
+          {say('اختاري أو اسحبي القطع إلى الموديل', 'اختر أو اسحب القطع إلى الموديل')}
+        </p>
           </div>
           <button
             onClick={() => setWardrobePanel(false)}
@@ -85,7 +89,7 @@ export function WardrobePanel({
 
       {!showHeader && (
         <p className="flex-none px-4 pb-3 text-[10.5px] text-faint">
-          {visible.length} قطعة · اختاري القطع لإضافتها إلى إطلالتك
+          {visible.length} قطعة · {say('اختاري القطع لإضافتها إلى إطلالتك', 'اختر القطع لإضافتها إلى إطلالتك')}
         </p>
       )}
 
@@ -178,8 +182,8 @@ export function WardrobePanel({
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="ابحثي في خزانتك…"
-            aria-label="ابحثي في خزانتك"
+            placeholder={say('ابحثي في خزانتك…', 'ابحث في خزانتك…')}
+            aria-label={say('ابحثي في خزانتك', 'ابحث في خزانتك')}
             className="w-full bg-transparent text-[12px] outline-none placeholder:text-faint"
           />
           {query && (
@@ -239,8 +243,11 @@ export function WardrobePanel({
             title={owned.length === 0 ? 'خزانتك فاضية.' : 'ما لقينا قطعة.'}
             body={
               owned.length === 0
-                ? 'أضيفي أول قطعة من «إضافة قطعة» فوق، وابدئي التنسيق.'
-                : 'جرّبي كلمة ثانية أو غيّري الفئة.'
+                ? say(
+                    'أضيفي أول قطعة من «إضافة قطعة» فوق، وابدئي التنسيق.',
+                    'أضِف أول قطعة من «إضافة قطعة» فوق، وابدأ التنسيق.',
+                  )
+                : say('جرّبي كلمة ثانية أو غيّري الفئة.', 'جرّب كلمة ثانية أو غيّر الفئة.')
             }
           />
         ) : (

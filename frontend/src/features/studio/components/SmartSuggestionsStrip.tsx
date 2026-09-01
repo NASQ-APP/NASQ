@@ -21,6 +21,7 @@ import {
 } from '@/domain/studio'
 import type { StylistLook } from '@/features/stylist'
 import type { WardrobeItem } from '@/domain/wardrobe'
+import { useVoice } from '@/features/onboarding/voice'
 
 const BASE_MODES = [
   { id: 'daily', label: 'يومي مرتب', prompt: 'نسّقي لي إطلالة كاجوال مرتبة لليوم' },
@@ -31,7 +32,7 @@ const BASE_MODES = [
 
 const PAIR_MODE = {
   id: 'pair',
-  label: 'نسّقي حول قطعة',
+  label: 'تنسيق حول قطعة',
   prompt: 'وش يناسب القطعة المختارة؟',
 } as const
 
@@ -274,6 +275,8 @@ function EmptySuggestions({
   onAddItem: () => void
   onAskStylist: () => void
 }) {
+  const say = useVoice()
+
   return (
     <div className="flex min-h-0 items-center gap-3 px-4 pb-3">
       <p className="min-w-0 flex-1 truncate text-[10.5px] text-faint">{message}</p>
@@ -282,7 +285,7 @@ function EmptySuggestions({
         onClick={hasItems ? onAskStylist : onAddItem}
         className="h-9 flex-none rounded-md border border-line px-3 text-[10.5px] text-muted transition-colors hover:border-line-strong hover:text-ink"
       >
-        {hasItems ? 'اطلبي تنسيقًا' : 'أضيفي قطعًا'}
+        {hasItems ? say('اطلبي تنسيقًا', 'اطلب تنسيقًا') : say('أضيفي قطعًا', 'أضِف قطعًا')}
       </button>
     </div>
   )

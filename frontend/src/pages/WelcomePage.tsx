@@ -41,7 +41,7 @@ const QUIET = 'text-[11.5px] text-faint transition-colors hover:text-ink'
 
 export function WelcomePage() {
   const navigate = useNavigate()
-  const { declared, patch, complete, toggleTag, toggleColor, toggleContext, toggleAvoid } =
+  const { declared, patch, setGender, complete, toggleTag, toggleColor, toggleContext, toggleAvoid } =
     useOnboarding()
   const [step, setStep] = useState(1)
 
@@ -91,7 +91,7 @@ export function WelcomePage() {
                 key={option.id}
                 label={option.name}
                 active={gender === option.id}
-                onClick={() => patch({ gender: option.id })}
+                onClick={() => setGender(option.id)}
               />
             ))}
           </div>
@@ -349,14 +349,14 @@ export function WelcomePage() {
                 ))}
               </span>
             ) : (
-              'ما اخترتِ ألوانًا'
+              say('ما اخترتِ ألوانًا', 'ما اخترت ألوانًا')
             )}
           </SummaryRow>
 
           <SummaryRow label="المناسبات" onEdit={() => setStep(4)}>
             {declared.contexts.length > 0
               ? declared.contexts.map((id: string) => occasionName(id)).join(' · ')
-              : 'ما حدّدتِ مناسبة'}
+              : say('ما حدّدتِ مناسبة', 'ما حدّدت مناسبة')}
           </SummaryRow>
 
           <SummaryRow label="أتجنّب" onEdit={() => setStep(5)}>
@@ -374,7 +374,7 @@ export function WelcomePage() {
         </dl>
 
         <div className="mt-6 flex items-center gap-4">
-          <Button onClick={save}>احفظي وابدئي</Button>
+          <Button onClick={save}>{say('احفظي وابدئي', 'احفظ وابدأ')}</Button>
           <button onClick={leave} className={QUIET}>
             تخطّي الحين
           </button>

@@ -13,23 +13,23 @@ const MAX_NAME_LENGTH = 40
 export const emailSchema = z
   .string()
   .trim()
-  .min(1, 'اكتبي بريدك الإلكتروني.')
+  .min(1, 'البريد الإلكتروني مطلوب.')
   .email('البريد الإلكتروني غير صحيح.')
 
 export const passwordSchema = z
   .string()
-  .min(1, 'اكتبي كلمة المرور.')
+  .min(1, 'كلمة المرور مطلوبة.')
   .min(MIN_PASSWORD_LENGTH, `كلمة المرور ${MIN_PASSWORD_LENGTH} أحرف على الأقل.`)
 
 export const nameSchema = z
   .string()
   .trim()
-  .min(2, 'اكتبي اسمك.')
+  .min(2, 'الاسم مطلوب.')
   .max(MAX_NAME_LENGTH, `الاسم أطول من ${MAX_NAME_LENGTH} حرفًا.`)
 
 export const signInSchema = z.object({
   email: emailSchema,
-  password: z.string().min(1, 'اكتبي كلمة المرور.'),
+  password: z.string().min(1, 'كلمة المرور مطلوبة.'),
 })
 
 export const signUpSchema = z.object({

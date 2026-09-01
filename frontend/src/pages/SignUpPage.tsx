@@ -53,13 +53,13 @@ export function SignUpPage() {
   return (
     <AuthLayout
       eyebrow="Create account"
-      title="أنشئي حسابك"
-      description="اسمك وبريدك، وتبدئين تصوّرين قطعك."
+      title="حساب جديد"
+      description="اسمك وبريدك، ونبدأ."
       footer={
         <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
           عندك حساب؟
           <Link to={ROUTES.login} className="text-ink underline-offset-4 hover:underline">
-            سجّلي دخولك
+            تسجيل الدخول
           </Link>
         </span>
       }
@@ -115,7 +115,7 @@ export function SignUpPage() {
         </WardrobeFrame>
 
         <Button type="submit" size="lg" block disabled={busy}>
-          {busy ? 'ننشئ حسابك…' : 'أنشئي الحساب'}
+          {busy ? 'ننشئ حسابك…' : 'إنشاء الحساب'}
         </Button>
 
         {!syncsAcrossDevices && (

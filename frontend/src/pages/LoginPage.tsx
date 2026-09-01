@@ -57,12 +57,12 @@ export function LoginPage() {
     <AuthLayout
       eyebrow="Log in"
       title="أهلًا برجوعك"
-      description="سجّلي دخولك وارجعي لدولابك."
+      description="الدخول يرجّعك لدولابك."
       footer={
         <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
           ما عندك حساب؟
           <Link to={ROUTES.signUp} className="text-ink underline-offset-4 hover:underline">
-            أنشئي واحدًا
+            إنشاء حساب
           </Link>
         </span>
       }

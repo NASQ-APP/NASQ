@@ -21,6 +21,7 @@ import { TryPiecesRail } from '@/features/try-pieces/components/TryPiecesRail'
 import { itemBySourceLink, useWardrobe } from '@/features/wardrobe/store'
 import { useStudio } from '@/features/studio/store'
 import { useAppShell } from '@/app/layout'
+import { useVoice } from '@/features/onboarding/voice'
 import { CATEGORIES, categoryById, ITEM_COLORS, shapesForSlot } from '@/domain/wardrobe'
 import { sourceById } from '@/features/try-pieces/sources'
 import { importFromUrl } from '@/features/try-pieces/import'
@@ -40,6 +41,7 @@ export function TryPiecesPage() {
   const { items, addItem } = useWardrobe()
   const studio = useStudio()
   const { openAdd } = useAppShell()
+  const say = useVoice()
 
   // القطع المستوردة قبل هذي الميزة تُفحص مرة وحدة هنا
   useImportedImageAudit()
@@ -124,7 +126,7 @@ export function TryPiecesPage() {
 
     /*
       رابط لصقتيه قبل: نوديك للقطعة الموجودة بدل ما نضيف نسخة ثانية.
-      قصدك تجرّبين هذي القطعة، وهي عندك أصلًا — فنوصّلك لها.
+      {say('قصدك تجرّبين هذي القطعة، وهي عندك أصلًا — فنوصّلك لها.', 'قصدك تجرّب هذي القطعة، وهي عندك أصلًا — فنوصّلك لها.')}
     */
     const existing = itemBySourceLink(product.sourceLink)
     if (existing) {
@@ -162,9 +164,9 @@ export function TryPiecesPage() {
     setStep(0)
     setLink('')
     studio.add(item.id)
-    toast.ok('استوردناها — جرّبيها على موديلك')
+    toast.ok(say('استوردناها — جرّبيها على موديلك', 'استوردناها — جرّبها على موديلك'))
     navigate(ROUTES.studio)
-  }, [addItem, link, navigate, studio])
+  }, [addItem, link, navigate, studio, say])
 
   // المؤقّت هو النظام الخارجي، وكل تغيير حالة يصير داخل ندائه
   useEffect(() => {
@@ -190,7 +192,10 @@ export function TryPiecesPage() {
       <PageHeader
         eyebrow="Try pieces"
         title="قطع للتجربة"
-        description="قطعة شفتيها برّا وتبين تشوفينها مع ملابسك قبل ما تقررين. ما تدخل خزانتك إلا لو نقلتيها بنفسك."
+        description={say(
+          'قطعة شفتيها برّا وتبين تشوفينها مع ملابسك قبل ما تقررين. ما تدخل خزانتك إلا لو نقلتيها بنفسك.',
+          'قطعة شفتها برّا وتبي تشوفها مع ملابسك قبل ما تقرّر. ما تدخل خزانتك إلا لو نقلتها بنفسك.',
+        )}
       />
 
 
@@ -224,7 +229,7 @@ export function TryPiecesPage() {
               }}
             >
               <Wand2 size={13} strokeWidth={1.5} />
-              جرّبيها كلها
+              {say('جرّبيها كلها', 'جرّبها كلها')}
             </Button>
           )
         }
@@ -233,7 +238,10 @@ export function TryPiecesPage() {
       {tryItems.length === 0 ? (
         <EmptyState
           title="ما فيه قطع للتجربة."
-          body="الصقي رابط قطعة فوق، أو شاركيها لـ«نَسّق» من أي متجر."
+          body={say(
+              'الصقي رابط قطعة فوق، أو شاركيها لـ«نَسّق» من أي متجر.',
+              'الصق رابط قطعة فوق، أو شاركها لـ«نَسّق» من أي متجر.',
+            )}
         />
       ) : (
         <>
@@ -291,7 +299,7 @@ export function TryPiecesPage() {
               }}
             >
               <Camera size={14} strokeWidth={1.5} />
-              ارفعي صورة القطعة
+              {say('ارفعي صورة القطعة', 'ارفع صورة القطعة')}
             </Button>
             <Button variant="secondary" onClick={() => setBlocked(undefined)}>
               إلغاء
@@ -305,7 +313,7 @@ export function TryPiecesPage() {
             نقدر نسحب صورة القطعة ولا اسمها ولا سعرها. مو عطلًا عندنا — يفتح للمتصفّح وحده.
           </p>
           <p>
-            بس تقدرين تضيفينها بنفسك عن طريق <strong className="text-ink">رفع صورتها</strong>،
+            {say('بس تقدرين تضيفينها بنفسك عن طريق ', 'بس تقدر تضيفها بنفسك عن طريق ')}<strong className="text-ink">رفع صورتها</strong>،
             ونقرأ فئتها ولونها من الصورة.
           </p>
 
@@ -313,7 +321,7 @@ export function TryPiecesPage() {
             <ol className="flex list-inside list-decimal flex-col gap-1.5 text-[12.5px]">
               <li>افتحي صفحة القطعة في المتجر</li>
               <li>خذي لقطة شاشة للقطعة وحدها</li>
-              <li>ارجعي واضغطي «ارفعي صورة القطعة» تحت</li>
+              <li>{say('ارجعي واضغطي «ارفعي صورة القطعة» تحت', 'ارجع واضغط «ارفع صورة القطعة» تحت')}</li>
             </ol>
           </div>
         </div>

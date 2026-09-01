@@ -13,10 +13,12 @@ import { useStyleProfile } from '@/features/try-pieces/taste'
 import { QUICK_PROMPTS, suggest, type StylistAnswer } from './suggest'
 import { cn, uid } from '@/shared/lib'
 import { APP } from '@/shared/config'
+import { useVoice } from '@/features/onboarding/voice'
 
 type Turn = { id: string; question: string; answer?: StylistAnswer }
 
 export function StylistDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const say = useVoice()
   const items = useWardrobe((s) => s.items)
   const studio = useStudio()
   // ذوقها من «إلهامي» يرجّح ألوان الاقتراح — بلا إلهام يبقى السلوك كما هو
@@ -72,7 +74,7 @@ export function StylistDrawer({ open, onClose }: { open: boolean; onClose: () =>
           <input
             value={term}
             onChange={(e) => setTerm(e.target.value)}
-            placeholder={`اسألي ${APP.shortName}…`}
+            placeholder={`${say('اسألي', 'اسأل')} ${APP.shortName}…`}
             className="h-11 w-full bg-transparent text-[13px] outline-none placeholder:text-faint"
           />
           <Button type="submit" size="sm" disabled={!term.trim() || thinking}>
@@ -130,7 +132,7 @@ export function StylistDrawer({ open, onClose }: { open: boolean; onClose: () =>
                           <ItemImage item={item} className="h-[54px] w-[44px] rounded bg-surface p-1" />
                           <span className="min-w-0 flex-1 truncate text-[12.5px]">{item.name}</span>
                           <Button size="sm" variant="secondary" onClick={() => studio.add(id)}>
-                            جرّبيها
+                            {say('جرّبيها', 'جرّبها')}
                           </Button>
                         </li>
                       )
@@ -160,7 +162,7 @@ export function StylistDrawer({ open, onClose }: { open: boolean; onClose: () =>
                       onClick={() => wearLook(look.itemIds)}
                       className="w-full border-t border-line py-3 text-[12px] transition-colors hover:bg-surface"
                     >
-                      جرّبيها على موديلك
+                      {say('جرّبيها على موديلك', 'جرّبها على موديلك')}
                     </button>
                   </article>
                 ))}

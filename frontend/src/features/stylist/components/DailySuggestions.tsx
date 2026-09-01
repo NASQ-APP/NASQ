@@ -15,10 +15,12 @@ import { ownedItems } from '@/domain/wardrobe'
 import { ROUTES } from '@/shared/config'
 import { dailyLooks, type DailyLook } from '../suggest'
 import type { WardrobeItem } from '@/domain/wardrobe'
+import { useVoice } from '@/features/onboarding/voice'
 
 const MAX_THUMBS = 4
 
 export function DailySuggestions({ onAskStylist }: { onAskStylist: () => void }) {
+  const say = useVoice()
   const items = useWardrobe((state) => state.items)
   const owned = useMemo(() => ownedItems(items), [items])
   const looks = useMemo(() => dailyLooks(owned), [owned])
@@ -32,7 +34,7 @@ export function DailySuggestions({ onAskStylist }: { onAskStylist: () => void })
         title="وش ألبس اليوم؟"
         action={
           <button onClick={onAskStylist} className="text-[12px] text-muted hover:text-ink">
-            اسألي عن شي ثاني
+            {say('اسألي عن شي ثاني', 'اسأل عن شي ثاني')}
           </button>
         }
       />
@@ -46,6 +48,7 @@ export function DailySuggestions({ onAskStylist }: { onAskStylist: () => void })
 }
 
 function SuggestionCard({ look, items }: { look: DailyLook; items: WardrobeItem[] }) {
+  const say = useVoice()
   const navigate = useNavigate()
   const replaceAll = useStudio((state) => state.replaceAll)
 
@@ -64,7 +67,7 @@ function SuggestionCard({ look, items }: { look: DailyLook; items: WardrobeItem[
   return (
     <button
       onClick={wear}
-      aria-label={`جرّبي إطلالة ${look.occasionLabel} — ${pieces.length} قطع`}
+      aria-label={`${say('جرّبي', 'جرّب')} إطلالة ${look.occasionLabel} — ${pieces.length} قطع`}
       className="lift group flex flex-col overflow-hidden rounded-md border border-line bg-canvas text-right hover:border-line-strong"
     >
       <span className="flex items-center justify-center gap-1 bg-surface px-3 py-5">
@@ -77,7 +80,7 @@ function SuggestionCard({ look, items }: { look: DailyLook; items: WardrobeItem[
         <span className="eyebrow">{look.occasionLabel}</span>
         <span className="text-[12.5px] leading-7 text-muted">{look.reason}</span>
         <span className="mt-1 flex items-center gap-1.5 text-[11.5px] text-ink">
-          جرّبيها على موديلك
+          {say('جرّبيها على موديلك', 'جرّبها على موديلك')}
           <ArrowLeft
             size={13}
             strokeWidth={1.6}

@@ -41,12 +41,12 @@ export type AuthError = {
 
 const MESSAGES: Record<AuthErrorCode, string> = {
   'invalid-credentials': 'البريد أو كلمة المرور غير صحيحة.',
-  'email-taken': 'فيه حساب مسجّل بهذا البريد. سجّلي دخولك بدل الإنشاء.',
+  'email-taken': 'فيه حساب مسجّل بهذا البريد — الدخول بدل الإنشاء.',
   'weak-password': 'كلمة المرور قصيرة. اجعليها ٨ أحرف على الأقل.',
-  network: 'ما قدرنا نوصل للخادم. تحقّقي من اتصالك.',
-  'not-configured': 'الخادم غير مهيّأ. تحقّقي من إعدادات المشروع.',
-  'email-confirm-required': 'أنشأنا حسابك — افتحي بريدك وأكّديه ثم سجّلي دخولك.',
-  unknown: 'صار خطأ غير متوقّع. حاولي مرة ثانية.',
+  network: 'ما قدرنا نوصل للخادم — تحقّق من الاتصال.',
+  'not-configured': 'الخادم غير مهيّأ — راجع إعدادات المشروع.',
+  'email-confirm-required': 'أنشأنا حسابك — التأكيد وصل بريدك، وبعده يفتح الدخول.',
+  unknown: 'صار خطأ غير متوقّع — المحاولة مرة ثانية قد تنجح.',
 }
 
 export const authError = (code: AuthErrorCode): AuthError => ({ code, message: MESSAGES[code] })

@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { ItemImage } from '@/shared/components/media/ItemImage'
 import { useWardrobe } from '../store'
+import { useVoice } from '@/features/onboarding/voice'
 import { ROUTES } from '@/shared/config'
 import { cn } from '@/shared/lib'
 import type { Wardrobe } from '@/domain/wardrobe'
@@ -11,6 +12,7 @@ import type { Wardrobe } from '@/domain/wardrobe'
  * الخزانة الفاضية تُعرض كسطح واحد ساكن: شبكة مربّعات فاضية تبان كأنها معطّلة.
  */
 export function WardrobeCard({ wardrobe }: { wardrobe: Wardrobe }) {
+  const say = useVoice()
   // نختار المصفوفة الثابتة ونضيّقها هنا — المحدّد اللي يبني مصفوفة جديدة كل
   // رسم يخلي zustand v5 يعيد الرسم بلا نهاية
   const allItems = useWardrobe((state) => state.items)
@@ -40,7 +42,7 @@ export function WardrobeCard({ wardrobe }: { wardrobe: Wardrobe }) {
           )}
         <span className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-[rgba(10,10,10,0.5)] text-white opacity-0 backdrop-blur-[3px] transition-opacity duration-[320ms] ease-soft group-hover:opacity-100">
           <span className="text-[12.5px]">
-            {items.length > 0 ? 'افتحي الخزانة' : 'أضيفي أول قطعة'}
+            {items.length > 0 ? say('افتحي الخزانة', 'افتح الخزانة') : say('أضيفي أول قطعة', 'أضِف أول قطعة')}
           </span>
           <span className="lat text-[9.5px] opacity-70">{items.length} pieces</span>
         </span>

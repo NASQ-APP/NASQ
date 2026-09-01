@@ -61,7 +61,7 @@ export async function validatePhoto(file: File): Promise<PhotoValidationResult> 
 
   const { brightness, detail } = analyse(bitmap)
   if (brightness < 46) {
-    issues.push({ code: 'too-dark', message: 'الصورة معتمة. صوّري في مكان أفتح.', severity: 'blocking' })
+    issues.push({ code: 'too-dark', message: 'الصورة معتمة — مكان أفتح يعطي نتيجة أوضح.', severity: 'blocking' })
   } else if (brightness > 226) {
     issues.push({ code: 'too-bright', message: 'الإضاءة قوية جدًا وضايعة التفاصيل.', severity: 'advisory' })
   }

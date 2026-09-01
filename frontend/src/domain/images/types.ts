@@ -33,7 +33,7 @@ const ERRORS: Record<ImageErrorCode, Omit<ImageError, 'code'>> = {
     canKeepOriginal: false,
   },
   unreadable: {
-    message: 'تعذّر قراءة الصورة، حاولي رفع صورة أخرى.',
+    message: 'تعذّر قراءة الصورة — صورة أخرى قد تنجح.',
     canKeepOriginal: false,
   },
   'removal-unavailable': {
@@ -45,15 +45,15 @@ const ERRORS: Record<ImageErrorCode, Omit<ImageError, 'code'>> = {
     canKeepOriginal: true,
   },
   'removal-timeout': {
-    message: 'انتهت مهلة معالجة الصورة، حاولي مرة أخرى.',
+    message: 'انتهت مهلة معالجة الصورة — المحاولة مرة أخرى قد تنجح.',
     canKeepOriginal: true,
   },
   'removal-empty': {
-    message: 'ما قدرنا نميّز القطعة في الصورة. جرّبي صورة بخلفية أوضح.',
+    message: 'ما قدرنا نميّز القطعة في الصورة — خلفية أوضح تساعد.',
     canKeepOriginal: true,
   },
   'save-failed': {
-    message: 'تعذّر حفظ الصورة. حاولي مرة أخرى.',
+    message: 'تعذّر حفظ الصورة — المحاولة مرة أخرى قد تنجح.',
     canKeepOriginal: false,
   },
 }

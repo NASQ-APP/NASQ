@@ -24,10 +24,12 @@ import { useLooks } from '@/features/looks/store'
 import { slotOf } from '@/domain/outfit'
 import { formatDate } from '@/shared/lib'
 import { APP } from '@/shared/config'
+import { useVoice } from '@/features/onboarding/voice'
 
 export function ItemPage() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const say = useVoice()
   const { items, wardrobes, toggleFavorite, moveItem, deleteItem } = useWardrobe()
   const studio = useStudio()
   const looks = useLooks((s) => s.looks)
@@ -138,7 +140,7 @@ export function ItemPage() {
               }}
             >
               <Wand2 size={15} strokeWidth={1.5} />
-              نسّقي هذي القطعة
+              {say('نسّقي هذي القطعة', 'نسّق هذي القطعة')}
             </Button>
             <Button
               size="lg"
@@ -171,7 +173,10 @@ export function ItemPage() {
 
           {isTry && (
             <p className="mt-5 rounded-md border border-line bg-surface px-4 py-3 text-[12px] leading-7 text-muted">
-              هذي قطعة للتجربة — مو داخل خزانتك. لو اشتريتيها فعليًا، اضغطي «نقل لخزانتي».
+              {say(
+                'هذي قطعة للتجربة — مو داخل خزانتك. لو اشتريتيها فعليًا، اضغطي «نقل لخزانتي».',
+                'هذي قطعة للتجربة — مو داخل خزانتك. لو اشتريتها فعليًا، اضغط «نقل لخزانتي».',
+              )}
             </p>
           )}
         </div>

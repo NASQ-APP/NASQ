@@ -9,6 +9,7 @@ import { ChevronRight, Focus, Images, MoreHorizontal, Save, Trash2 } from 'lucid
 import { Link } from 'react-router-dom'
 import { Button, ButtonLink } from '@/shared/components/ui'
 import { ROUTES } from '@/shared/config'
+import { useVoice } from '@/features/onboarding/voice'
 
 export function StudioHeader({
   focusMode,
@@ -25,6 +26,7 @@ export function StudioHeader({
   onSave: () => void
   onClear: () => void
 }) {
+  const say = useVoice()
   const [menuOpen, setMenuOpen] = useState(false)
 
   const menu = [
@@ -55,7 +57,7 @@ export function StudioHeader({
             )}
           </div>
           <p className="mt-0.5 hidden text-[11px] text-faint md:block">
-            اختاري القطع، عاينيها على الموديل، ثم احفظي إطلالتك.
+            {say('اختاري القطع، عاينيها على الموديل، ثم احفظي إطلالتك.', 'اختر القطع، عاينها على الموديل، ثم احفظ إطلالتك.')}
           </p>
         </div>
       </div>

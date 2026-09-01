@@ -13,8 +13,10 @@ import { Button, Modal, Select } from '@/shared/components/ui'
 import { CATEGORIES } from '@/domain/wardrobe'
 import { useOnboarding } from '@/features/onboarding/store'
 import { useStoreBridge } from './bridge'
+import { useVoice } from '@/features/onboarding/voice'
 
 export function StoreBridge() {
+  const say = useVoice()
   const { pending, waiting, choose, dismiss } = useStoreBridge()
 
   /* نعرض فئات جنسها كما اختارته في التعارف — وبلا اختيار نعرض الكل. */
@@ -40,7 +42,7 @@ export function StoreBridge() {
               setCategoryId('')
             }}
           >
-            أضيفيها
+            {say('أضيفيها', 'أضِفها')}
           </Button>
           <button
             onClick={dismiss}
@@ -68,7 +70,7 @@ export function StoreBridge() {
         <div className="min-w-0 flex-1">
           <p className="line-clamp-2 text-[12.5px] leading-6">{pending.product.name}</p>
           <p className="mt-1 text-[11px] leading-6 text-muted">
-            بنترست ما تعطينا نوع القطعة، فما نخمّنه — اختاريه أنتِ.
+            {say('بنترست ما تعطينا نوع القطعة، فما نخمّنه — اختاريه أنتِ.', 'بنترست ما تعطينا نوع القطعة، فما نخمّنه — اخترْه أنت.')}
           </p>
 
           <Select

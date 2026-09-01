@@ -64,7 +64,7 @@ export class WeatherError extends Error {
 }
 
 export const WEATHER_ERROR_MESSAGE: Record<WeatherErrorCode, string> = {
-  network: 'ما وصلنا لخدمة الطقس — تحقّقي من الاتصال.',
+  network: 'ما وصلنا لخدمة الطقس — تحقّق من الاتصال.',
   unavailable: 'خدمة الطقس مو متاحة الحين.',
   cancelled: 'أُلغي طلب الطقس.',
 }

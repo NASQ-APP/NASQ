@@ -80,7 +80,13 @@ export function SettingsPage() {
 
   const edit = (patch: Partial<DeclaredStyle>) => setDraft({ ...style, ...patch })
 
-  /* الخيارات والصيغة يتبعان جنسها المُصرَّح — نفس ما يصير في التعارف. */
+  /*
+    الخيارات والصيغة تتبعان **المسوّدة** لا المحفوظ.
+
+    `useVoice` تقرأ المخزون، وهو الصحيح في كل شاشة إلا هذي: هنا يُعدَّل الجواب
+    نفسه، فلو تبعت الصيغةُ المخزونَ لرأت من بدّلت جنسها خياراتِ الرجال بخطاب
+    النساء حتى تضغط «حفظ» — تناقضٌ في شاشة واحدة.
+  */
   const say = (feminine: string, masculine: string) =>
     forGender(style.gender, feminine, masculine)
   const tagOptions = tagsFor(style.gender)
@@ -114,7 +120,12 @@ export function SettingsPage() {
       toast.ok('حفظنا تعديلاتك')
     } catch {
       // الفشل يُقال: «حفظنا» بلا حفظ أسوأ من خطأ صريح
-      toast.error('ما قدرنا نحفظ. تحقّقي من اتصالك وحاولي مرة ثانية.')
+      toast.error(
+        say(
+          'ما قدرنا نحفظ. تحقّقي من اتصالك وحاولي مرة ثانية.',
+          'ما قدرنا نحفظ. تحقّق من اتصالك وحاول مرة ثانية.',
+        ),
+      )
     } finally {
       setSaving(false)
     }
@@ -143,9 +154,12 @@ export function SettingsPage() {
             <TextInput dir="ltr" value={user?.email ?? ''} readOnly disabled />
           </Field>
           <p className="text-[12px] text-muted">
-            {joined && <>عضوة منذ {joined} · </>}
+            {joined && <>{say('عضوة', 'عضو')} منذ {joined} · </>}
             {syncsAcrossDevices
-              ? 'حسابك على الخادم — بياناتك تتبعك على أي جهاز تدخلين منه.'
+              ? say(
+                  'حسابك على الخادم — بياناتك تتبعك على أي جهاز تدخلين منه.',
+                  'حسابك على الخادم — بياناتك تتبعك على أي جهاز تدخل منه.',
+                )
               : 'ملف على هذا الجهاز فقط — ما يزامن بين الأجهزة.'}
           </p>
         </div>
@@ -156,8 +170,14 @@ export function SettingsPage() {
         <p className="eyebrow mb-1">ذوقي</p>
         <p className="mb-7 text-[12px] leading-7 text-muted">
           {answered
-            ? 'هذي إجاباتك من أول لقاء — عدّليها متى ما تغيّر ذوقك، ونَسّق يمشي عليها.'
-            : 'ما جاوبتِ أسئلة التعارف بعد. جاوبيها من هنا، وتبدأ الاقتراحات تعرفك.'}
+            ? say(
+                'هذي إجاباتك من أول لقاء — عدّليها متى ما تغيّر ذوقك، ونَسّق يمشي عليها.',
+                'هذي إجاباتك من أول لقاء — عدّلها متى ما تغيّر ذوقك، ونَسّق يمشي عليها.',
+              )
+            : say(
+                'ما جاوبتِ أسئلة التعارف بعد. جاوبيها من هنا، وتبدأ الاقتراحات تعرفك.',
+                'ما جاوبت أسئلة التعارف بعد. جاوبها من هنا، وتبدأ الاقتراحات تعرفك.',
+              )}
         </p>
 
         <div className="flex flex-col gap-8">
@@ -324,7 +344,7 @@ export function SettingsPage() {
           <p className="text-[13px] text-muted">
             ما فيه صورة مرفوعة.{' '}
             <Link to="/studio" className="underline-offset-4 hover:underline">
-              ارفعيها من الاستوديو
+              {say('ارفعيها من الاستوديو', 'ارفعها من الاستوديو')}
             </Link>
             .
           </p>
@@ -416,13 +436,18 @@ export function SettingsPage() {
         eyebrow="Confirm"
         destructive={pending === 'deleteAccount'}
         title={pending === 'deleteAccount' ? 'حذف حسابك نهائيًا؟' : 'تسجيل الخروج؟'}
-        confirmLabel={pending === 'deleteAccount' ? 'احذفي حسابي' : 'خروج'}
+        confirmLabel={
+          pending === 'deleteAccount' ? say('احذفي حسابي', 'احذف حسابي') : 'خروج'
+        }
       >
         {pending === 'deleteAccount'
           ? `راح ينحذف حسابك ومعه ${ownedCount} قطعة و${wardrobes.length} خزانة و${looks.length} إطلالة. ما نقدر نرجّعها.`
           : dirty
             ? 'عندك تعديلات ما انحفظت — الخروج يفقدها.'
-            : 'راح ترجعين لصفحة الدخول. بياناتك تبقى مكانها.'}
+            : say(
+                'راح ترجعين لصفحة الدخول. بياناتك تبقى مكانها.',
+                'راح ترجع لصفحة الدخول. بياناتك تبقى مكانها.',
+              )}
       </ConfirmDialog>
     </PageContainer>
   )
