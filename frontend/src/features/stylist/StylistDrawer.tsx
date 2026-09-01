@@ -1,6 +1,9 @@
 /**
  * الستايليست. كل اقتراح مبني على قطع تملكها المستخدمة فعلاً —
  * ولو خزانتك ما تكفي، يقول لك وش الناقص بدل ما يخترع (المبدأ ٢).
+ *
+ * الجواب يجي من `stylistProvider`: نموذج حقيقي أو قواعد محلية، حسب إعداد
+ * البناء. الفرق يُعلَن للمستخدمة في شارة تحت كل رد — ما نتظاهر بذكاء ما نملكه.
  */
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -10,41 +13,99 @@ import { ItemImage } from '@/shared/components/media/ItemImage'
 import { itemById, useWardrobe } from '@/features/wardrobe/store'
 import { useStudio } from '@/features/studio/store'
 import { useStyleProfile } from '@/features/try-pieces/taste'
-import { QUICK_PROMPTS, suggest, type StylistAnswer } from './suggest'
+import { useOnboarding } from '@/features/onboarding/store'
+import { QUICK_PROMPTS } from './suggest'
+import { stylistProvider } from '@/infrastructure/stylist'
+import { withAnswered } from '@/domain/stylist/thread'
+import { NEED_QUESTION } from '@/domain/stylist/types'
 import { cn, uid } from '@/shared/lib'
 import { APP } from '@/shared/config'
+import type { AgentAnswer, ContextualNeed } from '@/domain/stylist/types'
 
-type Turn = { id: string; question: string; answer?: StylistAnswer }
+type Turn = { id: string; question: string; answer?: AgentAnswer }
+
+/** حقل جواب السؤال السياقي — جواب واحد يُعاد كسؤال بسياقه. */
+function NeedReply({ onSend }: { onSend: (reply: string) => void }) {
+  const [value, setValue] = useState('')
+  return (
+    <form
+      onSubmit={(event) => {
+        event.preventDefault()
+        const reply = value.trim()
+        if (reply) onSend(reply)
+        setValue('')
+      }}
+      className="mt-2 flex items-center gap-2 border-b border-line pb-1.5 focus-within:border-ink"
+    >
+      <input
+        value={value}
+        onChange={(event) => setValue(event.target.value)}
+        placeholder="اكتبي جوابك…"
+        className="h-8 w-full bg-transparent text-[12.5px] outline-none placeholder:text-faint"
+      />
+      <Button type="submit" size="sm" variant="secondary" disabled={!value.trim()}>
+        إرسال
+      </Button>
+    </form>
+  )
+}
 
 export function StylistDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
   const items = useWardrobe((s) => s.items)
   const studio = useStudio()
-  // ذوقها من «إلهامي» يرجّح ألوان الاقتراح — بلا إلهام يبقى السلوك كما هو
+  // ذوقها المُلاحَظ من قطع التجربة يرجّح ألوان الاقتراح
   const style = useStyleProfile()
+  // والمُصرَّح من التعارف مصدر القيود والسياق — الوكيل يحتاج الاثنين
+  const declared = useOnboarding((state) => state.declared)
   const navigate = useNavigate()
   const [turns, setTurns] = useState<Turn[]>([])
   const [term, setTerm] = useState('')
-  const [thinking, setThinking] = useState(false)
+  const [waiting, setWaiting] = useState(false)
+  /** ما جاوبت عليه في هذا الخيط — فما يتكرّر السؤال */
+  const [answeredNeeds, setAnsweredNeeds] = useState<ContextualNeed[]>([])
   const bottom = useRef<HTMLDivElement>(null)
 
   // ننزل لآخر المحادثة مع كل دور جديد، وكذلك لما يظهر مؤشّر التفكير
   useEffect(() => {
-    if (thinking || turns.length > 0) bottom.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [turns, thinking])
+    if (waiting || turns.length > 0) bottom.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [turns, waiting])
 
-  const ask = (question: string) => {
+  /**
+   * `needs` تُمرَّر عند الحاجة بدل ما تُقرأ من الحالة.
+   *
+   * جواب حاجة سياقية يصير في نفس الدورة التي يُبنى فيها الطلب، وحالة React
+   * ما تتحدّث قبل الرسم التالي — فالقراءة من الحالة كانت ترسل قائمة قديمة.
+   */
+  const ask = (question: string, needs: ContextualNeed[] = answeredNeeds) => {
     const q = question.trim()
-    if (!q || thinking) return
+    if (!q || waiting) return
     setTerm('')
+
     const id = uid('turn')
     setTurns((t) => [...t, { id, question: q }])
-    setThinking(true)
-    // the delay is the stylist reading the wardrobe, not a fake progress bar
-    setTimeout(() => {
-      const answer = suggest(q, items, studio.selection, style)
-      setTurns((t) => t.map((turn) => (turn.id === id ? { ...turn, answer } : turn)))
-      setThinking(false)
-    }, 620)
+    setWaiting(true)
+
+    void stylistProvider
+      .answer({
+        question: q,
+        wardrobe: items,
+        selectedIds: studio.selection,
+        style,
+        declared,
+        answeredNeeds: needs,
+      })
+      .then((answer) => {
+        setTurns((t) => t.map((turn) => (turn.id === id ? { ...turn, answer } : turn)))
+      })
+      .finally(() => setWaiting(false))
+  }
+
+  /** جواب المستخدمة على سؤال سياقي: نسجّله فما يتكرّر، ونعيد السؤال بسياقه. */
+  const answerNeed = (need: ContextualNeed, reply: string) => {
+    const next = withAnswered(answeredNeeds, need)
+    setAnsweredNeeds(next)
+    // نمرّرها بالقيمة: `setState` ما تتحدّث قبل الرسم التالي
+    ask(reply, next)
   }
 
   const wearLook = (itemIds: string[]) => {
@@ -75,7 +136,7 @@ export function StylistDrawer({ open, onClose }: { open: boolean; onClose: () =>
             placeholder={`اسألي ${APP.shortName}…`}
             className="h-11 w-full bg-transparent text-[13px] outline-none placeholder:text-faint"
           />
-          <Button type="submit" size="sm" disabled={!term.trim() || thinking}>
+          <Button type="submit" size="sm" disabled={!term.trim() || waiting}>
             <Send size={13} strokeWidth={1.5} />
           </Button>
         </form>
@@ -109,7 +170,19 @@ export function StylistDrawer({ open, onClose }: { open: boolean; onClose: () =>
 
             {turn.answer && (
               <div className="flex flex-col gap-4">
-                <p className="text-[13.5px] leading-8">{turn.answer.message}</p>
+                {turn.answer.message && (
+                  <p className="text-[13.5px] leading-8">{turn.answer.message}</p>
+                )}
+
+                {/* سؤال واحد لما تنقص معلومة — نصّه عندنا، مب من النموذج */}
+                {turn.answer.need && (
+                  <div className="border-s-2 border-line-strong ps-4">
+                    <p className="text-[13px] leading-8">{NEED_QUESTION[turn.answer.need]}</p>
+                    <NeedReply
+                      onSend={(reply) => answerNeed(turn.answer!.need as ContextualNeed, reply)}
+                    />
+                  </div>
+                )}
 
                 {turn.answer.gap && (
                   <p className="rounded-md border border-line bg-surface px-4 py-3 text-[12px] leading-7 text-muted">
@@ -137,6 +210,20 @@ export function StylistDrawer({ open, onClose }: { open: boolean; onClose: () =>
                     })}
                   </ul>
                 )}
+
+                {/*
+                  مصدر الرد يُقال في الحالتين، مب في حالة واحدة. غياب الشارة
+                  لو كُتبت للمحلي وحده يصير هو الإشارة الوحيدة إلى الوكيل —
+                  وغياب شي ما يُقرأ.
+                */}
+                <p
+                  className={cn(
+                    'lat text-[9px]',
+                    turn.answer.source === 'local' ? 'text-faint' : 'text-ink',
+                  )}
+                >
+                  {turn.answer.source === 'local' ? 'رد محلي · LOCAL RULES' : 'الوكيل · AGENT'}
+                </p>
 
                 {turn.answer.looks.map((look) => (
                   <article key={look.title} className="overflow-hidden rounded-md border border-line">
@@ -169,7 +256,7 @@ export function StylistDrawer({ open, onClose }: { open: boolean; onClose: () =>
           </div>
         ))}
 
-        {thinking && (
+        {waiting && (
           <div className="flex gap-1.5 py-1">
             {[0, 1, 2].map((i) => (
               <span

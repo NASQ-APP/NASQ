@@ -10,6 +10,15 @@ const read = (value: unknown, fallback = ''): string =>
 export const env = {
   /** إزالة الخلفية: local = خوارزمية في المتصفح · backend = مزوّد خلف الخادم */
   backgroundRemoval: read(import.meta.env.VITE_BACKGROUND_REMOVAL, 'local') as 'local' | 'backend',
+  /** الستايليست: local = قواعد في المتصفح · backend = نموذج خلف الخادم */
+  stylistProvider: read(import.meta.env.VITE_STYLIST_PROVIDER, 'local') as 'local' | 'backend',
+  /**
+   * عنوان دالة الوكيل وحدها.
+   *
+   * منفصل عن `apiBase` عن قصد: بقية الدوال منشورة على Supabase، أما الوكيل
+   * فيمرّ بوسيط خادم التطوير (`/__dev`) حيث يُقرأ المفتاح بلا ما ينزل الحزمة.
+   */
+  agentBase: read(import.meta.env.VITE_AGENT_BASE, '/__dev'),
   /** الطقس: open-meteo = خدمة مفتوحة بلا مفتاح · off = الميزة مطفأة */
   weatherProvider: read(import.meta.env.VITE_WEATHER_PROVIDER, 'open-meteo') as 'open-meteo' | 'off',
   /**

@@ -25,19 +25,34 @@ type RequestOptions = {
   /** رمز جلسة المستخدمة عند تفعيل الحسابات (المرحلة ١) */
   accessToken?: string
   timeoutMs?: number
+  /**
+   * عنوان بديل لهذا النداء وحده.
+   *
+   * الافتراضي `env.apiBase` — وهو يشير لدوال Supabase. الوكيل وحده يمرّ
+   * بوسيط التطوير المحلي حيث يعيش مفتاح النموذج، فيمرّر عنوانه هنا بدل ما
+   * نغيّر العنوان العام ونكسر بقية الدوال.
+   */
+  base?: string
 }
 
 const DEFAULT_TIMEOUT_MS = 30_000
 
 export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const { method = 'GET', body, signal, accessToken, timeoutMs = DEFAULT_TIMEOUT_MS } = options
+  const {
+    method = 'GET',
+    body,
+    signal,
+    accessToken,
+    timeoutMs = DEFAULT_TIMEOUT_MS,
+    base = env.apiBase,
+  } = options
 
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeoutMs)
   signal?.addEventListener('abort', () => controller.abort())
 
   try {
-    const response = await fetch(`${env.apiBase}${path}`, {
+    const response = await fetch(`${base}${path}`, {
       method,
       signal: controller.signal,
       headers: {
