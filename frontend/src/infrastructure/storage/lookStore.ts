@@ -18,6 +18,8 @@ const DB_NAME = 'nasaq-look'
 const DB_VERSION = 1
 const STORE = 'last-look'
 const KEY = 'current'
+/** القوام المعدّل — سجلّ منفصل، لأنه يعيش أطول من الإطلالة ويتبع الموديل. */
+const ADAPTED_KEY = 'adapted-model'
 
 export type StoredLook = {
   /** الصورة المولّدة — data URL */
@@ -79,5 +81,41 @@ export async function clearLook(): Promise<void> {
     await withStore('readwrite', (store) => store.delete(KEY))
   } catch {
     // لا شيء نفعله — الحذف محاولة تنظيف لا عملية حرجة
+  }
+}
+
+/**
+ * القوام المعدّل بعد تطبيق القياسات.
+ *
+ * يُحفظ **بمعرّف موديله**: القوام يخصّ موديلاً بعينه، فعرضه على موديل آخر
+ * يُري المستخدمة جسمًا ليس جسم من اختارت. وبدون الحفظ يرجع الموديل لصورته
+ * الأساسية مع كل تنقّل بين الصفحات، فتضيع تعديلة كلّفت وقتًا ومالاً.
+ */
+export type StoredAdapted = { image: string; modelId: string }
+
+export async function saveAdapted(adapted: StoredAdapted): Promise<void> {
+  try {
+    await withStore('readwrite', (store) => store.put(adapted, ADAPTED_KEY))
+  } catch {
+    // التخزين معطّل — القوام يبقى في الذاكرة لهذي الجلسة
+  }
+}
+
+export async function readAdapted(): Promise<StoredAdapted | undefined> {
+  if (typeof indexedDB === 'undefined') return undefined
+  try {
+    const value = await withStore<unknown>('readonly', (store) => store.get(ADAPTED_KEY))
+    const adapted = value as StoredAdapted | undefined
+    return adapted?.image && adapted.modelId ? adapted : undefined
+  } catch {
+    return undefined
+  }
+}
+
+export async function clearAdapted(): Promise<void> {
+  try {
+    await withStore('readwrite', (store) => store.delete(ADAPTED_KEY))
+  } catch {
+    // محاولة تنظيف لا عملية حرجة
   }
 }

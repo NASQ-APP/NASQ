@@ -8,9 +8,12 @@
  * وحدها تخلي الانتظار يبدو معلّقًا. وما فيه نسبة مئوية — المزوّد ما يعطي
  * تقدّمًا حقيقيًا، والنسبة المخترعة كذبة صغيرة (المبدأ ٤).
  *
- * وتعديل القطع بعد التوليد **ما يعيد التوليد تلقائيًا**: الصورة تُعلَّم
- * «قديمة» وتنتظر أمرًا صريحًا. التوليد يكلّف وقتًا ومالاً، فربطه بكل ضغطة
- * يحرق الاثنين على تجربة ما طلبتها المستخدمة.
+ * وتعديل القطع بعد التوليد **ما يعيد التوليد تلقائيًا**: التوليد يكلّف وقتًا
+ * ومالاً، فربطه بكل ضغطة يحرق الاثنين على تجربة ما طلبتها المستخدمة.
+ *
+ * وإشارة «الصورة من اختيار سابق» تعيش في **شريط الأفعال وحده**: الفعل الأول
+ * يصير «حدّثي الإطلالة» بدل «حفظ». لا وسم فوق الصورة ولا خفوت لها — الصورة
+ * هي المعروض، وتغطيتها بلافتة تحجب ما جاءت المستخدمة تشوفه.
  */
 import { useRef, useState } from 'react'
 import {
@@ -202,7 +205,11 @@ export function ModelWorkspace({
     }
   }
 
-  const [tone, setTone] = useState<LightTone>('warm')
+  /**
+   * تبدأ **بلا إضاءة**: المشهد النظيف هو الأصل، والأبجورة زينة تُطلب لا تُفرَض.
+   * والضوء الملوّن يغيّر إحساس لون القطعة، فالبداية المحايدة أصدق لتقييمها.
+   */
+  const [tone, setTone] = useState<LightTone>('none')
 
   const canGenerate = hasModel && itemCount > 0 && !busy
 
@@ -288,7 +295,7 @@ export function ModelWorkspace({
               <img
                 src={generatedLook}
                 alt="إطلالتك المولّدة"
-                className={cn(STAGE_IMAGE, 'transition-opacity duration-[250ms] ease-soft', stale && 'opacity-55')}
+                className={STAGE_IMAGE}
               />
             ) : (
               <img
@@ -314,13 +321,6 @@ export function ModelWorkspace({
             )}
           >
             أفلتي القطعة لتضيفينها للإطلالة
-          </p>
-        )}
-
-        {/* تلميح «الصورة قديمة» يسكن موضع تلميح السحب، فما نعرض الاثنين معًا */}
-        {generatedLook && stale && !dragging && !busy && (
-          <p className="absolute top-5 z-10 rounded-full border border-line bg-canvas/95 px-4 py-1.5 text-[11.5px] text-muted backdrop-blur-sm">
-            غيّرتِ القطع — الصورة من الاختيار السابق
           </p>
         )}
 

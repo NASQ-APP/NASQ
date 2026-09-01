@@ -26,7 +26,14 @@ import { READY_MODELS, readyModelById, readyModelFor } from '@/domain/model'
 import type { BodyParameters } from '@/domain/tryon'
 import type { ModelCharacteristics } from '@/domain/model'
 // `saveLook` محجوز هنا لحفظ الإطلالة في مجموعة الإطلالات — نميّز تخزين الصورة
-import { clearLook, readLook, saveLook as persistLook } from '@/infrastructure/storage'
+import {
+  clearAdapted,
+  clearLook,
+  readAdapted,
+  readLook,
+  saveAdapted,
+  saveLook as persistLook,
+} from '@/infrastructure/storage'
 import { useWardrobe } from '@/features/wardrobe/store'
 import { useAiModels } from '@/features/ai-model/store'
 import { useLooks } from '@/features/looks/store'
@@ -82,6 +89,14 @@ export function StudioPage() {
   const [modelPickerOpen, setModelPickerOpen] = useState(false)
   const [adjustOpen, setAdjustOpen] = useState(false)
   const [adaptedModel, setAdaptedModel] = useState<string>()
+  /**
+   * أي موديل يخصّه القوام المعدّل.
+   *
+   * يُحفظ منفصلاً لا يُقارن لحظة التركيب: الموديلات تصل من الخادم **بعد**
+   * الإقلاع، فمقارنة عند التركيب وحدها تسقط القوام لأن الموديل لم يصل بعد.
+   * نستعيد الاثنين ونقارن عند العرض، فيظهر القوام أول ما يصل موديله.
+   */
+  const [adaptedFor, setAdaptedFor] = useState<string>()
   const [generatedLook, setGeneratedLook] = useState<string>()
   /** بصمة الاختيار الذي وُلّدت منه الصورة الحالية — بها نعرف إن الصورة قدمت. */
   const [lookSignature, setLookSignature] = useState<string>()
@@ -99,6 +114,11 @@ export function StudioPage() {
       if (cancelled || !stored) return
       setGeneratedLook((current) => current ?? stored.image)
       setLookSignature((current) => current ?? stored.signature)
+    })
+    void readAdapted().then((stored) => {
+      if (cancelled || !stored) return
+      setAdaptedModel((current) => current ?? stored.image)
+      setAdaptedFor((current) => current ?? stored.modelId)
     })
     return () => {
       cancelled = true
@@ -180,8 +200,11 @@ export function StudioPage() {
    * صورة الشخص المرسلة للمزوّد، بترتيب الأولوية:
    * الموديل المعدّل ← الموديل الجاهز ← صورة المستخدمة.
    */
+  /** القوام المعدّل يخدم موديله وحده — على غيره نرجع لصورة الأساس. */
+  const adaptedImage = adaptedFor === measurementSource?.id ? adaptedModel : undefined
+
   const personImageUrl =
-    modelChoice === 'photo' ? photo?.url : (adaptedModel ?? readyModel.imageUrl)
+    modelChoice === 'photo' ? photo?.url : (adaptedImage ?? readyModel.imageUrl)
 
   const hasModel = Boolean(personImageUrl)
   const modelLabel = modelChoice === 'photo' ? 'صورتك' : readyModel.name
@@ -276,7 +299,7 @@ export function StudioPage() {
     else models.saveModel(next)
 
     // التعديل يبني على الموديل المعدّل السابق إن وُجد، فالتحسينات تتراكم
-    const base = await referenceFromUrl(adaptedModel ?? readyModel.imageUrl)
+    const base = await referenceFromUrl(adaptedImage ?? readyModel.imageUrl)
     if (!base) return
 
     const { result, error } = await tryOn.adaptModel({
@@ -286,6 +309,8 @@ export function StudioPage() {
     })
     if (result) {
       setAdaptedModel(result.image)
+      setAdaptedFor(measurementSource?.id)
+      if (measurementSource) void saveAdapted({ image: result.image, modelId: measurementSource.id })
       setGeneratedLook(undefined)
       void clearLook()
       setAdjustOpen(false)
@@ -469,6 +494,8 @@ export function StudioPage() {
             models.setActive(id)
             // الموديل المعدّل يخص موديلاً بعينه، فتبديل الموديل يُسقطه
             setAdaptedModel(undefined)
+            setAdaptedFor(undefined)
+            void clearAdapted()
             setGeneratedLook(undefined)
             void clearLook()
           }}
@@ -479,6 +506,8 @@ export function StudioPage() {
             // جنسُه يفرض صورة الأساس ويتجاهل ما اختارته المستخدمة الآن
             models.setActive(undefined)
             setAdaptedModel(undefined)
+            setAdaptedFor(undefined)
+            void clearAdapted()
             setGeneratedLook(undefined)
             void clearLook()
           }}
