@@ -133,7 +133,8 @@ export function TryPiecesPage() {
       setImporting(false)
       setStep(0)
       setLink('')
-      studio.add(existing.id)
+      // تجربة قطعة تبدأ إطلالة بها، لا تضيفها فوق إطلالة سابقة
+      studio.replaceAll([existing.id])
       toast.info(`${existing.name} موجودة عندك — جهّزناها للتجربة.`)
       navigate(ROUTES.studio)
       return
@@ -163,7 +164,7 @@ export function TryPiecesPage() {
     setImporting(false)
     setStep(0)
     setLink('')
-    studio.add(item.id)
+    studio.replaceAll([item.id])
     toast.ok(say('استوردناها — جرّبيها على موديلك', 'استوردناها — جرّبها على موديلك'))
     navigate(ROUTES.studio)
   }, [addItem, link, navigate, studio, say])

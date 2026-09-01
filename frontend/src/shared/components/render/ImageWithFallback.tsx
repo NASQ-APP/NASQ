@@ -28,9 +28,22 @@ export function ImageWithFallback({
   fallback?: React.ReactNode
   loading?: 'lazy' | 'eager'
 }) {
+  /*
+    الحالة تتبع الرابط لا عمر المكوّن.
+
+    `useState` يُهيَّأ مرة واحدة، فرابط يتغيّر بعد الفشل — قطعة وُقّع رابطها
+    متأخرًا، أو صورة رُفعت بدلها — كان يبقى محكومًا عليه بالفشل الأول إلى
+    الأبد. حفظ الرابط الذي قيست عليه الحالة يجعل التغيير يعيد المحاولة.
+  */
   const [state, setState] = useState<'loading' | 'ready' | 'failed'>(
     src ? 'loading' : 'failed',
   )
+  const [measured, setMeasured] = useState(src)
+
+  if (measured !== src) {
+    setMeasured(src)
+    setState(src ? 'loading' : 'failed')
+  }
 
   const showFallback = !src || state === 'failed'
 

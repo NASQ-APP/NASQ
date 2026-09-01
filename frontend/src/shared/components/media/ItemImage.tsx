@@ -28,6 +28,7 @@ export function ItemImage({
   alt?: string
 }) {
   const uploaded = useItemPhotos((state) => (item.id ? state.urls[item.id] : undefined))
+  const photosReady = useItemPhotos((state) => state.hydrated)
   const source = uploaded ?? item.imageUrl
 
   /*
@@ -37,7 +38,22 @@ export function ItemImage({
   */
   const swatch = <ItemSwatch item={item} className="absolute inset-0 h-full w-full" />
 
-  if (!source) return <ItemSwatch item={item} className={cn('h-full w-full', className)} />
+  /*
+    الانتظار يُقال هيكلاً لا كتلة لون.
+
+    روابط الصور تُوقَّع بجولة شبكة بينما القطع تُرسم فورًا من التخزين المحلي،
+    فكانت كل قطعة مصوّرة تظهر كتلةً ملوّنة عند كل فتح وتحديث ثم تنقلب صورة.
+    والكتلة اللونية جواب قاطع — «هذي ما لها صورة» — يُقال قبل أن نعرف.
+
+    بعد الانتهاء (نجح التوقيع أو فشل) تصير الكتلة صادقة، فتُعرض.
+  */
+  if (!source) {
+    return photosReady ? (
+      <ItemSwatch item={item} className={cn('h-full w-full', className)} />
+    ) : (
+      <span className={cn('skeleton block h-full w-full rounded-md', className)} aria-hidden />
+    )
+  }
 
   return (
     <ImageWithFallback

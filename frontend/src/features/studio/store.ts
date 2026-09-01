@@ -21,6 +21,16 @@ import { storageKey } from '@/infrastructure/storage'
 /** «كل ملابسي» — تنسيق من كل الخزائن مو من وحدة (متطلب ٧). */
 export const ALL_WARDROBES = 'all'
 
+/**
+ * قطع التجربة كأنها خزانة — وهي ليست خزانة.
+ *
+ * تعيش خارج الخزائن (`wardrobeId === null`) لأنها ما اشتُريت بعد، لكن التنسيق
+ * يحتاجها معروضة مثل غيرها: القطعة المستوردة من متجر كانت تصل «إطلالتك
+ * الحالية» ولا تظهر في اللوحة أبدًا — فلو حذفتها المستخدمة ما قدرت ترجّعها
+ * إلا من صفحتها.
+ */
+export const TRY_PIECES = 'try'
+
 export type PreviewStatus = 'empty' | 'ready' | 'generating' | 'generated' | 'stale'
 
 type StudioState = {

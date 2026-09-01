@@ -5,7 +5,7 @@ import { ItemImage } from '@/shared/components/media/ItemImage'
 import { SLOT_FILTERS, filterItems } from '@/domain/wardrobe'
 import { useWardrobe } from '@/features/wardrobe/store'
 import { slotOf } from '@/domain/outfit'
-import { useStudio } from '../store'
+import { useStudio, TRY_PIECES } from '../store'
 import { cn } from '@/shared/lib'
 import { useVoice } from '@/features/onboarding/voice'
 
@@ -19,7 +19,7 @@ export function ItemPicker({ open, onClose }: { open: boolean; onClose: () => vo
 
   const visible = useMemo(() => {
     let pool = items
-    if (wardrobeId === 'try') pool = pool.filter((i) => i.source === 'try')
+    if (wardrobeId === TRY_PIECES) pool = pool.filter((i) => i.source === 'try')
     else if (wardrobeId !== 'all') pool = pool.filter((i) => i.wardrobeId === wardrobeId)
     if (slot !== 'all') pool = pool.filter((i) => slotOf(i) === slot)
     return filterItems(pool, { search: term })
