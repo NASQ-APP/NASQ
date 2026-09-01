@@ -114,9 +114,13 @@ export function WardrobePage() {
         الحالات الأربع بترتيب واحد في الموقع كله. وقبل هذا كان الفراغ يسبق
         التحميل: تُفتح الخزانة فتقول «ما فيه شيء هنا بعد» ثم تمتلئ بعد لحظة —
         جوابٌ قاطع قبل أن نعرف.
+
+        و`idle` تُحسب انتظارًا مثل `loading`: الحارس يستدعي `load()` في أثرٍ
+        بعد التركيب، فبينهما لحظة الحالة فيها `idle` — وهي «ما بدأنا» لا «ما
+        فيه شيء». حصر الانتظار في `loading` وحدها كان يترك الفراغ يظهر فيها.
       */}
       <AppStateRenderer
-        loading={status === 'loading'}
+        loading={status === 'idle' || status === 'loading'}
         error={status === 'error' ? true : undefined}
         empty={visible.length === 0}
         onRetry={() => void load()}

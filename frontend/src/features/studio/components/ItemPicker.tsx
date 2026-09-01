@@ -56,8 +56,8 @@ export function ItemPicker({ open, onClose }: { open: boolean; onClose: () => vo
           ))}
           {tryCount > 0 && (
             <Chip
-              active={wardrobeId === 'try'}
-              onClick={() => setWardrobeId('try')}
+              active={wardrobeId === TRY_PIECES}
+              onClick={() => setWardrobeId(TRY_PIECES)}
               className="whitespace-nowrap"
             >
               قطع للتجربة

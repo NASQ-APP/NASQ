@@ -49,6 +49,7 @@ export function Button({
   pending,
   pendingLabel,
   children,
+  disabled,
   ...props
 }: ComponentProps<'button'> &
   StyleProps & {
@@ -59,9 +60,19 @@ export function Button({
   return (
     <button
       className={styles({ variant, size, block }, className)}
-      disabled={props.disabled || pending}
-      aria-busy={pending || undefined}
       {...props}
+      /*
+        `disabled` بعد النشر لا قبله — وهذا ليس ترتيبًا تجميليًا.
+
+        كان يُحسب أولاً ثم يُنشر `props` فوقه، و`props` تحمل `disabled` الذي
+        مرّره النداء. فزرّ يقول `disabled={false}` كان يلغي التعطيل أثناء
+        الانتظار: تضغطين «حدّثي الإطلالة» مرتين فيُولَّد صورتان ويُخصَم
+        رصيدان، وتشوفين واحدة.
+
+        وسحبه من `props` بالتفكيك يجعل التجاوز مستحيلاً لا مرتّبًا.
+      */
+      disabled={disabled || pending}
+      aria-busy={pending || undefined}
     >
       {pending && pendingLabel ? (
         <>
