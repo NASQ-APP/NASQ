@@ -31,9 +31,12 @@ begin
     صور قطعها وإطلالاتها في السلّتين بلا مالك — وبلا صفّ في `auth.users`
     تصير غير مقروءة وغير محذوفة: نفاية دائمة. المجلد باسم المُعرِّف، فالمسح
     بالبادئة يطابق سياسات السلّة نفسها.
+
+    والسلال **ثلاث لا اثنتان**: `avatars-3d` كانت مفقودة من هذي القائمة،
+    فأي ملف يدخلها يبقى بلا مالك بعد حذف الحساب.
   */
   delete from storage.objects
-   where bucket_id in ('items', 'outfits')
+   where bucket_id in ('items', 'outfits', 'avatars-3d')
      and (storage.foldername(name))[1] = caller::text;
 
   delete from auth.users where id = caller;

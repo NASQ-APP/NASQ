@@ -44,6 +44,14 @@ import type { ItemColor } from '@/domain/wardrobe'
 /** ما ينتظر تأكيدًا — فعلٌ بلا رجعة، أو خروج يفقد ما لم يُحفظ. */
 type Pending = 'signOut' | 'deleteAccount'
 
+/**
+ * ما تكتبه المستخدمة لتأكيد الحذف.
+ *
+ * ضغطة واحدة على زر أحمر تُضغط بالخطأ؛ وكتابة جملة بعينها فعلٌ **مقصود**.
+ * هذا آخر باب قبل ما لا رجعة فيه.
+ */
+const DELETE_PHRASE = 'حذف حسابي'
+
 export function SettingsPage() {
   const { wardrobes, items } = useWardrobe()
   const looks = useLooks((s) => s.looks)
@@ -55,6 +63,7 @@ export function SettingsPage() {
   const signOut = useAuth((state) => state.signOut)
   const updateName = useAuth((state) => state.updateName)
   const deleteAccount = useAuth((state) => state.deleteAccount)
+  const [deleteTyped, setDeleteTyped] = useState('')
 
   const declared = useOnboarding((state) => state.declared)
   const saveStyle = useOnboarding((state) => state.save)
@@ -362,7 +371,14 @@ export function SettingsPage() {
             يمسح حسابك وخزائنك وقطعك وإطلالاتك ورحلاتك. ما فيه رجعة.
           </p>
         </div>
-        <Button variant="danger" size="sm" onClick={() => setPending('deleteAccount')}>
+        <Button
+          variant="danger"
+          size="sm"
+          onClick={() => {
+            setDeleteTyped('')
+            setPending('deleteAccount')
+          }}
+        >
           <Trash2 size={13} strokeWidth={1.5} />
           حذف الحساب
         </Button>
@@ -385,7 +401,10 @@ export function SettingsPage() {
 
       <ConfirmDialog
         open={Boolean(pending)}
-        onClose={() => setPending(undefined)}
+        onClose={() => {
+          setPending(undefined)
+          setDeleteTyped('')
+        }}
         onConfirm={async () => {
           const action = pending
           setPending(undefined)
@@ -395,17 +414,33 @@ export function SettingsPage() {
             return
           }
           const failure = await deleteAccount()
+          // الفشل ما يُنهي الجلسة: الحساب ما زال قائمًا، وإخراجها منه كذب
           if (failure) return toast.error(failure.message)
+          setDeleteTyped('')
           toast.ok('حذفنا حسابك')
         }}
         eyebrow="Confirm"
         destructive={pending === 'deleteAccount'}
+        confirmDisabled={pending === 'deleteAccount' && deleteTyped.trim() !== DELETE_PHRASE}
         title={pending === 'deleteAccount' ? 'حذف حسابك نهائيًا؟' : 'تسجيل الخروج؟'}
         confirmLabel={pending === 'deleteAccount' ? 'احذفي حسابي' : 'خروج'}
       >
-        {pending === 'deleteAccount'
-          ? `راح ينحذف حسابك ومعه ${ownedCount} قطعة و${wardrobes.length} خزانة و${looks.length} إطلالة. ما نقدر نرجّعها.`
-          : dirty
+        {pending === 'deleteAccount' ? (
+          <div className="flex flex-col gap-4">
+            <p className="text-[13px] leading-8 text-muted">
+              راح ينحذف حسابك ومعه {ownedCount} قطعة و{wardrobes.length} خزانة و{looks.length}{' '}
+              إطلالة، ومعها صورك من الخادم. ما نقدر نرجّعها.
+            </p>
+            <Field label={`اكتبي «${DELETE_PHRASE}» للتأكيد`}>
+              <TextInput
+                value={deleteTyped}
+                onChange={(event) => setDeleteTyped(event.target.value)}
+                placeholder={DELETE_PHRASE}
+                autoComplete="off"
+              />
+            </Field>
+          </div>
+        ) : dirty
             ? 'عندك تعديلات ما انحفظت — الخروج يفقدها.'
             : 'راح ترجعين لصفحة الدخول. بياناتك تبقى مكانها.'}
       </ConfirmDialog>

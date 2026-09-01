@@ -16,6 +16,8 @@ export function ConfirmDialog({
   confirmLabel = 'تأكيد',
   cancelLabel = 'تراجع',
   destructive = true,
+  /** يمنع التأكيد حتى تكتمل شروطه — للأفعال التي لا رجعة فيها */
+  confirmDisabled = false,
 }: {
   open: boolean
   onClose: () => void
@@ -26,6 +28,7 @@ export function ConfirmDialog({
   confirmLabel?: string
   cancelLabel?: string
   destructive?: boolean
+  confirmDisabled?: boolean
 }) {
   return (
     <Modal
@@ -36,7 +39,7 @@ export function ConfirmDialog({
       width="sm"
       footer={
         <div className="flex gap-3">
-          <Button variant={destructive ? 'danger' : 'primary'} onClick={onConfirm}>
+          <Button variant={destructive ? 'danger' : 'primary'} onClick={onConfirm} disabled={confirmDisabled}>
             {confirmLabel}
           </Button>
           <Button variant="secondary" onClick={onClose}>
