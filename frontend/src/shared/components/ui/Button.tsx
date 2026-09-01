@@ -1,5 +1,6 @@
 import type { ComponentProps } from 'react'
 import { Link } from 'react-router-dom'
+import { InlineLoader } from '@/shared/components/render/InlineLoader'
 import { cn } from '@/shared/lib'
 
 export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger'
@@ -30,14 +31,48 @@ type StyleProps = { variant?: ButtonVariant; size?: ButtonSize; block?: boolean 
 const styles = ({ variant = 'primary', size = 'md', block }: StyleProps, className?: string) =>
   cn(BASE, VARIANTS[variant], SIZES[size], block && 'w-full', className)
 
+/**
+ * الزر أثناء الانتظار: معطَّل، ونصّه يقول ما يجري.
+ *
+ * التعطيل ليس تجميلاً — النقرة الثانية على «حدّثي الإطلالة» تولّد صورة ثانية
+ * وتخصم رصيدًا ثانيًا، والمستخدمة تشوف واحدة. فمنع التكرار هو الغرض، وتغيّر
+ * النص هو ما يجعل التعطيل مفهومًا بدل أن يبدو عطلاً.
+ *
+ * والمؤشّر **يحلّ محلّ الأيقونة ولا يُضاف**: إضافته تزيد عرض الزر فيقفز ما
+ * حوله في اللحظة التي تنتظر فيها المستخدمة.
+ */
 export function Button({
   variant,
   size,
   block,
   className,
+  pending,
+  pendingLabel,
+  children,
   ...props
-}: ComponentProps<'button'> & StyleProps) {
-  return <button className={styles({ variant, size, block }, className)} {...props} />
+}: ComponentProps<'button'> &
+  StyleProps & {
+    pending?: boolean
+    /** «جاري الحفظ…» — يحلّ محلّ المحتوى كاملاً أثناء الانتظار */
+    pendingLabel?: string
+  }) {
+  return (
+    <button
+      className={styles({ variant, size, block }, className)}
+      disabled={props.disabled || pending}
+      aria-busy={pending || undefined}
+      {...props}
+    >
+      {pending && pendingLabel ? (
+        <>
+          <InlineLoader />
+          {pendingLabel}
+        </>
+      ) : (
+        children
+      )}
+    </button>
+  )
 }
 
 /**

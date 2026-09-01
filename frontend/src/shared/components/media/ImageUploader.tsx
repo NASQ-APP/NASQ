@@ -9,7 +9,8 @@
  * للصور اللي ما تحتاج معالجة مثل الصورة الشخصية.
  */
 import { useEffect, useId, useRef, useState, type DragEvent } from 'react'
-import { Loader2, RotateCcw, Upload, X } from 'lucide-react'
+import { RotateCcw, Upload, X } from 'lucide-react'
+import { InlineLoader } from '@/shared/components/render'
 import { Button } from '@/shared/components/ui'
 import { useBackgroundRemoval } from '@/shared/hooks'
 import { ACCEPT_ATTRIBUTE, MAX_IMAGE_MB, type ImageCandidate, type ImageError } from '@/domain/images'
@@ -173,7 +174,7 @@ export function ImageUploader({
           <p id={statusId} role="status" aria-live="polite" className="text-[12px] text-muted">
             {busy && (
               <span className="inline-flex items-center gap-2">
-                <Loader2 size={13} strokeWidth={1.6} aria-hidden className="animate-spin" />
+                <InlineLoader label="جاري إزالة الخلفية" />
                 جاري إزالة الخلفية…
               </span>
             )}

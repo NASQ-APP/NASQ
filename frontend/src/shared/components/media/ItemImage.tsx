@@ -1,4 +1,5 @@
 import { useItemPhotos } from '@/features/wardrobe/photos'
+import { ImageWithFallback } from '@/shared/components/render'
 import { cn } from '@/shared/lib'
 import { ItemSwatch } from './ItemSwatch'
 import type { WardrobeItem } from '@/domain/wardrobe'
@@ -29,14 +30,21 @@ export function ItemImage({
   const uploaded = useItemPhotos((state) => (item.id ? state.urls[item.id] : undefined))
   const source = uploaded ?? item.imageUrl
 
+  /*
+    الكتلة اللونية هي البديل هنا لا الأيقونة العامة: القطعة عندنا لها لون
+    معروف، فالبديل الذي يقول لونها أنفع من الذي يقول «تعذّر». وهي نفسها بديل
+    الغياب وبديل الفشل — من ناحية المستخدمة الحالتان واحدة: ما فيه صورة.
+  */
+  const swatch = <ItemSwatch item={item} className="absolute inset-0 h-full w-full" />
+
   if (!source) return <ItemSwatch item={item} className={cn('h-full w-full', className)} />
 
   return (
-    <img
+    <ImageWithFallback
       src={source}
       alt={alt ?? item.name}
-      loading="lazy"
-      className={cn('object-contain', className)}
+      className={cn('h-full w-full', className)}
+      fallback={swatch}
     />
   )
 }

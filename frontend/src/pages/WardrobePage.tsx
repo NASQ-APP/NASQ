@@ -13,6 +13,7 @@ import {
   toast,
 } from '@/shared/components/ui'
 import { PageContainer } from '@/shared/components/layout'
+import { AppStateRenderer, WardrobeGridSkeleton } from '@/shared/components/render'
 import { SLOT_FILTERS, filterItems } from '@/domain/wardrobe'
 import { ItemGrid } from '@/features/wardrobe/components/ItemGrid'
 import { WardrobeRails } from '@/features/wardrobe/components/WardrobeRails'
@@ -25,7 +26,7 @@ export function WardrobePage() {
   const { id } = useParams()
   const [params, setParams] = useSearchParams()
   const say = useVoice()
-  const { wardrobes, items, deleteWardrobe } = useWardrobe()
+  const { wardrobes, items, deleteWardrobe, status, load } = useWardrobe()
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [view, setView] = useState<'rails' | 'grid' | 'compact'>('rails')
 
@@ -109,19 +110,33 @@ export function WardrobePage() {
         />
       </div>
 
-      {visible.length === 0 ? (
-        <EmptyState
-          title="ما فيه شيء هنا بعد."
-          body={say(
-            'أضيفي أول قطعة من «إضافة قطعة» فوق، وابدئي التنسيق.',
-            'أضِف أول قطعة من «إضافة قطعة» فوق، وابدأ التنسيق.',
-          )}
-        />
-      ) : view === 'rails' ? (
-        <WardrobeRails items={visible} />
-      ) : (
-        <ItemGrid items={visible} compact={view === 'compact'} />
-      )}
+      {/*
+        الحالات الأربع بترتيب واحد في الموقع كله. وقبل هذا كان الفراغ يسبق
+        التحميل: تُفتح الخزانة فتقول «ما فيه شيء هنا بعد» ثم تمتلئ بعد لحظة —
+        جوابٌ قاطع قبل أن نعرف.
+      */}
+      <AppStateRenderer
+        loading={status === 'loading'}
+        error={status === 'error' ? true : undefined}
+        empty={visible.length === 0}
+        onRetry={() => void load()}
+        loadingView={<WardrobeGridSkeleton compact={view === 'compact'} />}
+        emptyView={
+          <EmptyState
+            title="ما فيه شيء هنا بعد."
+            body={say(
+              'أضيفي أول قطعة من «إضافة قطعة» فوق، وابدئي التنسيق.',
+              'أضِف أول قطعة من «إضافة قطعة» فوق، وابدأ التنسيق.',
+            )}
+          />
+        }
+      >
+        {view === 'rails' ? (
+          <WardrobeRails items={visible} />
+        ) : (
+          <ItemGrid items={visible} compact={view === 'compact'} />
+        )}
+      </AppStateRenderer>
 
       <div className="mt-24 flex justify-end border-t border-line pt-6">
         <Button variant="secondary" onClick={() => setConfirmDelete(true)}>

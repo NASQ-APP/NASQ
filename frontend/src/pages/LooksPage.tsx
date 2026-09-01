@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Wand2 } from 'lucide-react'
 import { ButtonLink, Chip, PageHeader, EmptyState } from '@/shared/components/ui'
+import { AppStateRenderer } from '@/shared/components/render'
 import { PageContainer } from '@/shared/components/layout'
 import { useVoice } from '@/features/onboarding/voice'
 import { OCCASIONS } from '@/domain/wardrobe'
@@ -41,19 +42,30 @@ export function LooksPage() {
         </div>
       )}
 
-      {visible.length === 0 ? (
-        <EmptyState
-          title={looks.length ? 'ما فيه إطلالات بهذي المناسبة.' : 'ما فيه إطلالات محفوظة.'}
-          body={say('ابدئي التنسيق من خزانتك واحفظي أول إطلالة.', 'ابدأ التنسيق من خزانتك واحفظ أول إطلالة.')}
-          action={<ButtonLink to="/studio">افتحي الاستوديو</ButtonLink>}
-        />
-      ) : (
+      {/*
+        بلا حالة تحميل هنا عمدًا: الإطلالات محفوظة محليًا وتُرسم فورًا، والخادم
+        يحدّثها بعدها. اختراع «جاري التحميل» لشيء حاضر أمام العين كذبة صغيرة —
+        فالموحَّد هو اللغة البصرية لا وجود الحالة.
+      */}
+      <AppStateRenderer
+        empty={visible.length === 0}
+        emptyView={
+          <EmptyState
+            title={looks.length ? 'ما فيه إطلالات بهذي المناسبة.' : 'ما فيه إطلالات محفوظة.'}
+            body={say(
+              'ابدئي التنسيق من خزانتك واحفظي أول إطلالة.',
+              'ابدأ التنسيق من خزانتك واحفظ أول إطلالة.',
+            )}
+            action={<ButtonLink to="/studio">افتحي الاستوديو</ButtonLink>}
+          />
+        }
+      >
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
           {visible.map((look) => (
             <LookCard key={look.id} look={look} />
           ))}
         </div>
-      )}
+      </AppStateRenderer>
     </PageContainer>
   )
 }

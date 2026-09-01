@@ -11,6 +11,7 @@
  */
 import { useEffect, useState } from 'react'
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
+import { GlobalLoader } from '@/shared/components/render'
 import { supabase } from '@/infrastructure/supabase'
 import { currentUser } from '@/infrastructure/auth'
 import { hasBackend } from '@/shared/config'
@@ -88,11 +89,12 @@ export function RequireAuth() {
   }, [checked, userId])
 
   if (!checked) {
-    return (
-      <div className="grid min-h-screen place-items-center">
-        <p className="text-[12.5px] text-muted">نتحقّق من جلستك…</p>
-      </div>
-    )
+    /*
+      شاشة الإقلاع الوحيدة — بينها وبين ما قبلها فرق: لو أظهرنا الصفحة ثم
+      طردناها لتسجيل الدخول (أو العكس) لصار وميضًا يقول إن التطبيق متردّد.
+      الانتظار هنا يمنع الوميض، والعلامة تجعله انتظارًا داخل التطبيق لا أمامه.
+    */
+    return <GlobalLoader fullScreen message="لحظة ونجهّز لك كل شيء" />
   }
 
   if (!user) {
