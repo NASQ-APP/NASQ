@@ -126,6 +126,8 @@ export interface AIImageProvider {
 
 export type TryOnErrorCode =
   | 'not-configured'
+  /** المفتاح موجود لكن المزوّد رفضه — غير «ما فيه مفتاح» */
+  | 'invalid-key'
   | 'missing-person'
   | 'missing-garments'
   | 'invalid-image'
@@ -153,6 +155,12 @@ export const ERROR_MESSAGES: Record<TryOnErrorCode, { message: string; hint?: st
   'not-configured': {
     message: 'التجربة الافتراضية غير مفعّلة.',
     hint: 'ضيفي VITE_OPENROUTER_API_KEY في frontend/.env وأعيدي تشغيل الخادم.',
+  },
+  // مفتاح مرفوض ≠ مفتاح مفقود. الرسالة الواحدة للحالتين تخلّي من كتبت مفتاحًا
+  // خاطئًا تبحث عن سطر موجود أصلاً بدل ما تشك في قيمته.
+  'invalid-key': {
+    message: 'المفتاح غير مقبول من المزوّد.',
+    hint: 'مفتاح OpenRouter يبدأ بـsk-or-v1. تأكدي من VITE_OPENROUTER_API_KEY وأعيدي تشغيل الخادم.',
   },
   'missing-person': {
     message: 'اختاري موديلاً أو ارفعي صورتك أول.',

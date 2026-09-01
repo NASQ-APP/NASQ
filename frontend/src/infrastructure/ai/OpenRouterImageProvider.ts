@@ -64,7 +64,8 @@ function firstImage(payload: Payload): ImageResult | undefined {
 
 /** حالة HTTP → سبب مفهوم. الرصيد المنتهي غير الضغط، وخلطهما يضلّل. */
 function codeFor(status: number) {
-  if (status === 401 || status === 403) return 'not-configured' as const
+  // ٤٠١ يعني «وصلك مفتاح ورفضته»، لا «ما وصلني مفتاح»
+  if (status === 401 || status === 403) return 'invalid-key' as const
   if (status === 402) return 'no-credit' as const
   if (status === 429) return 'rate-limited' as const
   if (status === 408 || status === 504) return 'timeout' as const

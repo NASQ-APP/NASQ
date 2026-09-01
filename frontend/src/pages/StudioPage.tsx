@@ -7,7 +7,7 @@
  *
  * ما فيه سعر ولا شراء: كل القطع من خزانة المستخدمة (المبدأ ١).
  */
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Shirt, Sparkles } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { StudioHeader } from '@/features/studio/components/StudioHeader'
@@ -25,6 +25,8 @@ import { garmentReferences, referenceFromUrl } from '@/features/studio/reference
 import { READY_MODELS, readyModelById, readyModelFor } from '@/domain/model'
 import type { BodyParameters } from '@/domain/tryon'
 import type { ModelCharacteristics } from '@/domain/model'
+// `saveLook` محجوز هنا لحفظ الإطلالة في مجموعة الإطلالات — نميّز تخزين الصورة
+import { clearLook, readLook, saveLook as persistLook } from '@/infrastructure/storage'
 import { useWardrobe } from '@/features/wardrobe/store'
 import { useAiModels } from '@/features/ai-model/store'
 import { useLooks } from '@/features/looks/store'
@@ -68,9 +70,12 @@ export function StudioPage() {
   /**
    * حالة التجربة.
    *
-   * الصورة المولّدة وصورة المستخدمة تبقيان في ذاكرة React لا في localStorage:
-   * الأولى ضخمة، والثانية شخصية — وحفظ الشخصي بلا داعٍ خطر لا ميزة (§19).
-   * القياسات وحدها تُحفظ لأنها أرقام غير حسّاسة.
+   * صورة المستخدمة تبقى في ذاكرة React ولا تُكتب في أي تخزين (§19): حفظ
+   * الشخصي بلا داعٍ خطر لا ميزة.
+   *
+   * أما **الإطلالة المولّدة فتُحفظ** في IndexedDB — لا في `localStorage` لأنها
+   * تقارب الميجابايت. التوليدة تكلّف وقتًا ومالاً، وضياعها بمجرد فتح صفحة
+   * ثانية يعني دفع الثمن مرتين على نفس النتيجة.
    */
   const tryOn = useTryOn()
   const [modelChoice, setModelChoice] = useState<ModelChoice>('ready')
@@ -80,6 +85,25 @@ export function StudioPage() {
   const [generatedLook, setGeneratedLook] = useState<string>()
   /** بصمة الاختيار الذي وُلّدت منه الصورة الحالية — بها نعرف إن الصورة قدمت. */
   const [lookSignature, setLookSignature] = useState<string>()
+
+  /**
+   * تستعيد آخر إطلالة عند فتح الاستوديو.
+   *
+   * تُنفَّذ **مرة واحدة** ولا تكتب إلا على حالة فاضية: لو كانت المستخدمة قد
+   * ولّدت شيئًا في هذي الجلسة فهو الأحدث، والقراءة غير المتزامنة ما تسبقه.
+   * والبصمة تُستعاد معها، فترجع الصورة موسومة «قديمة» إن تغيّرت القطع.
+   */
+  useEffect(() => {
+    let cancelled = false
+    void readLook().then((stored) => {
+      if (cancelled || !stored) return
+      setGeneratedLook((current) => current ?? stored.image)
+      setLookSignature((current) => current ?? stored.signature)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const owned = useMemo(() => ownedItems(items), [items])
   const selected = useMemo(
@@ -162,15 +186,26 @@ export function StudioPage() {
   const hasModel = Boolean(personImageUrl)
   const modelLabel = modelChoice === 'photo' ? 'صورتك' : readyModel.name
 
-  /** يجمع مراجع القطع من IndexedDB — القطعة بلا صورة تُسقَط لا تُرسل باسمها. */
+  /**
+   * يجمع مراجع القطع — القطعة بلا صورة تُسقَط لا تُرسل باسمها.
+   *
+   * والرسالة تفرّق بين حالتين: قطعة **ما لها صورة أصلاً** (تحتاج تصوير)، وقطعة
+   * لها صورة لكن **ما قدرنا نقرأها** (رابط متجر خارجي). قول «ما لها صور» عن
+   * قطعة صورتها ظاهرة في الشبكة يخلّي المستخدمة تشك في عينها لا في التطبيق.
+   */
   const collectGarments = async () => {
     const garments = await garmentReferences(selected)
     if (garments.length === 0) {
-      toast.error('القطع المختارة ما لها صور. أضيفي صورة للقطعة من صفحتها.')
+      const anyPictured = selected.some((item) => item.imageUrl)
+      toast.error(
+        anyPictured
+          ? 'ما قدرنا نقرأ صور القطع المختارة. جرّبي ترفعين صورة للقطعة من صفحتها.'
+          : 'القطع المختارة ما لها صور. أضيفي صورة للقطعة من صفحتها.',
+      )
       return undefined
     }
     if (garments.length < selected.length) {
-      toast.ok(`${selected.length - garments.length} قطع بلا صور — تخطّيناها.`)
+      toast.ok(`${selected.length - garments.length} قطع ما قدرنا نقرأ صورها — تخطّيناها.`)
     }
     return garments
   }
@@ -197,6 +232,7 @@ export function StudioPage() {
       setGeneratedLook(result.image)
       // البصمة تُلتقط من إغلاق هذا العرض، فهي اختيار لحظة الطلب لا لحظة الرد
       setLookSignature(selectionSignature)
+      void persistLook({ image: result.image, signature: selectionSignature })
     }
     report(error)
   }
@@ -217,6 +253,7 @@ export function StudioPage() {
     if (result) {
       setGeneratedLook(result.image)
       setLookSignature(selectionSignature)
+      void persistLook({ image: result.image, signature: selectionSignature })
     }
     report(error)
   }
@@ -250,6 +287,7 @@ export function StudioPage() {
     if (result) {
       setAdaptedModel(result.image)
       setGeneratedLook(undefined)
+      void clearLook()
       setAdjustOpen(false)
       toast.ok('عدّلنا الموديل')
     }
@@ -357,6 +395,7 @@ export function StudioPage() {
             onSaveLook={() => setSaveOpen(true)}
             onStartOver={() => {
               setGeneratedLook(undefined)
+              void clearLook()
               tryOn.reset()
             }}
           />
@@ -431,6 +470,7 @@ export function StudioPage() {
             // الموديل المعدّل يخص موديلاً بعينه، فتبديل الموديل يُسقطه
             setAdaptedModel(undefined)
             setGeneratedLook(undefined)
+            void clearLook()
           }}
           onChooseReady={(id) => {
             setModelChoice('ready')
@@ -440,10 +480,12 @@ export function StudioPage() {
             models.setActive(undefined)
             setAdaptedModel(undefined)
             setGeneratedLook(undefined)
+            void clearLook()
           }}
           onChoosePhoto={() => {
             setModelChoice('photo')
             setGeneratedLook(undefined)
+            void clearLook()
           }}
           onAdjust={() => {
             setModelPickerOpen(false)

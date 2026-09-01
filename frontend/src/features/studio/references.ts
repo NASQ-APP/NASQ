@@ -11,6 +11,8 @@
  * ميجا في جسم الطلب بلا فائدة بصرية.
  */
 import { readPhoto } from '@/infrastructure/storage'
+import { photoUrlFor } from '@/features/wardrobe/photos'
+import { proxiedImage, registerImages } from '@/infrastructure/rendering/remoteImage'
 import { categoryById, slotOfCategory } from '@/domain/wardrobe'
 import type { GarmentReference, ImageReference } from '@/domain/tryon'
 import type { WardrobeItem } from '@/domain/wardrobe'
@@ -58,15 +60,61 @@ async function shrink(blob: Blob): Promise<string> {
   }
 }
 
-/** يقرأ أي رابط (blob: · data: · /models/…) ويرجّعه data URL مصغّرًا. */
+const isRemote = (url: string) => /^https?:\/\//i.test(url) && !url.startsWith(window.location.origin)
+
+/**
+ * يقرأ أي رابط ويرجّعه data URL مصغّرًا.
+ *
+ * `data:` و`blob:` والروابط من نفس الأصل تُقرأ مباشرة. أما **صور المتاجر**
+ * فروابط خارجية، وشبكاتها ما ترسل ترويسة CORS — فالقراءة المباشرة منها تفشل.
+ * نمرّرها على وسيط التطوير كما يفعل بقية التطبيق، ونرجع للقراءة المباشرة لو
+ * ما كان الوسيط متاحًا (بناء إنتاج) — بعض الشبكات تسمح فعلاً.
+ */
 export async function referenceFromUrl(url: string): Promise<ImageReference | undefined> {
+  const read = async (target: string) => {
+    const response = await fetch(target)
+    if (!response.ok) throw new Error(String(response.status))
+    return shrink(await response.blob())
+  }
+
+  // المباشر أولاً: `data:` و`blob:` وروابط Supabase الموقّعة كلها تُقرأ منه
   try {
-    const response = await fetch(url)
-    if (!response.ok) return undefined
-    return await shrink(await response.blob())
+    return await read(url)
+  } catch {
+    // شبكات المتاجر ما ترسل CORS — نمرّرها على وسيط التطوير
+  }
+
+  if (!isRemote(url)) return undefined
+
+  try {
+    await registerImages([url])
+    return await read(proxiedImage(url))
   } catch {
     return undefined
   }
+}
+
+/**
+ * صورة القطعة — **من مخزن روابط العرض نفسه**، لا من IndexedDB مباشرة.
+ *
+ * أين تعيش الصورة يقرّره وجود الخادم: بلا خادم تُحفظ في IndexedDB، ومع خادم
+ * تُرفع لتخزين Supabase ولا تلمس IndexedDB إطلاقًا. فالقراءة من IndexedDB
+ * مباشرة تجد الفراغ متى ما كان الخادم مهيّأ — والقطعة تظهر بصورتها في الشبكة
+ * بينما يقول التوليد إنها «بلا صورة».
+ *
+ * `photoUrlFor` هو ما تسأله البطاقة، فيرجع الرابط الصحيح في الحالتين. سؤال
+ * واحد له مصدر واحد.
+ */
+async function garmentImage(item: WardrobeItem): Promise<ImageReference | undefined> {
+  const shown = photoUrlFor(item.id) ?? item.imageUrl
+  if (shown) {
+    const reference = await referenceFromUrl(shown)
+    if (reference) return reference
+  }
+
+  // احتياط: البلوب المحلي إن لم يكن مخزن الروابط قد رطّب بعد
+  const blob = await readPhoto(item.id)
+  return blob ? shrink(blob) : undefined
 }
 
 /**
@@ -76,8 +124,8 @@ export async function referenceFromUrl(url: string): Promise<ImageReference | un
 export async function garmentReferences(items: WardrobeItem[]): Promise<GarmentReference[]> {
   const built = await Promise.all(
     items.map(async (item) => {
-      const blob = await readPhoto(item.id)
-      if (!blob) return undefined
+      const image = await garmentImage(item)
+      if (!image) return undefined
 
       return {
         id: item.id,
@@ -85,7 +133,7 @@ export async function garmentReferences(items: WardrobeItem[]): Promise<GarmentR
         slot: slotOfCategory(item.categoryId),
         name: item.name,
         colorName: item.colorName,
-        image: await shrink(blob),
+        image,
       }
     }),
   )
