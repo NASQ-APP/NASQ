@@ -21,7 +21,11 @@ export type GarmentReference = {
   /** اسم القطعة كما سمّتها المستخدمة — يدخل البرومبت لتوضيح المقصود */
   name: string
   colorName: string
-  image: ImageReference
+  /**
+   * ما عادت تُرسَل: الخادم يقرأ صورة القطعة من صفّها بمعرّفها.
+   * تبقى اختيارية لمن يعرض معاينة محليًا.
+   */
+  image?: ImageReference
 }
 
 /**
@@ -154,13 +158,13 @@ export class TryOnError extends Error {
 export const ERROR_MESSAGES: Record<TryOnErrorCode, { message: string; hint?: string }> = {
   'not-configured': {
     message: 'التجربة الافتراضية غير مفعّلة.',
-    hint: 'ضيفي VITE_OPENROUTER_API_KEY في frontend/.env وأعيدي تشغيل الخادم.',
+    hint: 'التوليد يحتاج تفعيل مزوّد على الخادم.',
   },
   // مفتاح مرفوض ≠ مفتاح مفقود. الرسالة الواحدة للحالتين تخلّي من كتبت مفتاحًا
   // خاطئًا تبحث عن سطر موجود أصلاً بدل ما تشك في قيمته.
   'invalid-key': {
     message: 'المفتاح غير مقبول من المزوّد.',
-    hint: 'مفتاح OpenRouter يبدأ بـsk-or-v1. تأكدي من VITE_OPENROUTER_API_KEY وأعيدي تشغيل الخادم.',
+    hint: 'راجعي مفتاح المزوّد في أسرار الخادم.',
   },
   'missing-person': {
     message: 'اختاري موديلاً أو ارفعي صورتك أول.',

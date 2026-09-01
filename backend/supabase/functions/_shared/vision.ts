@@ -6,9 +6,15 @@
  * ما تدخل الخزانة فئة مخترعة.
  *
  * قاعدة أمنية (§17): المفتاح يُقرأ من بيئة الدالة فقط، وما يُرجَّع للمتصفح.
+ *
+ * **المفاتيح والنموذج يجيان من طبقة الوكيل والراوتر**، لا من متغيّرات خاصة
+ * بالرؤية. كان هذا الملف يطلب `VISION_API_KEY` — متغيّر غير موجود في البيئة —
+ * فيرجع المزوّد `null` دائمًا ويسقط التصنيف بصمت. المفتاح واحد للوكيل كله،
+ * والراوتر يقرّر طبقة النموذج.
  */
-import { optionalEnv, requireEnv } from './env.ts'
-import { HandledError } from './response.ts'
+import { optionalEnv } from './env.ts'
+import { agentChat, agentConfigured } from './agent.ts'
+import { routeTask } from './router.ts'
 
 export type GarmentAnalysis = {
   categoryId?: string
@@ -58,12 +64,15 @@ const INSTRUCTION = `أنتِ مساعدة تصنيف ملابس. انظري ل�
 
 لو ما تأكدتِ من حقل، اتركيه فاضيًا. لا تخترعي قيمًا خارج القوائم.`
 
-/** مزوّد متوافق مع واجهة OpenAI للرؤية (chat completions بصورة). */
-const openAiCompatible = (): VisionProvider => ({
-  id: 'openai-compatible',
+/**
+ * مزوّد الرؤية عبر الوكيل.
+ *
+ * الصورة تُمرَّر data URL، والنموذج يُختار من الراوتر (طبقة `vision`). الرد
+ * يُطلب JSON صراحةً — المخرَج مبنيَن لا فقرة نصية.
+ */
+const agentVision = (): VisionProvider => ({
+  id: 'agent',
   async analyze(image, signal) {
-    const base = optionalEnv('VISION_API_BASE', 'https://api.openai.com/v1')
-    const model = optionalEnv('VISION_MODEL', 'gpt-4o-mini')
     const bytes = new Uint8Array(await image.arrayBuffer())
 
     // btoa يحتاج نصًا؛ نبنيه على دفعات حتى ما ينفجر المكدس مع الصور الكبيرة
@@ -73,60 +82,48 @@ const openAiCompatible = (): VisionProvider => ({
     }
     const dataUrl = `data:${image.type};base64,${btoa(binary)}`
 
-    const response = await fetch(`${base}/chat/completions`, {
-      method: 'POST',
+    const { model } = routeTask({ operation: 'analyze-garment', hasImage: true })
+
+    const content = await agentChat({
+      model,
+      maxTokens: 300,
+      json: true,
       signal,
-      headers: {
-        authorization: `Bearer ${requireEnv('VISION_API_KEY')}`,
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        model,
-        max_tokens: 300,
-        response_format: { type: 'json_object' },
-        messages: [
-          {
-            role: 'user',
-            content: [
-              { type: 'text', text: INSTRUCTION },
-              { type: 'image_url', image_url: { url: dataUrl } },
-            ],
-          },
-        ],
-      }),
+      messages: [
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: INSTRUCTION },
+            { type: 'image_url', image_url: { url: dataUrl } },
+          ],
+        },
+      ],
     })
 
-    if (response.status === 429) {
-      throw new HandledError('rate-limited', 'وصلنا حد المعالجة الحالي.', 429)
-    }
-    if (!response.ok) {
-      // ما نسجّل الجسم: ممكن يحمل بيانات الصورة
-      console.error('vision rejected', { status: response.status })
-      throw new HandledError('provider-failed', 'تعذّر قراءة الصورة.', 502)
-    }
-
-    const payload = (await response.json()) as {
-      choices?: { message?: { content?: string } }[]
-    }
-    const content = payload.choices?.[0]?.message?.content
     if (!content) return {}
-
     try {
       return JSON.parse(content) as GarmentAnalysis
     } catch {
+      // ردّ ليس JSON: اقتراحات فاضية أصدق من تخمين محتواه
       return {}
     }
   },
 })
 
 const REGISTRY: Record<string, () => VisionProvider> = {
-  'openai-compatible': openAiCompatible,
+  agent: agentVision,
+  // الاسم القديم يبقى مقبولاً: بيئة مضبوطة عليه ما تنكسر بتغيير التسمية
+  'openai-compatible': agentVision,
 }
 
-/** المزوّد المفعّل، أو `null` لو ما فيه — الغياب ليس خطأ. */
+/**
+ * المزوّد المفعّل، أو `null` لو ما فيه — الغياب ليس خطأ، والتصنيف كماليّ.
+ *
+ * الافتراضي `agent`: البيئة التي فيها مفتاح وكيل تريد التصنيف، وإجبارها على
+ * ضبط متغيّر ثانٍ لتفعيله يترك الميزة مطفأة بلا سبب ظاهر.
+ */
 export function visionProvider(): VisionProvider | null {
-  const configured = optionalEnv('VISION_PROVIDER')
-  const factory = REGISTRY[configured]
-  if (!factory || !optionalEnv('VISION_API_KEY')) return null
-  return factory()
+  if (!agentConfigured()) return null
+  const factory = REGISTRY[optionalEnv('VISION_PROVIDER', 'agent')]
+  return factory ? factory() : null
 }

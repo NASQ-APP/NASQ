@@ -10,8 +10,6 @@
  * وصورة الموديل تُصغَّر قبل الإرسال: صورة ٩٢٨ كيلوبايت تتحوّل base64 إلى ١٫٢
  * ميجا في جسم الطلب بلا فائدة بصرية.
  */
-import { readPhoto } from '@/infrastructure/storage'
-import { photoUrlFor } from '@/features/wardrobe/photos'
 import { proxiedImage, registerImages } from '@/infrastructure/rendering/remoteImage'
 import { categoryById, slotOfCategory } from '@/domain/wardrobe'
 import type { GarmentReference, ImageReference } from '@/domain/tryon'
@@ -94,46 +92,15 @@ export async function referenceFromUrl(url: string): Promise<ImageReference | un
   }
 }
 
-/**
- * صورة القطعة — **من مخزن روابط العرض نفسه**، لا من IndexedDB مباشرة.
- *
- * أين تعيش الصورة يقرّره وجود الخادم: بلا خادم تُحفظ في IndexedDB، ومع خادم
- * تُرفع لتخزين Supabase ولا تلمس IndexedDB إطلاقًا. فالقراءة من IndexedDB
- * مباشرة تجد الفراغ متى ما كان الخادم مهيّأ — والقطعة تظهر بصورتها في الشبكة
- * بينما يقول التوليد إنها «بلا صورة».
- *
- * `photoUrlFor` هو ما تسأله البطاقة، فيرجع الرابط الصحيح في الحالتين. سؤال
- * واحد له مصدر واحد.
- */
-async function garmentImage(item: WardrobeItem): Promise<ImageReference | undefined> {
-  const shown = photoUrlFor(item.id) ?? item.imageUrl
-  if (shown) {
-    const reference = await referenceFromUrl(shown)
-    if (reference) return reference
-  }
-
-  // احتياط: البلوب المحلي إن لم يكن مخزن الروابط قد رطّب بعد
-  const blob = await readPhoto(item.id)
-  return blob ? shrink(blob) : undefined
-}
-
-/**
- * يحوّل القطع المختارة إلى مراجع.
- * الترتيب يُحفظ كما جاء: البرومبت يرقّم القطع، والصور تُرسل بنفس التسلسل.
- */
 export async function garmentReferences(items: WardrobeItem[]): Promise<GarmentReference[]> {
   const built = await Promise.all(
     items.map(async (item) => {
-      const image = await garmentImage(item)
-      if (!image) return undefined
-
       return {
         id: item.id,
         category: categoryById(item.categoryId)?.nameLatin.toLowerCase() ?? item.shape,
         slot: slotOfCategory(item.categoryId),
         name: item.name,
         colorName: item.colorName,
-        image,
       }
     }),
   )

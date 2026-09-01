@@ -1,8 +1,15 @@
 /**
- * بناء البرومبت.
+ * بناء البرومبت — **على الخادم**.
  *
  * نص واحد لكل عملية، مبني من الطلب نفسه لا ثابتًا: قميص وحده وإطلالة من خمس
  * قطع يطلبان أشياء مختلفة. المستخدمة ما تشوف شيئًا من هذا.
+ *
+ * كان في `frontend/src/domain/tryon/prompts.ts`، وانتقل هنا مع المفتاح: لو
+ * بقي البناء في المتصفح لصارت الدالة وسيطًا يمرّر أي نص يوصله، وأي حساب
+ * مسجَّل يقدر يولّد صورًا عشوائية على رصيد المشروع.
+ *
+ * والواجهة الآن ترسل **معرّفات القطع فقط**؛ أوصافها تُقرأ من الجدول هنا. فما
+ * تقدر تصف قطعة بغير ما هي، ولا يختلف ما يقوله النص عمّا في الخزانة.
  *
  * ثلاث قواعد تحكم كل البرومبتات:
  *   ١. **الهوية أولًا** — يُذكر حفظ الشخص قبل أي شي، لأن أول ما يخطئ فيه
@@ -10,9 +17,43 @@
  *   ٢. **القطعة كما هي** — النموذج ميّال لإعادة التصميم، فالمنع صريح ومكرّر.
  *   ٣. **الممنوعات في الآخر** — آخر ما يُقرأ أكثر أثرًا.
  *
- * نقي بالكامل: نصوص فقط، بلا شبكة ولا React — فيُختبر بلا DOM.
+ * نقي بالكامل: نصوص فقط، بلا شبكة ولا Deno — فيُختبر وحده.
  */
-import type { BodyParameters, GarmentReference } from './types'
+
+/**
+ * قياسات تقريبية.
+ *
+ * **إرشاد بصري لا هندسة**: ما نحوّل السنتيمتر إلى بكسل، ولا ندّعي أن النتيجة
+ * مقاس مضمون. الغاية تقريب التناسب لا قياسه.
+ */
+export type BodyParameters = {
+  heightCm?: number
+  weightKg?: number
+  chestCm?: number
+  waistCm?: number
+  hipsCm?: number
+  shoulderWidthCm?: number
+  inseamCm?: number
+}
+
+/**
+ * القطعة كما يحتاجها النص.
+ *
+ * بلا صورة: الصور تُحلّ في `images-generate` من مسار تخزين القطعة، والنص لا
+ * يحتاج منها إلا الوصف. فصلهما يمنع تمرير صورة لا تخصّ القطعة الموصوفة.
+ *
+ * `slot` نصّ هنا لا اتحاد: الخادم يحقنه في جملة إنجليزية ولا يفرّع عليه، ونسخ
+ * الاتحاد كاملاً يخلق مصدرًا ثانيًا للحقيقة يتفرّق عن الواجهة بصمت.
+ */
+export type GarmentReference = {
+  id: string
+  /** فئة القطعة كما يفهمها النموذج: shirt · trousers · blazer… */
+  category: string
+  slot: string
+  /** اسم القطعة كما سمّتها المستخدمة — يدخل البرومبت لتوضيح المقصود */
+  name: string
+  colorName: string
+}
 
 /* ------------------------------ مشترك ------------------------------ */
 
@@ -41,6 +82,8 @@ const PRESERVE_GARMENTS = [
 const FORBIDDEN = [
   'Do not redesign the garments.',
   'Do not introduce random clothing that was not supplied.',
+  'Do not keep or reuse the placeholder clothing the person was originally wearing.',
+  'Do not invent extra garments beyond the supplied references.',
   'Do not change the colours of the supplied garments.',
   'Do not change the person’s identity.',
   'Do not alter the background or lighting.',
@@ -51,9 +94,36 @@ const CLOSING = [
   'Generate a realistic, photorealistic fashion try-on result.',
 ].join('\n')
 
-/** سطر لكل قطعة: رقمها ومرجعها ولونها وموضعها. */
-const describe = (garment: GarmentReference, index: number): string =>
-  `${index + 1}. ${garment.colorName} ${garment.category} — reference image ${index + 2}, worn on the ${garment.slot}`
+/**
+ * القيم التي تعني «ما عرفنا» — لا لونًا.
+ *
+ * تُكتب في الجدول حين يفشل التعرّف على اللون، فتصل هنا كأنها اسم لون.
+ */
+const UNKNOWN_COLOR = /^(غير\s*محدد|غير\s*معروف|unknown|n\/?a|-)$/i
+
+/**
+ * سطر لكل قطعة: رقمها ومرجعها ولونها وموضعها، ثم اسمها كما سمّتها المستخدمة.
+ *
+ * **اللون المجهول يُحذف ولا يُقال.** كان النص يحقن ما يصله حرفيًا، فقطعة لم
+ * نتعرّف على لونها تصل النموذج على هيئة «غير محدد dress» — كلامٌ بلا معنى
+ * يقرأه على أنه لون، فيضيع منه أن الفستان أبيض ويلوّنه من عنده. والصمت عن
+ * اللون أصدق من ادّعائه: الصورة المرفقة تقوله.
+ *
+ * **والاسم يدخل النص.** كان يُمرَّر ويُهمَل، مع أنه أغنى ما نملك: «فستان أبيض
+ * طول الأرض بقصة ميرمايد بأكمام طويلة» تصف القَصّة والطول والأكمام في سطر —
+ * وهي بالضبط ما يخطئ فيه النموذج حين يقرأ صورة وحدها.
+ */
+const describe = (garment: GarmentReference, index: number): string => {
+  const colour = UNKNOWN_COLOR.test(garment.colorName?.trim() ?? '')
+    ? ''
+    : `${garment.colorName.trim()} `
+
+  const named = garment.name?.trim()
+    ? `\n   The owner describes it as: ${garment.name.trim()}`
+    : ''
+
+  return `${index + 1}. ${colour}${garment.category} — reference image ${index + 2}, worn on the ${garment.slot}${named}`
+}
 
 /* --------------------------- التجربة الكاملة --------------------------- */
 
@@ -66,6 +136,30 @@ export function buildTryOnPrompt(
     'Create a photorealistic virtual try-on image.',
     'Reference image 1 is the person. Use it as the primary identity reference.',
     'Dress the person using ONLY the supplied garment reference images.',
+    /*
+      **الأهم**: صورة الموديل الأساسية شخصٌ يلبس أصلاً (تيشيرت أسود ولقنز).
+      وبلا هذي القاعدة يفهم النموذج «ألبسيه هذي» إضافةً لا استبدالاً، فيركّب
+      القطع فوق ملابسه — فتطلع الكامي فوق تيشيرت أسود لم تختره المستخدمة.
+
+      واستثناء الطبقات الخارجية ضروري: جاكيت مختار **يجب** أن يُلبس فوق قميص
+      مختار. بلا الاستثناء تُفهم القاعدة «اخلعي كل شيء عدا الأخير» فتضيع
+      الطبقات المقصودة.
+
+      وتنطبق على `try-on` و`regenerate` وحدهما — `replace` و`remove` يبنيان
+      على الإطلالة الحالية ويجب أن يحفظا بقيتها.
+    */
+    [
+      'The clothing visible on the base person image is PLACEHOLDER clothing only.',
+      'Completely replace the original visible outfit with the selected garment references.',
+      'Do not layer selected garments on top of the original clothing unless a selected garment is explicitly an outerwear or layering item.',
+      'No part of the original shirt, top, pants, leggings, dress or other placeholder clothing may remain visible in the final image unless physically necessary.',
+      'The selected garment references define the final outfit.',
+    ].join('\n'),
+    /*
+      صور المتاجر أغلبها على عارضة. وبلا هذي الجملة يرى النموذج شخصين ويحتار
+      أيّهما يُبقي — فيمزج الوجهين أو يستبدل الشخص بعارضة المتجر.
+    */
+    'A garment reference image may show a model wearing the garment. Take ONLY the garment from it — never the model, their face, body, pose or background.',
     PRESERVE_PERSON,
     PRESERVE_GARMENTS,
     `Garments to put on, in layering order:\n${garments.map(describe).join('\n')}`,
@@ -148,12 +242,14 @@ export function buildReplaceGarmentPrompt(
 ): string {
   const kept =
     keep.length > 0
-      ? keep.map((item) => `- the ${item.colorName} ${item.category}`).join('\n')
+      ? keep.map((item) => `- the ${item.category}`).join('\n')
       : '- every other garment already worn'
 
   return [
     'Reference image 1 is the current look. Reference image 2 is a new garment.',
-    `Replace ONLY the ${garment.category} in the current look with the ${garment.colorName} ${garment.category} from reference image 2.`,
+    `Replace ONLY the ${garment.category} in the current look with the ${garment.category} from reference image 2.`,
+    `The new garment: ${describe(garment, 0)}`,
+    'Reference image 2 may show a model wearing the garment. Take ONLY the garment from it.',
     'Keep everything else exactly as it is:',
     [
       '- same person and identity',
@@ -175,12 +271,12 @@ export function buildRemoveGarmentPrompt(
 ): string {
   const kept =
     keep.length > 0
-      ? keep.map((item) => `- the ${item.colorName} ${item.category}`).join('\n')
+      ? keep.map((item) => `- the ${item.category}`).join('\n')
       : '- every other garment already worn'
 
   return [
     'Reference image 1 is the current look.',
-    `Remove ONLY the ${garment.colorName} ${garment.category} from the look.`,
+    `Remove ONLY the ${garment.category} from the look.`,
     'Keep everything else exactly as it is:',
     ['- same person and identity', '- same pose', '- same background and lighting', kept].join('\n'),
     'Reveal whatever is naturally underneath — do not invent a replacement garment.',

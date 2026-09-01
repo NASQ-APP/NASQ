@@ -58,8 +58,17 @@ Deno.serve(async (request) => {
     const timer = setTimeout(() => timeout.abort(), VISION_TIMEOUT_MS)
 
     try {
-      return ok(await provider.analyze(image, timeout.signal))
+      const analysis = await provider.analyze(image, timeout.signal)
+      // العملية والمزوّد والنتيجة فقط — لا مفاتيح ولا بايتات صورة (§6)
+      console.info('[analyze]', {
+        operation: 'analyze-garment',
+        provider: provider.id,
+        outcome: 'success',
+        fields: Object.keys(analysis).length,
+      })
+      return ok(analysis)
     } catch (error) {
+      console.error('[analyze]', { operation: 'analyze-garment', provider: provider.id, outcome: 'failure' })
       if (timeout.signal.aborted) {
         throw new HandledError('timeout', 'انتهت مهلة قراءة الصورة.', 504)
       }
