@@ -6,6 +6,7 @@ import { sourceById } from '@/features/try-pieces/sources'
 import { ItemImage } from '@/shared/components/media/ItemImage'
 import { Badge, ColorSwatch, Modal, toast } from '@/shared/components/ui'
 import { useWardrobe } from '../store'
+import { useVoice } from '@/features/onboarding/voice'
 import { useStudio } from '@/features/studio/store'
 import { ROUTES } from '@/shared/config'
 import { cn } from '@/shared/lib'
@@ -13,6 +14,7 @@ import type { WardrobeItem } from '@/domain/wardrobe'
 
 /** بطاقة قطعة — مربّعة، خلفية ثانوية، والحدّ يخفّ عند المرور. */
 export function ItemCard({ item }: { item: WardrobeItem }) {
+  const say = useVoice()
   const navigate = useNavigate()
   const toggleFavorite = useWardrobe((state) => state.toggleFavorite)
   const wardrobes = useWardrobe((state) => state.wardrobes)
@@ -71,14 +73,14 @@ export function ItemCard({ item }: { item: WardrobeItem }) {
             className="flex h-9 flex-1 items-center justify-center gap-2 rounded-md border border-line bg-canvas/90 text-[11.5px] backdrop-blur-sm transition-colors duration-[320ms] ease-soft hover:bg-ink-soft hover:text-white"
           >
             <Sparkles size={13} strokeWidth={1.5} aria-hidden />
-            {item.source === 'try' ? 'جرّبيها' : 'نسّقيها'}
+            {item.source === 'try' ? say('جرّبيها', 'جرّبها') : say('نسّقيها', 'نسّقها')}
           </button>
 
           {/* قطعة التجربة ما تدخل الخزانة إلا بقرار صريح (I-03) */}
           {item.source === 'try' && (
             <button
               onClick={() => setPicking(true)}
-              aria-label="أضيفيها للخزانة"
+              aria-label={say('أضيفيها للخزانة', 'أضِفها للخزانة')}
               className="flex h-9 flex-1 items-center justify-center gap-2 rounded-md border border-line bg-canvas/90 text-[11.5px] backdrop-blur-sm transition-colors duration-[320ms] ease-soft hover:bg-ink-soft hover:text-white"
             >
               <FolderPlus size={13} strokeWidth={1.5} aria-hidden />

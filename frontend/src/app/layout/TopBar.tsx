@@ -2,6 +2,7 @@ import { Menu, Plus } from 'lucide-react'
 import { Brand } from './Brand'
 import { Button, SearchInput } from '@/shared/components/ui'
 import { layers, shell } from '@/theme'
+import { useVoice } from '@/features/onboarding/voice'
 
 /** شريط علوي ثابت بخلفية شفافة وتأثير blur. */
 export function TopBar({
@@ -17,6 +18,8 @@ export function TopBar({
   onOpenNav: () => void
   onOpenAdd: () => void
 }) {
+  const say = useVoice()
+
   return (
     <header
       style={{ zIndex: layers.header, height: shell.topBarHeight }}
@@ -31,7 +34,7 @@ export function TopBar({
         value={term}
         onChange={onTermChange}
         onSubmit={onSearch}
-        placeholder="ابحثي في خزائنك…"
+        placeholder={say('ابحثي في خزائنك…', 'ابحث في خزائنك…')}
         className="hidden h-9 max-w-[360px] flex-1 sm:flex"
       />
 

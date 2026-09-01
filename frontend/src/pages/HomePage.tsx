@@ -11,6 +11,7 @@ import { useAiModels } from '@/features/ai-model/store'
 import { DailySuggestions, QUICK_PROMPTS } from '@/features/stylist'
 import { WeatherLine } from '@/features/weather'
 import { useAppShell } from '@/app/layout'
+import { useVoice } from '@/features/onboarding/voice'
 import { APP, ROUTES } from '@/shared/config'
 
 const greeting = () => {
@@ -25,6 +26,7 @@ export function HomePage() {
   const model = useAiModels((s) => s.models[0])
   // المودالات المشتركة تعيش في القشرة — نفتحها من هنا بدل ما نكرّرها
   const { openStylist } = useAppShell()
+  const say = useVoice()
 
   const owned = items.filter((i) => i.source === 'wardrobe')
 
@@ -48,22 +50,27 @@ export function HomePage() {
         <h1 className="mt-4 text-[36px] sm:text-[42px]">
           {greeting()}{name ? `، ${name}` : ''}.
           <br />
-          <span className="display text-[40px] sm:text-[48px]">وش ودك تلبسين اليوم؟</span>
+          <span className="display text-[40px] sm:text-[48px]">
+              {say('وش ودك تلبسين اليوم؟', 'وش ودك تلبس اليوم؟')}
+            </span>
         </h1>
         <p className="mt-4 text-[14px] text-muted">
           {owned.length > 0
             ? `خزانتك فيها ${owned.length} قطعة موزّعة على ${wardrobes.length} خزائن.`
-            : 'خزانتك فاضية — صوّري أول قطعة من دولابك ونبدأ.'}
+            : say(
+                'خزانتك فاضية — صوّري أول قطعة من دولابك ونبدأ.',
+                'خزانتك فاضية — صوّر أول قطعة من دولابك ونبدأ.',
+              )}
         </p>
 
         <button
           onClick={openStylist}
-          aria-label={`اسألي ${APP.shortName} — نسّقي لي إطلالة لليوم`}
+          aria-label={`${say('اسألي', 'اسأل')} ${APP.shortName} — إطلالة لليوم`}
           className="lift mt-7 flex w-full items-center gap-3 rounded-md border border-line bg-surface px-6 py-5 text-right hover:border-line-strong"
         >
           <Sparkles size={17} strokeWidth={1.3} aria-hidden className="text-faint" />
           <span className="flex-1 text-[13.5px] text-faint">
-            اسألي {APP.shortName}… نسّقي لي إطلالة لليوم
+            {say('اسألي', 'اسأل')} {APP.shortName}… إطلالة لليوم
           </span>
           <span className="grid h-9 w-9 place-items-center rounded-md bg-ink-soft text-white">
             <ArrowLeft size={15} strokeWidth={1.5} aria-hidden />
@@ -88,12 +95,14 @@ export function HomePage() {
         <Card as="section" className="mb-14 flex flex-col items-start gap-4 sm:flex-row sm:items-center">
           <div className="flex-1">
             <p className="eyebrow">Your model</p>
-            <p className="mt-2 text-[17px] font-light">أنشئي موديلك عشان تشوفين القطع عليك.</p>
+            <p className="mt-2 text-[17px] font-light">
+            {say('أنشئي موديلك عشان تشوفين القطع عليك.', 'أنشئ موديلك عشان تشوف القطع عليك.')}
+          </p>
             <p className="mt-1 text-[12.5px] text-muted">
               طولك ومقاسك ولون بشرتك — مرة وحدة، ونستخدمه في كل إطلالة.
             </p>
           </div>
-          <ButtonLink to={ROUTES.newModel}>أنشئي موديلك</ButtonLink>
+          <ButtonLink to={ROUTES.newModel}>{say('أنشئي موديلك', 'أنشئ موديلك')}</ButtonLink>
         </Card>
       )}
 
@@ -132,8 +141,8 @@ export function HomePage() {
         {looks.length === 0 ? (
           <EmptyState
             title="ما فيه إطلالات بعد."
-            body="ابدئي التنسيق من خزانتك واحفظي أول إطلالة."
-            action={<Button onClick={openStylist}>اسألي {APP.shortName}</Button>}
+            body={say('ابدئي التنسيق من خزانتك واحفظي أول إطلالة.', 'ابدأ التنسيق من خزانتك واحفظ أول إطلالة.')}
+            action={<Button onClick={openStylist}>{say('اسألي', 'اسأل')} {APP.shortName}</Button>}
           />
         ) : (
           <div className="grid grid-cols-2 gap-5 md:grid-cols-3 xl:grid-cols-4">

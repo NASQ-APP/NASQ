@@ -2,11 +2,13 @@ import { useState } from 'react'
 import { Wand2 } from 'lucide-react'
 import { ButtonLink, Chip, PageHeader, EmptyState } from '@/shared/components/ui'
 import { PageContainer } from '@/shared/components/layout'
+import { useVoice } from '@/features/onboarding/voice'
 import { OCCASIONS } from '@/domain/wardrobe'
 import { LookCard } from '@/features/looks/components/LookCard'
 import { useLooks } from '@/features/looks/store'
 
 export function LooksPage() {
+  const say = useVoice()
   const looks = useLooks((s) => s.looks)
   const [occasion, setOccasion] = useState('all')
 
@@ -42,7 +44,7 @@ export function LooksPage() {
       {visible.length === 0 ? (
         <EmptyState
           title={looks.length ? 'ما فيه إطلالات بهذي المناسبة.' : 'ما فيه إطلالات محفوظة.'}
-          body="ابدئي التنسيق من خزانتك واحفظي أول إطلالة."
+          body={say('ابدئي التنسيق من خزانتك واحفظي أول إطلالة.', 'ابدأ التنسيق من خزانتك واحفظ أول إطلالة.')}
           action={<ButtonLink to="/studio">افتحي الاستوديو</ButtonLink>}
         />
       ) : (

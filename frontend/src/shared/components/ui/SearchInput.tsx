@@ -1,11 +1,12 @@
 import { Search, X } from 'lucide-react'
 import { cn } from '@/shared/lib'
+import { useVoice } from '@/features/onboarding/voice'
 
 /** حقل بحث موحّد — الشريط العلوي وشاشات الخزائن تستخدمه كلها. */
 export function SearchInput({
   value,
   onChange,
-  placeholder = 'ابحثي…',
+  placeholder,
   className,
   onSubmit,
 }: {
@@ -15,6 +16,9 @@ export function SearchInput({
   className?: string
   onSubmit?: () => void
 }) {
+  const say = useVoice()
+  const label = placeholder ?? say('ابحثي…', 'ابحث…')
+
   return (
     <form
       onSubmit={(event) => {
@@ -31,8 +35,8 @@ export function SearchInput({
         type="search"
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        placeholder={placeholder}
-        aria-label={placeholder}
+        placeholder={label}
+        aria-label={label}
         className="w-full bg-transparent text-[13px] outline-none placeholder:text-faint [&::-webkit-search-cancel-button]:hidden"
       />
       {value && (

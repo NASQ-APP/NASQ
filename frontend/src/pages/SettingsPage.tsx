@@ -28,21 +28,28 @@ import { useAiModels } from '@/features/ai-model/store'
 import { useOnboarding } from '@/features/onboarding/store'
 import { useAuth, syncsAcrossDevices } from '@/features/auth/store'
 import {
-  AVOID_OPTIONS,
+  avoidFor,
   COLOR_OPTIONS,
   CONTEXT_OPTIONS,
   GENDER_OPTIONS,
-  MAX_COLORS,
   MAX_NOTE,
-  MAX_TAGS,
-  TAG_OPTIONS,
+  tagsFor,
   toggleIn,
 } from '@/domain/style/onboarding'
 import type { AvoidRule, DeclaredStyle } from '@/domain/style/types'
 import type { ItemColor } from '@/domain/wardrobe'
+import { forGender } from '@/domain/shared'
 
 /** ما ينتظر تأكيدًا — فعلٌ بلا رجعة، أو خروج يفقد ما لم يُحفظ. */
 type Pending = 'signOut' | 'deleteAccount'
+
+/**
+ * ما تكتبه المستخدمة لتأكيد الحذف.
+ *
+ * ضغطة واحدة على زر أحمر تُضغط بالخطأ؛ وكتابة جملة بعينها فعلٌ **مقصود**.
+ * هذا آخر باب قبل ما لا رجعة فيه.
+ */
+const DELETE_PHRASE = 'حذف حسابي'
 
 export function SettingsPage() {
   const { wardrobes, items } = useWardrobe()
@@ -55,6 +62,7 @@ export function SettingsPage() {
   const signOut = useAuth((state) => state.signOut)
   const updateName = useAuth((state) => state.updateName)
   const deleteAccount = useAuth((state) => state.deleteAccount)
+  const [deleteTyped, setDeleteTyped] = useState('')
 
   const declared = useOnboarding((state) => state.declared)
   const saveStyle = useOnboarding((state) => state.save)
@@ -80,6 +88,18 @@ export function SettingsPage() {
   const style = draft ?? declared
 
   const edit = (patch: Partial<DeclaredStyle>) => setDraft({ ...style, ...patch })
+
+  /*
+    الخيارات والصيغة تتبعان **المسوّدة** لا المحفوظ.
+
+    `useVoice` تقرأ المخزون، وهو الصحيح في كل شاشة إلا هذي: هنا يُعدَّل الجواب
+    نفسه، فلو تبعت الصيغةُ المخزونَ لرأت من بدّلت جنسها خياراتِ الرجال بخطاب
+    النساء حتى تضغط «حفظ» — تناقضٌ في شاشة واحدة.
+  */
+  const say = (feminine: string, masculine: string) =>
+    forGender(style.gender, feminine, masculine)
+  const tagOptions = tagsFor(style.gender)
+  const avoidOptions = avoidFor(style.gender)
 
   const joined = user?.createdAt
     ? new Date(user.createdAt).toLocaleDateString('ar-SA-u-nu-latn', {
@@ -109,7 +129,12 @@ export function SettingsPage() {
       toast.ok('حفظنا تعديلاتك')
     } catch {
       // الفشل يُقال: «حفظنا» بلا حفظ أسوأ من خطأ صريح
-      toast.error('ما قدرنا نحفظ. تحقّقي من اتصالك وحاولي مرة ثانية.')
+      toast.error(
+        say(
+          'ما قدرنا نحفظ. تحقّقي من اتصالك وحاولي مرة ثانية.',
+          'ما قدرنا نحفظ. تحقّق من اتصالك وحاول مرة ثانية.',
+        ),
+      )
     } finally {
       setSaving(false)
     }
@@ -138,9 +163,12 @@ export function SettingsPage() {
             <TextInput dir="ltr" value={user?.email ?? ''} readOnly disabled />
           </Field>
           <p className="text-[12px] text-muted">
-            {joined && <>عضوة منذ {joined} · </>}
+            {joined && <>{say('عضوة', 'عضو')} منذ {joined} · </>}
             {syncsAcrossDevices
-              ? 'حسابك على الخادم — بياناتك تتبعك على أي جهاز تدخلين منه.'
+              ? say(
+                  'حسابك على الخادم — بياناتك تتبعك على أي جهاز تدخلين منه.',
+                  'حسابك على الخادم — بياناتك تتبعك على أي جهاز تدخل منه.',
+                )
               : 'ملف على هذا الجهاز فقط — ما يزامن بين الأجهزة.'}
           </p>
         </div>
@@ -151,8 +179,14 @@ export function SettingsPage() {
         <p className="eyebrow mb-1">ذوقي</p>
         <p className="mb-7 text-[12px] leading-7 text-muted">
           {answered
-            ? 'هذي إجاباتك من أول لقاء — عدّليها متى ما تغيّر ذوقك، ونَسّق يمشي عليها.'
-            : 'ما جاوبتِ أسئلة التعارف بعد. جاوبيها من هنا، وتبدأ الاقتراحات تعرفك.'}
+            ? say(
+                'هذي إجاباتك من أول لقاء — عدّليها متى ما تغيّر ذوقك، ونَسّق يمشي عليها.',
+                'هذي إجاباتك من أول لقاء — عدّلها متى ما تغيّر ذوقك، ونَسّق يمشي عليها.',
+              )
+            : say(
+                'ما جاوبتِ أسئلة التعارف بعد. جاوبيها من هنا، وتبدأ الاقتراحات تعرفك.',
+                'ما جاوبت أسئلة التعارف بعد. جاوبها من هنا، وتبدأ الاقتراحات تعرفك.',
+              )}
         </p>
 
         <div className="flex flex-col gap-8">
@@ -171,23 +205,28 @@ export function SettingsPage() {
             </div>
           </Question>
 
-          <Question title="وش يوصف ذوقك؟" hint="اختاري ثنتين أو ثلاث.">
+          <Question
+            title="وش يوصف ذوقك؟"
+            hint={say('اختاري ما ينطبق عليك — بلا حد.', 'اختر ما ينطبق عليك — بلا حد.')}
+          >
             <div className="flex flex-wrap gap-2">
-              {TAG_OPTIONS.map((tag) => (
+              {tagOptions.map((tag) => (
                 <ChoiceChip
                   key={tag}
                   label={tag}
                   active={style.tags.includes(tag)}
-                  disabled={style.tags.length >= MAX_TAGS}
                   onClick={() =>
-                    edit({ tags: toggleIn(style.tags, tag, (a, b) => a === b, MAX_TAGS) })
+                    edit({ tags: toggleIn(style.tags, tag, (a, b) => a === b) })
                   }
                 />
               ))}
             </div>
           </Question>
 
-          <Question title="وش الألوان اللي ترتاحين لها؟" hint="حتى أربعة ألوان — اختياري.">
+          <Question
+            title={say('وش الألوان اللي ترتاحين لها؟', 'وش الألوان اللي ترتاح لها؟')}
+            hint={say('كل لون ترتاحين له — اختياري.', 'كل لون ترتاح له — اختياري.')}
+          >
             <div className="flex flex-wrap gap-x-5 gap-y-4">
               {COLOR_OPTIONS.map((color) => {
                 const active = style.colors.some((picked) => picked.name === color.name)
@@ -202,7 +241,6 @@ export function SettingsPage() {
                           style.colors,
                           color,
                           (a, b) => a.name === b.name,
-                          MAX_COLORS,
                         ),
                       })
                     }
@@ -224,7 +262,10 @@ export function SettingsPage() {
             </div>
           </Question>
 
-          <Question title="وش المناسبات اللي تلبسين لها؟" hint="اختاري كل اللي يهمك.">
+          <Question
+            title={say('وش المناسبات اللي تلبسين لها؟', 'وش المناسبات اللي تلبس لها؟')}
+            hint={say('اختاري كل اللي يهمك.', 'اختر كل اللي يهمك.')}
+          >
             <div className="flex flex-wrap gap-2">
               {CONTEXT_OPTIONS.map((occasion) => (
                 <ChoiceChip
@@ -239,9 +280,12 @@ export function SettingsPage() {
             </div>
           </Question>
 
-          <Question title="وش تحبين نَسّق يتجنّبه؟" hint="يستبعده من كل اقتراح.">
+          <Question
+            title={say('وش تحبين نَسّق يتجنّبه؟', 'وش تحب نَسّق يتجنّبه؟')}
+            hint="يستبعده من كل اقتراح."
+          >
             <div className="flex flex-wrap gap-2">
-              {AVOID_OPTIONS.map((rule) => (
+              {avoidOptions.map((rule) => (
                 <ChoiceChip
                   key={rule.id}
                   label={rule.name}
@@ -309,7 +353,7 @@ export function SettingsPage() {
           <p className="text-[13px] text-muted">
             ما فيه صورة مرفوعة.{' '}
             <Link to="/studio" className="underline-offset-4 hover:underline">
-              ارفعيها من الاستوديو
+              {say('ارفعيها من الاستوديو', 'ارفعها من الاستوديو')}
             </Link>
             .
           </p>
@@ -362,7 +406,14 @@ export function SettingsPage() {
             يمسح حسابك وخزائنك وقطعك وإطلالاتك ورحلاتك. ما فيه رجعة.
           </p>
         </div>
-        <Button variant="danger" size="sm" onClick={() => setPending('deleteAccount')}>
+        <Button
+          variant="danger"
+          size="sm"
+          onClick={() => {
+            setDeleteTyped('')
+            setPending('deleteAccount')
+          }}
+        >
           <Trash2 size={13} strokeWidth={1.5} />
           حذف الحساب
         </Button>
@@ -385,7 +436,10 @@ export function SettingsPage() {
 
       <ConfirmDialog
         open={Boolean(pending)}
-        onClose={() => setPending(undefined)}
+        onClose={() => {
+          setPending(undefined)
+          setDeleteTyped('')
+        }}
         onConfirm={async () => {
           const action = pending
           setPending(undefined)
@@ -395,19 +449,40 @@ export function SettingsPage() {
             return
           }
           const failure = await deleteAccount()
+          // الفشل ما يُنهي الجلسة: الحساب ما زال قائمًا، وإخراجها منه كذب
           if (failure) return toast.error(failure.message)
+          setDeleteTyped('')
           toast.ok('حذفنا حسابك')
         }}
         eyebrow="Confirm"
         destructive={pending === 'deleteAccount'}
+        confirmDisabled={pending === 'deleteAccount' && deleteTyped.trim() !== DELETE_PHRASE}
         title={pending === 'deleteAccount' ? 'حذف حسابك نهائيًا؟' : 'تسجيل الخروج؟'}
-        confirmLabel={pending === 'deleteAccount' ? 'احذفي حسابي' : 'خروج'}
+        confirmLabel={
+          pending === 'deleteAccount' ? say('احذفي حسابي', 'احذف حسابي') : 'خروج'
+        }
       >
-        {pending === 'deleteAccount'
-          ? `راح ينحذف حسابك ومعه ${ownedCount} قطعة و${wardrobes.length} خزانة و${looks.length} إطلالة. ما نقدر نرجّعها.`
-          : dirty
+        {pending === 'deleteAccount' ? (
+          <div className="flex flex-col gap-4">
+            <p className="text-[13px] leading-8 text-muted">
+              راح ينحذف حسابك ومعه {ownedCount} قطعة و{wardrobes.length} خزانة و{looks.length}{' '}
+              إطلالة، ومعها صورك من الخادم. ما نقدر نرجّعها.
+            </p>
+            <Field label={`اكتبي «${DELETE_PHRASE}» للتأكيد`}>
+              <TextInput
+                value={deleteTyped}
+                onChange={(event) => setDeleteTyped(event.target.value)}
+                placeholder={DELETE_PHRASE}
+                autoComplete="off"
+              />
+            </Field>
+          </div>
+        ) : dirty
             ? 'عندك تعديلات ما انحفظت — الخروج يفقدها.'
-            : 'راح ترجعين لصفحة الدخول. بياناتك تبقى مكانها.'}
+            : say(
+                'راح ترجعين لصفحة الدخول. بياناتك تبقى مكانها.',
+                'راح ترجع لصفحة الدخول. بياناتك تبقى مكانها.',
+              )}
       </ConfirmDialog>
     </PageContainer>
   )

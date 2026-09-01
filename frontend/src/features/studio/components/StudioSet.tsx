@@ -58,7 +58,7 @@ const TONES: Record<
 const PLATFORM = { cx: 50, cy: 88, rx: 31, ry: 5.4 }
 const LAMP = { cx: 50, y: 0, halfWidth: 5.2, height: 4 }
 
-export function StudioSet({ tone = 'warm' }: { tone?: LightTone }) {
+export function StudioSet({ tone = 'none' }: { tone?: LightTone }) {
   const { cx, cy, rx, ry } = PLATFORM
   const lampBottom = LAMP.y + LAMP.height
   /** قاعدة المخروط تتجاوز المنصّة، فالضوء ينسكب حواليها لا عليها وحدها. */

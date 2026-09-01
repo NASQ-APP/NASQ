@@ -81,7 +81,14 @@ Deno.serve(async (request) => {
       throw new HandledError('no-subject', 'ما قدرنا نميّز القطعة في الصورة.', 422)
     }
 
-    return new Response(result.data, {
+    /*
+      `result.data.buffer` لا `result.data`.
+
+      أنواع Deno الحديثة صارت تكتب `Uint8Array<ArrayBufferLike>`، وهو ليس
+      ضمن `BodyInit` — بينما `ArrayBuffer` ضمنه. **إصلاح نوع بحت**: البايتات
+      نفسها هي هي، والقيمة نفسها كانت تُقبل وقت التشغيل قبل التعديل وبعده.
+    */
+    return new Response(result.data.buffer as ArrayBuffer, {
       headers: {
         ...corsHeaders,
         'content-type': result.contentType,

@@ -1,12 +1,12 @@
 /**
  * نقطة الدخول لتوليد الصور.
  *
- * التطبيق يستورد `aiImageProvider` ولا شيء غيره. من ينفّذه يُقرّر هنا، فنقله
- * لخادم لاحقًا = سطر واحد في هذا الملف.
+ * التطبيق يستورد `aiImageProvider` ولا شيء غيره. اليوم ينفّذه دالة الحافة
+ * `images-generate` — **والمتصفح لا يملك أي مفتاح مزوّد ولا يعرف اسمه**.
  */
-import { openRouterImageProvider } from './OpenRouterImageProvider'
+import { edgeFunctionImageProvider } from './EdgeFunctionImageProvider'
 import type { AIImageProvider } from '@/domain/tryon'
 
-export const aiImageProvider: AIImageProvider = openRouterImageProvider
+export const aiImageProvider: AIImageProvider = edgeFunctionImageProvider
 
-export { openRouterImageProvider } from './OpenRouterImageProvider'
+export { edgeFunctionImageProvider } from './EdgeFunctionImageProvider'

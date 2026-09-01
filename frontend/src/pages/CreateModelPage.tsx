@@ -6,6 +6,7 @@ import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { BackButton, Button, toast } from '@/shared/components/ui'
 import { PageContainer } from '@/shared/components/layout'
+import { useVoice } from '@/features/onboarding/voice'
 import {
   CharacteristicsForm,
   GenderStep,
@@ -28,6 +29,7 @@ export function CreateModelPage() {
 
 function ModelForm({ editing }: { editing?: AiModel }) {
   const navigate = useNavigate()
+  const say = useVoice()
   const saveModel = useAiModels((state) => state.saveModel)
   const photo = useAiModels((state) => state.photo)
   const updateModel = useAiModels((state) => state.updateModel)
@@ -69,10 +71,10 @@ function ModelForm({ editing }: { editing?: AiModel }) {
       <header className="mb-10">
         <p className="eyebrow">Your model</p>
         <h1 className="mt-2 text-[32px]">
-          {editing ? 'تعديل موديلك' : 'أنشئي موديلك'}
+          {editing ? 'تعديل موديلك' : say('أنشئي موديلك', 'أنشئ موديلك')}
         </h1>
         <p className="mt-2 max-w-[560px] text-[13px] leading-8 text-muted">
-          موديل واحد يمثّل مقاساتك، ونستخدمه في كل تجربة — عشان تشوفين الفرق بين القطع، مو بين
+          {say('موديل واحد يمثّل مقاساتك، ونستخدمه في كل تجربة — عشان تشوفين الفرق بين القطع، مو بين', 'موديل واحد يمثّل مقاساتك، ونستخدمه في كل تجربة — عشان تشوف الفرق بين القطع، مو بين')}
           موديلات مختلفة.
         </p>
       </header>
@@ -99,7 +101,7 @@ function ModelForm({ editing }: { editing?: AiModel }) {
           </p>
           <div className="mt-8 flex gap-3">
             <Button size="lg" onClick={() => navigate(ROUTES.studio)} disabled={!photo}>
-              {photo ? 'ابدئي التجربة' : 'ارفعي صورتك أول'}
+              {photo ? say('ابدئي التجربة', 'ابدأ التجربة') : say('ارفعي صورتك أول', 'ارفع صورتك أول')}
             </Button>
             <BackButton size="lg" onClick={() => setStep(1)} />
           </div>

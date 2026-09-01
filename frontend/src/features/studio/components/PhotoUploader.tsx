@@ -16,6 +16,7 @@ import { useAiModels } from '@/features/ai-model/store'
 import { uid } from '@/shared/lib'
 import type { PhotoValidationResult } from '@/domain/model'
 import type { ImageCandidate } from '@/domain/images'
+import { useVoice } from '@/features/onboarding/voice'
 
 /**
  * مثال «الصورة الصحيحة»: صورة الموديل الجاهز نفسها.
@@ -25,6 +26,7 @@ import type { ImageCandidate } from '@/domain/images'
 const exampleImage = readyModelFor('female').imageUrl
 
 export function PhotoUploader() {
+  const say = useVoice()
   const { photo, setPhoto, clearPhoto } = useAiModels()
   const [validation, setValidation] = useState<PhotoValidationResult>()
 
@@ -90,7 +92,7 @@ export function PhotoUploader() {
       <div className="grid gap-4 sm:grid-cols-2">
         <ImageUploader
           backgroundRemoval={false}
-          hint="اسحبي صورتك هنا، أو اختاري من جهازك"
+          hint={say('اسحبي صورتك هنا، أو اختاري من جهازك', 'اسحب صورتك هنا، أو اختر من جهازك')}
           confirmLabel="استخدمي هذي الصورة"
           onConfirm={accept}
           onError={(error) => toast.error(error.message)}

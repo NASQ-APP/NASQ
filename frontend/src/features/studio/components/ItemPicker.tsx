@@ -7,8 +7,10 @@ import { useWardrobe } from '@/features/wardrobe/store'
 import { slotOf } from '@/domain/outfit'
 import { useStudio } from '../store'
 import { cn } from '@/shared/lib'
+import { useVoice } from '@/features/onboarding/voice'
 
 export function ItemPicker({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const say = useVoice()
   const { wardrobes, items } = useWardrobe()
   const studio = useStudio()
   const [term, setTerm] = useState('')
@@ -26,14 +28,14 @@ export function ItemPicker({ open, onClose }: { open: boolean; onClose: () => vo
   const tryCount = items.filter((i) => i.source === 'try').length
 
   return (
-    <Drawer open={open} onClose={onClose} eyebrow="Wardrobe" title="أضيفي قطع للإطلالة" side="start">
+    <Drawer open={open} onClose={onClose} eyebrow="Wardrobe" title={say('أضيفي قطع للإطلالة', 'أضِف قطع للإطلالة')} side="start">
       <div className="flex flex-col gap-4">
         <label className="flex h-11 items-center gap-3 rounded-md border border-line px-4">
           <Search size={15} strokeWidth={1.4} className="text-faint" />
           <input
             value={term}
             onChange={(e) => setTerm(e.target.value)}
-            placeholder="ابحثي في خزائنك…"
+            placeholder={say('ابحثي في خزائنك…', 'ابحث في خزائنك…')}
             className="w-full bg-transparent text-[13px] outline-none placeholder:text-faint"
           />
         </label>
@@ -77,7 +79,7 @@ export function ItemPicker({ open, onClose }: { open: boolean; onClose: () => vo
         </div>
 
         {visible.length === 0 ? (
-          <EmptyState title="ما فيه قطع هنا." body="جرّبي خزانة ثانية أو غيّري الفلتر." />
+          <EmptyState title="ما فيه قطع هنا." body={say('جرّبي خزانة ثانية أو غيّري الفلتر.', 'جرّب خزانة ثانية أو غيّر الفلتر.')} />
         ) : (
           <div className="grid grid-cols-2 gap-3">
             {visible.map((item) => {

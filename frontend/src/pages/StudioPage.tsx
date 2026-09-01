@@ -7,7 +7,7 @@
  *
  * ما فيه سعر ولا شراء: كل القطع من خزانة المستخدمة (المبدأ ١).
  */
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Shirt, Sparkles } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { StudioHeader } from '@/features/studio/components/StudioHeader'
@@ -22,9 +22,18 @@ import { StudioMobileBar, type MobileSheet } from '@/features/studio/components/
 import { useStudio } from '@/features/studio/store'
 import { useTryOn } from '@/features/studio/useTryOn'
 import { garmentReferences, referenceFromUrl } from '@/features/studio/references'
-import { READY_MODELS, readyModelById, readyModelFor } from '@/domain/model'
+import { readyModelById, readyModelFor } from '@/domain/model'
 import type { BodyParameters } from '@/domain/tryon'
 import type { ModelCharacteristics } from '@/domain/model'
+// `saveLook` محجوز هنا لحفظ الإطلالة في مجموعة الإطلالات — نميّز تخزين الصورة
+import {
+  clearAdapted,
+  clearLook,
+  readAdapted,
+  readLook,
+  saveAdapted,
+  saveLook as persistLook,
+} from '@/infrastructure/storage'
 import { useWardrobe } from '@/features/wardrobe/store'
 import { useAiModels } from '@/features/ai-model/store'
 import { useLooks } from '@/features/looks/store'
@@ -42,6 +51,8 @@ import {
 } from '@/shared/components/ui'
 import { AdaptivePanel } from '@/shared/components/layout'
 import { useDeviceClass } from '@/shared/hooks'
+import { useOnboarding } from '@/features/onboarding/store'
+import { useVoice } from '@/features/onboarding/voice'
 import type { WardrobeItem } from '@/domain/wardrobe'
 
 /** يبلّغ الخطأ بالعربي بدل ما يُبتلع — الفشل الصامت يترك المستخدمة تخمّن. */
@@ -68,18 +79,57 @@ export function StudioPage() {
   /**
    * حالة التجربة.
    *
-   * الصورة المولّدة وصورة المستخدمة تبقيان في ذاكرة React لا في localStorage:
-   * الأولى ضخمة، والثانية شخصية — وحفظ الشخصي بلا داعٍ خطر لا ميزة (§19).
-   * القياسات وحدها تُحفظ لأنها أرقام غير حسّاسة.
+   * صورة المستخدمة تبقى في ذاكرة React ولا تُكتب في أي تخزين (§19): حفظ
+   * الشخصي بلا داعٍ خطر لا ميزة.
+   *
+   * أما **الإطلالة المولّدة فتُحفظ** في IndexedDB — لا في `localStorage` لأنها
+   * تقارب الميجابايت. التوليدة تكلّف وقتًا ومالاً، وضياعها بمجرد فتح صفحة
+   * ثانية يعني دفع الثمن مرتين على نفس النتيجة.
    */
+  /** الجنس كما صرّح به في التعارف — يقرّر الموديل الافتراضي. */
+  const declaredGender = useOnboarding((state) => state.declared.gender)
+  const say = useVoice()
+
   const tryOn = useTryOn()
   const [modelChoice, setModelChoice] = useState<ModelChoice>('ready')
   const [modelPickerOpen, setModelPickerOpen] = useState(false)
   const [adjustOpen, setAdjustOpen] = useState(false)
   const [adaptedModel, setAdaptedModel] = useState<string>()
+  /**
+   * أي موديل يخصّه القوام المعدّل.
+   *
+   * يُحفظ منفصلاً لا يُقارن لحظة التركيب: الموديلات تصل من الخادم **بعد**
+   * الإقلاع، فمقارنة عند التركيب وحدها تسقط القوام لأن الموديل لم يصل بعد.
+   * نستعيد الاثنين ونقارن عند العرض، فيظهر القوام أول ما يصل موديله.
+   */
+  const [adaptedFor, setAdaptedFor] = useState<string>()
   const [generatedLook, setGeneratedLook] = useState<string>()
   /** بصمة الاختيار الذي وُلّدت منه الصورة الحالية — بها نعرف إن الصورة قدمت. */
   const [lookSignature, setLookSignature] = useState<string>()
+
+  /**
+   * تستعيد آخر إطلالة عند فتح الاستوديو.
+   *
+   * تُنفَّذ **مرة واحدة** ولا تكتب إلا على حالة فاضية: لو كانت المستخدمة قد
+   * ولّدت شيئًا في هذي الجلسة فهو الأحدث، والقراءة غير المتزامنة ما تسبقه.
+   * والبصمة تُستعاد معها، فترجع الصورة موسومة «قديمة» إن تغيّرت القطع.
+   */
+  useEffect(() => {
+    let cancelled = false
+    void readLook().then((stored) => {
+      if (cancelled || !stored) return
+      setGeneratedLook((current) => current ?? stored.image)
+      setLookSignature((current) => current ?? stored.signature)
+    })
+    void readAdapted().then((stored) => {
+      if (cancelled || !stored) return
+      setAdaptedModel((current) => current ?? stored.image)
+      setAdaptedFor((current) => current ?? stored.modelId)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const owned = useMemo(() => ownedItems(items), [items])
   const selected = useMemo(
@@ -142,9 +192,18 @@ export function StudioPage() {
    */
   const activeModel = models.models.find((model) => model.id === models.activeModelId)
 
+  /*
+    الموديل الافتراضي **من جنس صاحب الحساب**.
+
+    كان الاحتياطي `READY_MODELS[0]` — أي النسائي للجميع. فمن صرّح أنه ذكر فتح
+    الاستوديو على جسد ليس جسده، ولزمه أن يبدّله يدويًا قبل أن يجرّب شيئًا.
+    والجنس معروف من التعارف، فالافتراض عنه لا مبرّر له.
+
+    ويبقى التبديل بيده: هذا **مبدأ** لا قيد، و«تغيير الموديل» تقبل أي واحد.
+  */
   const readyModel = activeModel
     ? readyModelFor(activeModel.characteristics.gender)
-    : (readyModelById(models.readyModelId ?? '') ?? READY_MODELS[0])
+    : (readyModelById(models.readyModelId ?? '') ?? readyModelFor(declaredGender ?? 'female'))
 
   const measurementSource =
     activeModel ?? models.models.find((model) => model.characteristics.gender === readyModel.gender && model.isDefault)
@@ -156,28 +215,48 @@ export function StudioPage() {
    * صورة الشخص المرسلة للمزوّد، بترتيب الأولوية:
    * الموديل المعدّل ← الموديل الجاهز ← صورة المستخدمة.
    */
+  /** القوام المعدّل يخدم موديله وحده — على غيره نرجع لصورة الأساس. */
+  const adaptedImage = adaptedFor === measurementSource?.id ? adaptedModel : undefined
+
   const personImageUrl =
-    modelChoice === 'photo' ? photo?.url : (adaptedModel ?? readyModel.imageUrl)
+    modelChoice === 'photo' ? photo?.url : (adaptedImage ?? readyModel.imageUrl)
 
   const hasModel = Boolean(personImageUrl)
   const modelLabel = modelChoice === 'photo' ? 'صورتك' : readyModel.name
 
-  /** يجمع مراجع القطع من IndexedDB — القطعة بلا صورة تُسقَط لا تُرسل باسمها. */
+  /**
+   * يجمع مراجع القطع — القطعة بلا صورة تُسقَط لا تُرسل باسمها.
+   *
+   * والرسالة تفرّق بين حالتين: قطعة **ما لها صورة أصلاً** (تحتاج تصوير)، وقطعة
+   * لها صورة لكن **ما قدرنا نقرأها** (رابط متجر خارجي). قول «ما لها صور» عن
+   * قطعة صورتها ظاهرة في الشبكة يخلّي المستخدمة تشك في عينها لا في التطبيق.
+   */
   const collectGarments = async () => {
     const garments = await garmentReferences(selected)
     if (garments.length === 0) {
-      toast.error('القطع المختارة ما لها صور. أضيفي صورة للقطعة من صفحتها.')
+      const anyPictured = selected.some((item) => item.imageUrl)
+      toast.error(
+        anyPictured
+          ? say(
+              'ما قدرنا نقرأ صور القطع المختارة. جرّبي ترفعين صورة للقطعة من صفحتها.',
+              'ما قدرنا نقرأ صور القطع المختارة. جرّب ترفع صورة للقطعة من صفحتها.',
+            )
+          : say(
+              'القطع المختارة ما لها صور. أضيفي صورة للقطعة من صفحتها.',
+              'القطع المختارة ما لها صور. أضِف صورة للقطعة من صفحتها.',
+            ),
+      )
       return undefined
     }
     if (garments.length < selected.length) {
-      toast.ok(`${selected.length - garments.length} قطع بلا صور — تخطّيناها.`)
+      toast.ok(`${selected.length - garments.length} قطع ما قدرنا نقرأ صورها — تخطّيناها.`)
     }
     return garments
   }
 
   const generateLook = async () => {
     if (!personImageUrl) {
-      toast.error('اختاري موديلاً أو ارفعي صورتك أول.')
+      toast.error(say('اختاري موديلاً أو ارفعي صورتك أول.', 'اختر موديلاً أو ارفع صورتك أول.'))
       return
     }
     const person = await referenceFromUrl(personImageUrl)
@@ -197,6 +276,7 @@ export function StudioPage() {
       setGeneratedLook(result.image)
       // البصمة تُلتقط من إغلاق هذا العرض، فهي اختيار لحظة الطلب لا لحظة الرد
       setLookSignature(selectionSignature)
+      void persistLook({ image: result.image, signature: selectionSignature })
     }
     report(error)
   }
@@ -217,6 +297,7 @@ export function StudioPage() {
     if (result) {
       setGeneratedLook(result.image)
       setLookSignature(selectionSignature)
+      void persistLook({ image: result.image, signature: selectionSignature })
     }
     report(error)
   }
@@ -239,7 +320,7 @@ export function StudioPage() {
     else models.saveModel(next)
 
     // التعديل يبني على الموديل المعدّل السابق إن وُجد، فالتحسينات تتراكم
-    const base = await referenceFromUrl(adaptedModel ?? readyModel.imageUrl)
+    const base = await referenceFromUrl(adaptedImage ?? readyModel.imageUrl)
     if (!base) return
 
     const { result, error } = await tryOn.adaptModel({
@@ -249,7 +330,10 @@ export function StudioPage() {
     })
     if (result) {
       setAdaptedModel(result.image)
+      setAdaptedFor(measurementSource?.id)
+      if (measurementSource) void saveAdapted({ image: result.image, modelId: measurementSource.id })
       setGeneratedLook(undefined)
+      void clearLook()
       setAdjustOpen(false)
       toast.ok('عدّلنا الموديل')
     }
@@ -357,6 +441,7 @@ export function StudioPage() {
             onSaveLook={() => setSaveOpen(true)}
             onStartOver={() => {
               setGeneratedLook(undefined)
+              void clearLook()
               tryOn.reset()
             }}
           />
@@ -416,12 +501,12 @@ export function StudioPage() {
         open={modelPickerOpen}
         onClose={() => setModelPickerOpen(false)}
         eyebrow="Model"
-        title="على مين تبين نجرب الإطلالة؟"
+        title={say('على مين تبين نجرب الإطلالة؟', 'على مين تبي نجرب الإطلالة؟')}
         width="lg"
       >
         <ModelPicker
           choice={modelChoice}
-          readyModelId={models.readyModelId ?? READY_MODELS[0].id}
+          readyModelId={models.readyModelId ?? readyModelFor(declaredGender ?? 'female').id}
           savedModels={models.models}
           activeModelId={measurementSource?.id}
           hasPhoto={Boolean(photo)}
@@ -430,7 +515,10 @@ export function StudioPage() {
             models.setActive(id)
             // الموديل المعدّل يخص موديلاً بعينه، فتبديل الموديل يُسقطه
             setAdaptedModel(undefined)
+            setAdaptedFor(undefined)
+            void clearAdapted()
             setGeneratedLook(undefined)
+            void clearLook()
           }}
           onChooseReady={(id) => {
             setModelChoice('ready')
@@ -439,11 +527,15 @@ export function StudioPage() {
             // جنسُه يفرض صورة الأساس ويتجاهل ما اختارته المستخدمة الآن
             models.setActive(undefined)
             setAdaptedModel(undefined)
+            setAdaptedFor(undefined)
+            void clearAdapted()
             setGeneratedLook(undefined)
+            void clearLook()
           }}
           onChoosePhoto={() => {
             setModelChoice('photo')
             setGeneratedLook(undefined)
+            void clearLook()
           }}
           onAdjust={() => {
             setModelPickerOpen(false)

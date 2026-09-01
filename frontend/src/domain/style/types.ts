@@ -31,32 +31,62 @@ export const EMPTY_STYLE_PROFILE: UserStyleProfile = {
   fromCount: 0,
 }
 
-/** وسوم جاهزة — تختار منها المستخدمة بدل ما تكتب نصًا حرًّا. */
-export const STYLE_TAGS = [
+/**
+ * وسوم جاهزة — تُختار بدل كتابة نصّ حرّ.
+ *
+ * **مشتركة وخاصة.** أكثر الأوصاف تصف ذوقًا لا جسدًا فتصلح للاثنين، لكن بعضها
+ * يخصّ واحدًا: «مودست» وصفٌ لخزانة امرأة، و«سمارت كاجوال» مفردة تُستعمل في
+ * ملابس الرجال. وعرض قائمة واحدة على الاثنين يجعل نصفها بلا معنى لأحدهما.
+ */
+export const SHARED_TAGS = [
   'كاجوال',
   'رسمي',
-  'مودست',
   'كلاسيكي',
-  'بوهو',
   'رياضي',
   'سهرة',
   'مينيمال',
   'ستريت',
 ] as const
 
+export const FEMALE_TAGS = ['مودست', 'بوهو'] as const
+export const MALE_TAGS = ['سمارت كاجوال', 'سبور شيك'] as const
+
 
 /* ---------------------- التعارف الأول ---------------------- */
 
-/** ما تختاره المستخدمة لتتجنّبه — قيد صارم، مب تفضيلًا. */
-export type AvoidRule = 'short' | 'tight' | 'sleeveless' | 'boldColor' | 'heels'
+/** ما يُختار ليُتجنَّب — قيد صارم، مب تفضيلًا. */
+export type AvoidRule =
+  | 'short'
+  | 'tight'
+  | 'sleeveless'
+  | 'boldColor'
+  | 'heels'
+  | 'pattern'
 
-export const AVOID_RULES: { id: AvoidRule; name: string }[] = [
-  { id: 'short', name: 'قصير' },
-  { id: 'tight', name: 'ضيّق' },
-  { id: 'sleeveless', name: 'بدون أكمام' },
-  { id: 'boldColor', name: 'ألوان قوية' },
-  { id: 'heels', name: 'كعب' },
-]
+const RULE_NAMES: Record<AvoidRule, string> = {
+  short: 'قصير',
+  tight: 'ضيّق',
+  sleeveless: 'بدون أكمام',
+  boldColor: 'ألوان قوية',
+  heels: 'كعب',
+  pattern: 'نقشات',
+}
+
+const rule = (id: AvoidRule) => ({ id, name: RULE_NAMES[id] })
+
+/**
+ * القيود المعروضة لكل جنس.
+ *
+ * «كعب» قيدٌ لا معنى لعرضه على رجل، و«نقشات» أكثر ما يُتجنّب في ملابس الرجال
+ * ولا يخطر في قائمة امرأة. والقائمة الواحدة كانت تعرض الأولى للجميع وتُسقط
+ * الثانية عن الجميع.
+ */
+export const FEMALE_AVOID = (['short', 'tight', 'sleeveless', 'boldColor', 'heels'] as const).map(rule)
+export const MALE_AVOID = (['short', 'tight', 'sleeveless', 'boldColor', 'pattern'] as const).map(rule)
+
+/** القائمة الكاملة — تُقرأ لترجمة مُعرِّف مخزَّن إلى اسمه أيًّا كان صاحبه. */
+export const AVOID_RULES: { id: AvoidRule; name: string }[] =
+  (Object.keys(RULE_NAMES) as AvoidRule[]).map(rule)
 
 /**
  * ما صرّحت به المستخدمة في التعارف الأول. **يُخزَّن** — لأنه قرارها هي، ولا

@@ -28,6 +28,7 @@ import { prepareForStorage } from '@/infrastructure/images'
 import { useGarmentAnalysis } from '@/shared/hooks'
 import { cn } from '@/shared/lib'
 import { useWardrobe } from '../store'
+import { useVoice } from '@/features/onboarding/voice'
 import { useItemPhotos } from '../photos'
 import { useAiModels } from '@/features/ai-model/store'
 import { ROUTES } from '@/shared/config'
@@ -43,7 +44,7 @@ const METHODS: {
   title: string
   note: string
 }[] = [
-  { id: 'camera', kind: 'camera', icon: Camera, title: 'التقاط صورة', note: 'صوّري القطعة مباشرة من دولابك' },
+  { id: 'camera', kind: 'camera', icon: Camera, title: 'التقاط صورة', note: 'التقاط صورة القطعة مباشرة من دولابك' },
   { id: 'upload', kind: 'file', icon: Upload, title: 'رفع صورة', note: 'من ملفاتك أو الاستوديو' },
   { id: 'screenshot', kind: 'file', icon: ImageIcon, title: 'رفع لقطة شاشة', note: 'لقطة من أي تطبيق' },
   { id: 'link', kind: 'link', icon: Link2, title: 'استيراد من رابط', note: 'يدخل «قطع للتجربة»' },
@@ -84,6 +85,7 @@ export function AddItemModal({
   wardrobeId?: string
 }) {
   const navigate = useNavigate()
+  const say = useVoice()
   const { wardrobes, addItem } = useWardrobe()
   const setPhoto = useItemPhotos((state) => state.set)
   const gender = useAiModels((state) => state.models[0]?.characteristics.gender) ?? 'female'
@@ -152,7 +154,7 @@ export function AddItemModal({
   const save = async () => {
     if (!draft) return
     if (!draft.name.trim()) {
-      toast.error('اكتبي اسم القطعة')
+      toast.error(say('اكتبي اسم القطعة', 'اكتب اسم القطعة'))
       return
     }
 
@@ -181,16 +183,16 @@ export function AddItemModal({
       eyebrow={phase === 'review' ? 'Review' : 'Add a piece'}
       title={
         phase === 'method'
-          ? 'أضيفي قطعة لخزانتك'
+          ? say('أضيفي قطعة لخزانتك', 'أضِف قطعة لخزانتك')
           : phase === 'photo'
             ? 'صورة القطعة'
-            : 'راجعي التفاصيل'
+            : say('راجعي التفاصيل', 'راجع التفاصيل')
       }
       width={phase === 'review' ? 'lg' : 'md'}
       footer={
         phase === 'review' && (
           <div className="flex gap-3">
-            <Button onClick={save}>أضيفيها للخزانة</Button>
+            <Button onClick={save}>{say('أضيفيها للخزانة', 'أضِفها للخزانة')}</Button>
             <Button variant="secondary" onClick={close}>
               إلغاء
             </Button>
@@ -217,7 +219,7 @@ export function AddItemModal({
       {phase === 'photo' && (
         <ImageUploader
           capture={useCamera}
-          confirmLabel="كمّلي التفاصيل"
+          confirmLabel={say('كمّلي التفاصيل', 'كمّل التفاصيل')}
           onConfirm={acceptPhoto}
           onCancel={() => setPhase('method')}
           onError={(error) => toast.error(error.message)}
@@ -339,6 +341,8 @@ function AutoFillNotice({
   filled: string[]
   visionAvailable: boolean
 }) {
+  const say = useVoice()
+
   if (status === 'idle') return null
 
   const labels = filled.map((field) => FIELD_LABELS[field]).filter(Boolean)
@@ -355,7 +359,7 @@ function AutoFillNotice({
       {status === 'reading' ? (
         <>
           <Loader2 size={13} strokeWidth={1.6} aria-hidden className="mt-1 flex-none animate-spin" />
-          نقرأ الصورة ونعبّي الحقول…
+          نقرأ الصورة ونملأ الحقول…
         </>
       ) : (
         <>
@@ -363,11 +367,14 @@ function AutoFillNotice({
           <span>
             {labels.length > 0 ? (
               <>
-                عبّينا من الصورة: <span className="text-muted">{labels.join(' · ')}</span> — راجعيها
-                وعدّلي أي شي.
+                عبّينا من الصورة: <span className="text-muted">{labels.join(' · ')}</span> —{' '}
+                {say('راجعيها وعدّلي أي شي.', 'راجعها وعدّل أي شي.')}
               </>
             ) : (
-              'ما قدرنا نقرأ تفاصيل من الصورة — عبّي الحقول بنفسك.'
+              say(
+                'ما قدرنا نقرأ تفاصيل من الصورة — عبّي الحقول بنفسك.',
+                'ما قدرنا نقرأ تفاصيل من الصورة — عبّ الحقول بنفسك.',
+              )
             )}
             {!visionAvailable && labels.length > 0 && (
               <span className="block text-faint">

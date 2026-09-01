@@ -10,6 +10,7 @@
 import { handlePreflight } from '../_shared/cors.ts'
 import { HandledError, fail, ok } from '../_shared/response.ts'
 import { optionalEnv } from '../_shared/env.ts'
+import { visionProvider } from '../_shared/vision.ts'
 import { readJson, requireUser, serviceClient } from '../_shared/supabase.ts'
 
 type ProcessRequest = {
@@ -37,7 +38,8 @@ Deno.serve(async (request) => {
       throw new HandledError('invalid-image', 'ما لقينا الصورة المرفوعة.', 404)
     }
 
-    if (!optionalEnv('VISION_PROVIDER')) {
+    // نسأل نفس المصدر الذي يبني المزوّد — قراءة المتغيّر هنا تتفارق معه
+    if (!visionProvider()) {
       // ما نزيّف نتيجة (المبدأ ٤): نقول صراحة إن الخدمة غير مفعّلة
       throw new HandledError(
         'not-supported-by-provider',

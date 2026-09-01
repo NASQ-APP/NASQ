@@ -21,7 +21,11 @@ export type GarmentReference = {
   /** اسم القطعة كما سمّتها المستخدمة — يدخل البرومبت لتوضيح المقصود */
   name: string
   colorName: string
-  image: ImageReference
+  /**
+   * ما عادت تُرسَل: الخادم يقرأ صورة القطعة من صفّها بمعرّفها.
+   * تبقى اختيارية لمن يعرض معاينة محليًا.
+   */
+  image?: ImageReference
 }
 
 /**
@@ -126,6 +130,8 @@ export interface AIImageProvider {
 
 export type TryOnErrorCode =
   | 'not-configured'
+  /** المفتاح موجود لكن المزوّد رفضه — غير «ما فيه مفتاح» */
+  | 'invalid-key'
   | 'missing-person'
   | 'missing-garments'
   | 'invalid-image'
@@ -152,37 +158,43 @@ export class TryOnError extends Error {
 export const ERROR_MESSAGES: Record<TryOnErrorCode, { message: string; hint?: string }> = {
   'not-configured': {
     message: 'التجربة الافتراضية غير مفعّلة.',
-    hint: 'ضيفي VITE_OPENROUTER_API_KEY في frontend/.env وأعيدي تشغيل الخادم.',
+    hint: 'التوليد يحتاج تفعيل مزوّد على الخادم.',
+  },
+  // مفتاح مرفوض ≠ مفتاح مفقود. الرسالة الواحدة للحالتين تخلّي من كتبت مفتاحًا
+  // خاطئًا تبحث عن سطر موجود أصلاً بدل ما تشك في قيمته.
+  'invalid-key': {
+    message: 'المفتاح غير مقبول من المزوّد.',
+    hint: 'مفتاح المزوّد يُضبط في أسرار الخادم.',
   },
   'missing-person': {
-    message: 'اختاري موديلاً أو ارفعي صورتك أول.',
+    message: 'ما فيه موديل بعد — اختر موديلاً أو ارفع صورتك.',
   },
   'missing-garments': {
-    message: 'اختاري قطعة واحدة على الأقل من خزانتك.',
+    message: 'ما فيه قطعة مختارة — قطعة واحدة على الأقل تكفي.',
   },
   'invalid-image': {
     message: 'ما قدرنا نقرأ إحدى الصور.',
-    hint: 'جرّبي صورة أوضح.',
+    hint: 'صورة أوضح تساعد.',
   },
   blocked: {
     message: 'ما قدرنا نجهّز هذي الإطلالة.',
-    hint: 'جرّبي قطعًا أخرى أو صورة ثانية.',
+    hint: 'قطع أخرى أو صورة ثانية قد تنجح.',
   },
   'rate-limited': {
     message: 'طلبات كثيرة بوقت قصير.',
-    hint: 'انتظري دقيقة وجرّبي.',
+    hint: 'المحاولة بعد دقيقة.',
   },
   // ما نقول «انتظري»: الانتظار ما يرجّع رصيدًا، والنصيحة الخاطئة أسوأ من لا شيء
   'no-credit': {
     message: 'رصيد التوليد انتهى.',
-    hint: 'اشحني رصيدك في OpenRouter وجرّبي.',
+    hint: 'الرصيد يُشحن من لوحة المزوّد.',
   },
   timeout: {
     message: 'أخذت وقتًا أطول من المتوقع.',
-    hint: 'جرّبي مرة ثانية.',
+    hint: 'المحاولة مرة ثانية قد تنجح.',
   },
   'provider-failure': {
-    message: 'ما قدرنا نجهّز الإطلالة هالمرة، جرّبي مرة ثانية أو استخدمي صورة أوضح.',
+    message: 'ما قدرنا نجهّز الإطلالة هالمرة — المحاولة مرة ثانية أو صورة أوضح قد تنجح.',
   },
 }
 

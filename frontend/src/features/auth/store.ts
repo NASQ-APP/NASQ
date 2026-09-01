@@ -16,6 +16,7 @@ import { authError } from '@/domain/auth'
 import { authProvider } from '@/infrastructure/auth'
 import { storageKey } from '@/infrastructure/storage'
 import type { AuthError, AuthUser, Credentials, SignUpInput } from '@/domain/auth'
+import { clearLocalUserData } from './clearLocalData'
 
 type AuthState = {
   user?: AuthUser
@@ -83,6 +84,15 @@ export const useAuth = create<AuthState>()(
         set({ busy: true })
         try {
           await authProvider.deleteAccount()
+
+          /*
+            التنظيف **بعد نجاح الخادم لا قبله**: لو مسحنا أولًا وفشل الحذف
+            لفقدت المستخدمة بياناتها وحسابها ما زال قائمًا.
+
+            وما نغلّفه بـ`try`: الدالة نفسها لا ترمي — الحساب انحذف فعلًا،
+            وفشل تنظيف محلي لا يصح أن يظهر للمستخدمة كفشل حذف.
+          */
+          await clearLocalUserData()
           set({ user: undefined })
           return undefined
         } catch (error) {

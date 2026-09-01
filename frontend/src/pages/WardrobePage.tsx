@@ -19,10 +19,12 @@ import { WardrobeRails } from '@/features/wardrobe/components/WardrobeRails'
 import { useWardrobe } from '@/features/wardrobe/store'
 import { slotOf } from '@/domain/outfit'
 import { cn, formatDate } from '@/shared/lib'
+import { useVoice } from '@/features/onboarding/voice'
 
 export function WardrobePage() {
   const { id } = useParams()
   const [params, setParams] = useSearchParams()
+  const say = useVoice()
   const { wardrobes, items, deleteWardrobe } = useWardrobe()
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [view, setView] = useState<'rails' | 'grid' | 'compact'>('rails')
@@ -80,7 +82,7 @@ export function WardrobePage() {
         <SearchInput
           value={term}
           onChange={(value) => patch('q', value || null)}
-          placeholder="ابحثي في القطع…"
+          placeholder={say('ابحثي في القطع…', 'ابحث في القطع…')}
           className="w-full max-w-[240px]"
         />
         <div className="flex flex-wrap gap-2">
@@ -110,7 +112,10 @@ export function WardrobePage() {
       {visible.length === 0 ? (
         <EmptyState
           title="ما فيه شيء هنا بعد."
-          body="أضيفي أول قطعة من «إضافة قطعة» فوق، وابدئي التنسيق."
+          body={say(
+            'أضيفي أول قطعة من «إضافة قطعة» فوق، وابدئي التنسيق.',
+            'أضِف أول قطعة من «إضافة قطعة» فوق، وابدأ التنسيق.',
+          )}
         />
       ) : view === 'rails' ? (
         <WardrobeRails items={visible} />

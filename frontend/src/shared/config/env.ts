@@ -21,19 +21,12 @@ export const env = {
   agentBase: read(import.meta.env.VITE_AGENT_BASE, '/__dev'),
   /** الطقس: open-meteo = خدمة مفتوحة بلا مفتاح · off = الميزة مطفأة */
   weatherProvider: read(import.meta.env.VITE_WEATHER_PROVIDER, 'open-meteo') as 'open-meteo' | 'off',
-  /**
-   * مفتاح OpenRouter — **نموذج أولي محلي فقط.**
-   *
-   * أي متغيّر `VITE_` يُخبز في حزمة البناء ويقدر أي أحد يقرأه، وهذا المفتاح
-   * مربوط برصيد مدفوع فالكشف يعني استهلاك مال. غير صالح للنشر: عند الإنتاج
-   * ينتقل النداء خلف خادم ويصير المفتاح في بيئته.
-   */
-  openRouterApiKey: read(import.meta.env.VITE_OPENROUTER_API_KEY),
-  /** اسم نموذج الصور — مكان واحد، ما يتكرر في الملفات */
-  openRouterImageModel: read(
-    import.meta.env.VITE_OPENROUTER_IMAGE_MODEL,
-    'google/gemini-3.1-flash-image',
-  ),
+  /*
+    لا مفاتيح مزوّدي ذكاء هنا.
+
+    أي متغيّر `VITE_` يُخبز في حزمة البناء ويقرأه أي زائر، فمكان المفاتيح
+    بيئة دوال الحافة وحدها (§17). التوليد يمرّ بـ`images-generate`.
+  */
   supabaseUrl: read(import.meta.env.VITE_SUPABASE_URL),
   supabaseAnonKey: read(import.meta.env.VITE_SUPABASE_ANON_KEY),
   apiBase: read(import.meta.env.VITE_API_BASE, '/api'),

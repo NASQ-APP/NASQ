@@ -37,7 +37,7 @@ function translate(error: SupabaseAuthError): ReturnType<typeof authError> {
 
 /** اسم المستخدمة من بيانات الحساب، وإلا جزء البريد قبل @. */
 const nameOf = (user: User): string =>
-  (user.user_metadata?.name as string | undefined)?.trim() || user.email?.split('@')[0] || 'مستخدمة'
+  (user.user_metadata?.name as string | undefined)?.trim() || user.email?.split('@')[0] || 'صاحب الدولاب'
 
 const toAuthUser = (user: User): AuthUser => ({
   id: user.id,

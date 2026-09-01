@@ -20,6 +20,7 @@ import { importFromUrl } from '@/features/try-pieces/import'
 import { sourceById } from '@/features/try-pieces/sources'
 import { useStudio } from '@/features/studio/store'
 import { ROUTES } from '@/shared/config'
+import { useVoice } from '@/features/onboarding/voice'
 
 /** أول رابط http(s) داخل نصّ — المشاركة تجي مغلَّفة بكلام غالبًا. */
 const firstLink = (...candidates: (string | null)[]): string | undefined => {
@@ -33,6 +34,7 @@ const firstLink = (...candidates: (string | null)[]): string | undefined => {
 type Phase = 'reading' | 'failed'
 
 export function SharePage() {
+  const say = useVoice()
   const [params] = useSearchParams()
   const navigate = useNavigate()
   const addItem = useWardrobe((state) => state.addItem)
@@ -46,7 +48,12 @@ export function SharePage() {
   */
   const [phase, setPhase] = useState<Phase>(link ? 'reading' : 'failed')
   const [reason, setReason] = useState<string | undefined>(
-    link ? undefined : 'ما وصلنا رابط قطعة. شاركي رابط صفحة المنتج من المتجر.',
+    link
+      ? undefined
+      : say(
+          'ما وصلنا رابط قطعة. شاركي رابط صفحة المنتج من المتجر.',
+          'ما وصلنا رابط قطعة. شارك رابط صفحة المنتج من المتجر.',
+        ),
   )
 
   // المشاركة تُعالَج مرة واحدة: React يركّب الأثر مرتين في وضع التطوير الصارم،
@@ -97,10 +104,10 @@ export function SharePage() {
       })
 
       studio.add(item.id)
-      toast.ok(`أضفنا ${item.name} — جرّبيها على موديلك`)
+      toast.ok(`أضفنا ${item.name} — ${say('جرّبيها على موديلك', 'جرّبها على موديلك')}`)
       navigate(ROUTES.studio, { replace: true })
     })()
-  }, [addItem, link, navigate, studio])
+  }, [addItem, link, navigate, studio, say])
 
   return (
     <PageContainer width="prose">
@@ -120,7 +127,7 @@ export function SharePage() {
           )}
           <div className="flex flex-wrap gap-3">
             <Button onClick={() => navigate(ROUTES.tryPieces, { replace: true })}>
-              جرّبي الاستيراد بالرابط
+              {say('جرّبي الاستيراد بالرابط', 'جرّب الاستيراد بالرابط')}
             </Button>
             <Button variant="secondary" onClick={() => navigate(ROUTES.home, { replace: true })}>
               الرئيسية

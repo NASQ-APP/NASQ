@@ -34,7 +34,7 @@ describe('stylist suggestions', () => {
     const answer = suggest('نسقي لي إطلالة', [])
 
     expect(answer.looks).toEqual([])
-    expect(answer.gap).toContain('أضيفي')
+    expect(answer.gap).toContain('قطعة')
   })
 
   it('builds complete looks only from owned wardrobe ids with specific reasons', () => {

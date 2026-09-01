@@ -10,6 +10,7 @@ import { Pencil, Plus, Sparkles, X } from 'lucide-react'
 import { Button, TextInput } from '@/shared/components/ui'
 import { ItemImage } from '@/shared/components/media/ItemImage'
 import { cn } from '@/shared/lib'
+import { useVoice } from '@/features/onboarding/voice'
 import type { TripDay } from '@/domain/travel'
 import type { WardrobeItem } from '@/domain/wardrobe'
 
@@ -28,6 +29,7 @@ export function DayCard({
   onClear: () => void
   onPreview: () => void
 }) {
+  const say = useVoice()
   const [renaming, setRenaming] = useState(false)
   const [draft, setDraft] = useState(day.label)
 
@@ -116,7 +118,7 @@ export function DayCard({
           className="flex h-14 items-center justify-center gap-2 rounded-sm bg-surface text-[12px] text-muted transition-colors hover:text-ink"
         >
           <Plus size={13} strokeWidth={1.5} aria-hidden />
-          أضيفي إطلالة
+          {say('أضيفي إطلالة', 'أضِف إطلالة')}
         </button>
       )}
 

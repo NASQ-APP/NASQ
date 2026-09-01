@@ -22,6 +22,7 @@ import {
 } from '@/shared/components/ui'
 import { Reveal, RevealItem } from '@/shared/components/motion'
 import { PageContainer } from '@/shared/components/layout'
+import { useVoice } from '@/features/onboarding/voice'
 import { READY_MODELS } from '@/domain/model'
 import { useAiModels } from '@/features/ai-model/store'
 import { describeCharacteristics } from '@/features/ai-model/components/ModelBuilder'
@@ -31,6 +32,7 @@ export function ModelsPage() {
   const { models, deleteModel, setDefault, photo, clearPhoto, readyModelId, setReadyModel } =
     useAiModels()
   const navigate = useNavigate()
+  const say = useVoice()
 
   /*
     ما يُحذف يُسأل عنه أولًا — والحالة تحمل **ما سيُحذف** لا مجرد «مفتوحة».
@@ -109,9 +111,12 @@ export function ModelsPage() {
       {models.length === 0 ? (
         <EmptyState
           title="ما عندك موديل بمقاساتك."
-          body="الموديلات الجاهزة فوق تكفي للتجربة، وتقدرين تنشئين موديلاً بمقاساتك لنتيجة أقرب."
+          body={say(
+            'الموديلات الجاهزة فوق تكفي للتجربة، وتقدرين تنشئين موديلاً بمقاساتك لنتيجة أقرب.',
+            'الموديلات الجاهزة فوق تكفي للتجربة، وتقدر تنشئ موديلاً بمقاساتك لنتيجة أقرب.',
+          )}
           icon={<UserRound size={22} strokeWidth={1.2} />}
-          action={<ButtonLink to="/models/new">أنشئي موديلك</ButtonLink>}
+          action={<ButtonLink to="/models/new">{say('أنشئي موديلك', 'أنشئ موديلك')}</ButtonLink>}
         />
       ) : (
         <Reveal className="grid gap-6 sm:grid-cols-2 sm:gap-7 xl:grid-cols-3">
@@ -230,7 +235,7 @@ export function ModelsPage() {
           <p className="mt-3 text-[12.5px] leading-7 text-muted">
             ما فيه صورة مرفوعة.{' '}
             <Link to="/studio" className="underline-offset-4 hover:underline">
-              ارفعيها من الاستوديو
+              {say('ارفعيها من الاستوديو', 'ارفعها من الاستوديو')}
             </Link>
             .
           </p>

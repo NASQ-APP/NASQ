@@ -10,6 +10,7 @@
 import { useState } from 'react'
 import { Drawer, Button, Field, TextInput, TextArea } from '@/shared/components/ui'
 import type { BodyParameters } from '@/domain/tryon'
+import { useVoice } from '@/features/onboarding/voice'
 
 type FieldSpec = {
   key: keyof BodyParameters
@@ -42,6 +43,7 @@ export function AdjustModelDrawer({
   onClose: () => void
   onApply: (parameters: BodyParameters, refinement?: string) => void
 }) {
+  const say = useVoice()
   const [draft, setDraft] = useState<BodyParameters>(value)
   const [refinement, setRefinement] = useState('')
 
@@ -77,7 +79,7 @@ export function AdjustModelDrawer({
     >
       <div className="flex flex-col gap-5">
         <p className="text-[12.5px] leading-7 text-muted">
-          كل الحقول اختيارية — عبّي اللي تعرفينه واتركي الباقي.
+          {say('كل الحقول اختيارية — عبّي اللي تعرفينه واتركي الباقي.', 'كل الحقول اختيارية — عبّ اللي تعرفه واترك الباقي.')}
         </p>
 
         <div className="grid gap-4 sm:grid-cols-2">

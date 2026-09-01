@@ -14,6 +14,7 @@ import { Button } from '@/shared/components/ui'
 import { useBackgroundRemoval } from '@/shared/hooks'
 import { ACCEPT_ATTRIBUTE, MAX_IMAGE_MB, type ImageCandidate, type ImageError } from '@/domain/images'
 import { cn } from '@/shared/lib'
+import { useVoice } from '@/features/onboarding/voice'
 
 export type ImageUploaderProps = {
   /** إزالة الخلفية — مفعّلة افتراضيًا */
@@ -42,13 +43,14 @@ export function ImageUploader({
   disabled,
   capture,
   confirmLabel = 'استخدمي هذي الصورة',
-  hint = 'اسحبي صورة القطعة هنا، أو اختاري من جهازك',
+  hint,
   onOriginalSelected,
   onProcessed,
   onError,
   onConfirm,
   onCancel,
 }: ImageUploaderProps) {
+  const say = useVoice()
   const input = useRef<HTMLInputElement>(null)
   const [dragging, setDragging] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -136,7 +138,9 @@ export function ImageUploader({
             )}
           >
             <Upload size={20} strokeWidth={1.3} aria-hidden className="text-faint" />
-            <span className="text-[13px]">{hint}</span>
+            <span className="text-[13px]">
+              {hint ?? say('اسحبي صورة القطعة هنا، أو اختاري من جهازك', 'اسحب صورة القطعة هنا، أو اختر من جهازك')}
+            </span>
             <span className="text-[11px] text-faint">
               PNG أو JPG أو WEBP · حتى {maxSizeMb} ميجا
             </span>
@@ -174,7 +178,10 @@ export function ImageUploader({
               </span>
             )}
             {state.status === 'failed' && <span className="text-danger">{state.error?.message}</span>}
-            {state.status === 'ready' && backgroundRemoval && state.processed && 'اختاري النسخة اللي تبينها.'}
+            {state.status === 'ready' &&
+              backgroundRemoval &&
+              state.processed &&
+              say('اختاري النسخة اللي تبينها.', 'اختر النسخة اللي تبيها.')}
           </p>
 
           <div className="flex flex-wrap gap-2">
