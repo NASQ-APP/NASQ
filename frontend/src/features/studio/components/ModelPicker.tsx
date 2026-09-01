@@ -17,6 +17,7 @@ import type { AiModel } from '@/domain/model'
 import { Button } from '@/shared/components/ui'
 import { PhotoUploader } from './PhotoUploader'
 import { cn } from '@/shared/lib'
+import { useVoice } from '@/features/onboarding/voice'
 
 export type ModelChoice = 'ready' | 'photo'
 
@@ -42,6 +43,8 @@ export function ModelPicker({
   onChoosePhoto: () => void
   onAdjust: () => void
 }) {
+  const say = useVoice()
+
   // العنوان تكفّلت به النافذة الحاوية — تكراره هنا يطبع رأسين على شاشة وحدة
   return (
     <div className="flex flex-col gap-6">
@@ -171,7 +174,7 @@ export function ModelPicker({
       {choice === 'ready' && !readyModelId && (
         <p className="flex items-center gap-2 text-[11.5px] text-faint">
           <Users size={13} strokeWidth={1.5} aria-hidden />
-          اختاري موديلاً للبدء.
+          {say('اختاري موديلاً للبدء.', 'اختر موديلاً للبدء.')}
         </p>
       )}
     </div>

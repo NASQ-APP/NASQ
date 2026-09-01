@@ -32,7 +32,7 @@ describe('signUpSchema', () => {
 
   it('يرفض الاسم الفاضي والاسم الطويل', () => {
     expect(issues(signUpSchema.safeParse({ name: ' ', email: 'a@b.com', password: 'wardrobe2026' })))
-      .toContain('اكتبي اسمك.')
+      .toContain('الاسم مطلوب.')
     expect(
       signUpSchema.safeParse({ name: 'ط'.repeat(41), email: 'a@b.com', password: 'wardrobe2026' })
         .success,
@@ -47,7 +47,7 @@ describe('signInSchema', () => {
 
   it('يطلب كلمة المرور', () => {
     expect(issues(signInSchema.safeParse({ email: 'a@b.com', password: '' }))).toContain(
-      'اكتبي كلمة المرور.',
+      'كلمة المرور مطلوبة.',
     )
   })
 })

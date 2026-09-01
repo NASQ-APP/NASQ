@@ -10,10 +10,12 @@ import { ImageUploader } from '@/shared/components/media/ImageUploader'
 import { Modal, toast } from '@/shared/components/ui'
 import { prepareForStorage } from '@/infrastructure/images'
 import { useItemPhotos } from '../photos'
+import { useVoice } from '@/features/onboarding/voice'
 import { cn } from '@/shared/lib'
 import type { ImageCandidate } from '@/domain/images'
 
 export function ItemPhotoPicker({ itemId, className }: { itemId: string; className?: string }) {
+  const say = useVoice()
   const [open, setOpen] = useState(false)
   const setPhoto = useItemPhotos((state) => state.set)
   const hasPhoto = useItemPhotos((state) => Boolean(state.urls[itemId]))
@@ -25,7 +27,7 @@ export function ItemPhotoPicker({ itemId, className }: { itemId: string; classNa
       toast.ok('حدّثنا صورة القطعة')
       setOpen(false)
     } catch {
-      toast.error('تعذّر حفظ الصورة. حاولي مرة أخرى.')
+      toast.error(say('تعذّر حفظ الصورة. حاولي مرة أخرى.', 'تعذّر حفظ الصورة. حاول مرة أخرى.'))
     }
   }
 
@@ -40,7 +42,7 @@ export function ItemPhotoPicker({ itemId, className }: { itemId: string; classNa
         )}
       >
         <Camera size={13} strokeWidth={1.5} aria-hidden />
-        {hasPhoto ? 'غيّري الصورة' : 'صوّري القطعة'}
+        {hasPhoto ? say('غيّري الصورة', 'غيّر الصورة') : say('صوّري القطعة', 'صوّر القطعة')}
       </button>
 
       <Modal
@@ -51,7 +53,7 @@ export function ItemPhotoPicker({ itemId, className }: { itemId: string; classNa
         width="md"
       >
         <ImageUploader
-          confirmLabel="احفظي الصورة"
+          confirmLabel={say('احفظي الصورة', 'احفظ الصورة')}
           onConfirm={save}
           onCancel={() => setOpen(false)}
           onError={(error) => toast.error(error.message)}

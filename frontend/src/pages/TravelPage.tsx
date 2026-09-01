@@ -16,6 +16,7 @@ import {
   toast,
 } from '@/shared/components/ui'
 import { PageContainer } from '@/shared/components/layout'
+import { useVoice } from '@/features/onboarding/voice'
 import { TripCard } from '@/features/travel/components'
 import { useTravel } from '@/features/travel/store'
 import { useWardrobe } from '@/features/wardrobe/store'
@@ -25,6 +26,7 @@ const MIN_DAYS = 1
 const MAX_DAYS = 14
 
 export function TravelPage() {
+  const say = useVoice()
   const { trips, createTrip } = useTravel()
   const wardrobe = useWardrobe((state) => state.items)
 
@@ -37,7 +39,7 @@ export function TravelPage() {
 
   const create = () => {
     if (!city.trim()) {
-      toast.error('اكتبي الوجهة')
+      toast.error(say('اكتبي الوجهة', 'اكتب الوجهة'))
       return
     }
     createTrip({
@@ -60,7 +62,10 @@ export function TravelPage() {
       <PageHeader
         eyebrow="Travel"
         title="خزانة السفر"
-        description="خطّطي إطلالة كل يوم من خزائنك، وقائمة الشنطة تتولّد لحالها."
+        description={say(
+          'خطّطي إطلالة كل يوم من خزائنك، وقائمة الشنطة تتولّد لحالها.',
+          'خطّط إطلالة كل يوم من خزائنك، وقائمة الشنطة تتولّد لحالها.',
+        )}
         action={
           <Button onClick={() => setOpen(true)}>
             <Plus size={14} strokeWidth={1.6} aria-hidden />
@@ -72,7 +77,7 @@ export function TravelPage() {
       {trips.length === 0 ? (
         <EmptyState
           title="ما فيه رحلات بعد."
-          body="أنشئي رحلة، ووزّعي قطع خزانتك على أيامها."
+          body={say('أنشئي رحلة، ووزّعي قطع خزانتك على أيامها.', 'أنشئ رحلة، ووزّع قطع خزانتك على أيامها.')}
           icon={<Plane size={22} strokeWidth={1.2} />}
           action={<Button onClick={() => setOpen(true)}>رحلة جديدة</Button>}
         />

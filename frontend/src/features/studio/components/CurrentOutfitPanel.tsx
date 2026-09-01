@@ -15,6 +15,7 @@ import { useStudio } from '../store'
 import { useWardrobe } from '@/features/wardrobe/store'
 import { cn } from '@/shared/lib'
 import { APP } from '@/shared/config'
+import { useVoice } from '@/features/onboarding/voice'
 import type { OutfitSlotId } from '@/domain/studio'
 import type { WardrobeItem } from '@/domain/wardrobe'
 
@@ -30,6 +31,7 @@ export function CurrentOutfitPanel({
   onReplace: (slot: OutfitSlotId) => void
   onAskStylist: () => void
 }) {
+  const say = useVoice()
   const { remove, clear, setOutfitPanel } = useStudio()
   const wardrobes = useWardrobe((state) => state.wardrobes)
   const slots = toSlots(items)
@@ -82,7 +84,7 @@ export function CurrentOutfitPanel({
             </span>
             <p className="mt-3 text-[12.5px]">إطلالتك بانتظار أول قطعة</p>
             <p className="mt-1 max-w-[210px] text-[11px] leading-6 text-muted">
-              اختاري من خزانتي أو اسحبي القطعة مباشرة على الموديل.
+              {say('اختاري من خزانتي أو اسحبي القطعة مباشرة على الموديل.', 'اختر من خزانتي أو اسحب القطعة مباشرة على الموديل.')}
             </p>
             <Button className="mt-4" variant="secondary" size="sm" onClick={() => onReplace('top')}>
               تصفح القطع
@@ -156,7 +158,7 @@ export function CurrentOutfitPanel({
                     أكملي الإطلالة
                   </h3>
                   <p className="mt-0.5 text-[10.5px] text-faint">
-                    اختاري الفئة التي تبين تضيفينها
+                    {say('اختاري الفئة التي تبين تضيفينها', 'اختر الفئة التي تبي تضيفها')}
                   </p>
                 </div>
                 <div className="grid grid-cols-2 gap-1.5">
@@ -181,7 +183,7 @@ export function CurrentOutfitPanel({
       <div className={cn('flex flex-none flex-col gap-2 border-t border-line p-3')}>
         <Button variant="secondary" size="sm" block onClick={onAskStylist}>
           <Sparkles size={13} strokeWidth={1.5} aria-hidden />
-          اسألي {APP.shortName}
+          {say('اسألي', 'اسأل')} {APP.shortName}
         </Button>
         {items.length > 0 && (
           <button

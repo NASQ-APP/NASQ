@@ -91,7 +91,7 @@ export function AuthLayout({
           <RailMotif />
           <div>
             <p className="display max-w-[380px] text-[30px] leading-[1.45] text-white">
-              خزانتك كلها في مكان واحد، وتشوفين القطعة عليكِ قبل ما تلبسينها.
+              خزانتك كلها في مكان واحد، والقطعة تُعرض عليك قبل لبسها.
             </p>
             <p className="mt-5 max-w-[340px] text-[13px] leading-8 text-white/55">{APP.tagline}</p>
           </div>

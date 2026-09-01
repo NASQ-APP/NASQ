@@ -270,7 +270,7 @@ export function suggest(
       message: 'خزانتك فاضية لين الحين.',
       looks: [],
       pieces: [],
-      gap: 'أضيفي كم قطعة وأقدر أنسّق لك منها.',
+      gap: 'كم قطعة زيادة وأقدر أنسّق لك منها.',
     }
   }
 
@@ -413,7 +413,7 @@ export function dailyLooks(wardrobe: WardrobeItem[]): DailyLook[] {
 }
 
 export const QUICK_PROMPTS = [
-  'نسّقي لي إطلالة للجامعة',
+  'إطلالة للجامعة',
   'وش يناسب القطعة المختارة؟',
   'إطلالة كاجوال لليوم',
   'إطلالة لمناسبة مسائية',

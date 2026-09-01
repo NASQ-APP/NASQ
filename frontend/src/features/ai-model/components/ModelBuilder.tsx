@@ -15,6 +15,7 @@ import { Field, TextArea, TextInput } from '@/shared/components/ui'
 import type { ModelCharacteristics } from '@/domain/model'
 import type { Gender } from '@/domain/wardrobe'
 import { cn } from '@/shared/lib'
+import { useVoice } from '@/features/onboarding/voice'
 
 type FieldSpec = {
   key: keyof Omit<ModelCharacteristics, 'gender' | 'refinement'>
@@ -114,6 +115,8 @@ export function CharacteristicsForm({
   name: string
   onNameChange: (next: string) => void
 }) {
+  const say = useVoice()
+
   /** الحقل الفاضي يعني «ما أعرف» لا صفرًا — فيُحذف المفتاح بدل ما يُخزَّن 0. */
   const setNumber = (key: FieldSpec['key'], raw: string) => {
     const parsed = Number(raw)
@@ -136,7 +139,7 @@ export function CharacteristicsForm({
       <div>
         <p className="eyebrow mb-1">Body · اختياري</p>
         <p className="mb-5 text-[12.5px] leading-7 text-muted">
-          كل الحقول اختيارية — عبّي اللي تعرفينه واتركي الباقي.
+          {say('كل الحقول اختيارية — عبّي اللي تعرفينه واتركي الباقي.', 'كل الحقول اختيارية — عبّ اللي تعرفه واترك الباقي.')}
         </p>
 
         <div className="grid gap-4 sm:grid-cols-2">

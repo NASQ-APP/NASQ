@@ -7,8 +7,10 @@ import { WardrobeCard } from '@/features/wardrobe/components/WardrobeCard'
 import { ItemGrid } from '@/features/wardrobe/components/ItemGrid'
 import { useWardrobe } from '@/features/wardrobe/store'
 import { filterItems } from '@/domain/wardrobe'
+import { useVoice } from '@/features/onboarding/voice'
 
 export function WardrobesPage() {
+  const say = useVoice()
   const { wardrobes, items, createWardrobe } = useWardrobe()
   const [params, setParams] = useSearchParams()
   const [open, setOpen] = useState(false)
@@ -26,7 +28,7 @@ export function WardrobesPage() {
 
   const create = () => {
     if (!name.trim()) {
-      toast.error('اكتبي اسم الخزانة')
+      toast.error(say('اكتبي اسم الخزانة', 'اكتب اسم الخزانة'))
       return
     }
     createWardrobe(name, latin)
@@ -41,7 +43,10 @@ export function WardrobesPage() {
       <PageHeader
         eyebrow="My wardrobes"
         title="خزائني"
-        description="كل خزانة مساحة مستقلة — رتّبيها بالموسم، بالمناسبة، أو باليوم."
+        description={say(
+          'كل خزانة مساحة مستقلة — رتّبيها بالموسم، بالمناسبة، أو باليوم.',
+          'كل خزانة مساحة مستقلة — رتّبها بالموسم، بالمناسبة، أو باليوم.',
+        )}
         action={
           <Button onClick={() => setOpen(true)}>
             <Plus size={14} strokeWidth={1.6} />

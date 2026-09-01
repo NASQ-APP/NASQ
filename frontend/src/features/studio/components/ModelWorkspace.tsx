@@ -31,6 +31,7 @@ import {
 } from 'lucide-react'
 import { DRAG_MIME } from './ClothingCard'
 import { StudioSet, type LightTone } from './StudioSet'
+import { useVoice } from '@/features/onboarding/voice'
 import { Button, Segmented } from '@/shared/components/ui'
 import { AI_DISCLAIMER, STAGE_LABELS } from '@/domain/tryon'
 import { cn } from '@/shared/lib'
@@ -209,6 +210,7 @@ export function ModelWorkspace({
    * تبدأ **بلا إضاءة**: المشهد النظيف هو الأصل، والأبجورة زينة تُطلب لا تُفرَض.
    * والضوء الملوّن يغيّر إحساس لون القطعة، فالبداية المحايدة أصدق لتقييمها.
    */
+  const say = useVoice()
   const [tone, setTone] = useState<LightTone>('none')
 
   const canGenerate = hasModel && itemCount > 0 && !busy
@@ -329,13 +331,16 @@ export function ModelWorkspace({
         {!busy && !hasModel && !generatedLook && (
           <div className="flex max-w-[320px] flex-col items-center gap-4 text-center">
             <UserRound size={28} strokeWidth={1.1} aria-hidden className="text-faint" />
-            <p className="text-[14px]">ما اخترتِ موديلاً بعد.</p>
+            <p className="text-[14px]">{say('ما اخترتِ موديلاً بعد.', 'ما اخترت موديلاً بعد.')}</p>
             <p className="text-[12px] leading-7 text-muted">
-              اختاري موديلاً جاهزًا أو ارفعي صورتك، ونبدأ التجربة.
+              {say(
+                'اختاري موديلاً جاهزًا أو ارفعي صورتك، ونبدأ التجربة.',
+                'اختر موديلاً جاهزًا أو ارفع صورتك، ونبدأ التجربة.',
+              )}
             </p>
             <Button size="sm" onClick={onChooseModel}>
               <Users size={13} strokeWidth={1.5} aria-hidden />
-              اختاري الموديل
+              {say('اختاري الموديل', 'اختر الموديل')}
             </Button>
           </div>
         )}
@@ -413,7 +418,7 @@ export function ModelWorkspace({
             <p className="text-[10.5px] leading-5 text-faint">
               {stale
                 ? itemCount === 0
-                  ? 'ما بقيت قطعة مختارة — اختاري قطعة وحدّثي.'
+                  ? say('ما بقيت قطعة مختارة — اختاري قطعة وحدّثي.', 'ما بقيت قطعة مختارة — اختر قطعة وحدّث.')
                   : `${itemCount} قطع مختارة · التحديث يولّد صورة جديدة.`
                 : AI_DISCLAIMER}
             </p>
@@ -422,13 +427,13 @@ export function ModelWorkspace({
           <>
             <Button block onClick={onGenerate} disabled={!canGenerate}>
               <Sparkles size={14} strokeWidth={1.5} aria-hidden />
-              جرّبي الإطلالة
+              {say('جرّبي الإطلالة', 'جرّب الإطلالة')}
             </Button>
             <p className="text-center text-[11px] leading-5 text-faint">
               {!hasModel
-                ? 'اختاري موديلاً أول'
+                ? say('اختاري موديلاً أول', 'اختر موديلاً أول')
                 : itemCount === 0
-                  ? 'اختاري قطعة واحدة على الأقل من خزانتك'
+                  ? say('اختاري قطعة واحدة على الأقل من خزانتك', 'اختر قطعة واحدة على الأقل من خزانتك')
                   : `${itemCount} قطع مختارة · ${AI_DISCLAIMER}`}
             </p>
           </>

@@ -22,7 +22,7 @@ import { StudioMobileBar, type MobileSheet } from '@/features/studio/components/
 import { useStudio } from '@/features/studio/store'
 import { useTryOn } from '@/features/studio/useTryOn'
 import { garmentReferences, referenceFromUrl } from '@/features/studio/references'
-import { READY_MODELS, readyModelById, readyModelFor } from '@/domain/model'
+import { readyModelById, readyModelFor } from '@/domain/model'
 import type { BodyParameters } from '@/domain/tryon'
 import type { ModelCharacteristics } from '@/domain/model'
 // `saveLook` محجوز هنا لحفظ الإطلالة في مجموعة الإطلالات — نميّز تخزين الصورة
@@ -51,6 +51,8 @@ import {
 } from '@/shared/components/ui'
 import { AdaptivePanel } from '@/shared/components/layout'
 import { useDeviceClass } from '@/shared/hooks'
+import { useOnboarding } from '@/features/onboarding/store'
+import { useVoice } from '@/features/onboarding/voice'
 import type { WardrobeItem } from '@/domain/wardrobe'
 
 /** يبلّغ الخطأ بالعربي بدل ما يُبتلع — الفشل الصامت يترك المستخدمة تخمّن. */
@@ -84,6 +86,10 @@ export function StudioPage() {
    * تقارب الميجابايت. التوليدة تكلّف وقتًا ومالاً، وضياعها بمجرد فتح صفحة
    * ثانية يعني دفع الثمن مرتين على نفس النتيجة.
    */
+  /** الجنس كما صرّح به في التعارف — يقرّر الموديل الافتراضي. */
+  const declaredGender = useOnboarding((state) => state.declared.gender)
+  const say = useVoice()
+
   const tryOn = useTryOn()
   const [modelChoice, setModelChoice] = useState<ModelChoice>('ready')
   const [modelPickerOpen, setModelPickerOpen] = useState(false)
@@ -186,9 +192,18 @@ export function StudioPage() {
    */
   const activeModel = models.models.find((model) => model.id === models.activeModelId)
 
+  /*
+    الموديل الافتراضي **من جنس صاحب الحساب**.
+
+    كان الاحتياطي `READY_MODELS[0]` — أي النسائي للجميع. فمن صرّح أنه ذكر فتح
+    الاستوديو على جسد ليس جسده، ولزمه أن يبدّله يدويًا قبل أن يجرّب شيئًا.
+    والجنس معروف من التعارف، فالافتراض عنه لا مبرّر له.
+
+    ويبقى التبديل بيده: هذا **مبدأ** لا قيد، و«تغيير الموديل» تقبل أي واحد.
+  */
   const readyModel = activeModel
     ? readyModelFor(activeModel.characteristics.gender)
-    : (readyModelById(models.readyModelId ?? '') ?? READY_MODELS[0])
+    : (readyModelById(models.readyModelId ?? '') ?? readyModelFor(declaredGender ?? 'female'))
 
   const measurementSource =
     activeModel ?? models.models.find((model) => model.characteristics.gender === readyModel.gender && model.isDefault)
@@ -222,8 +237,14 @@ export function StudioPage() {
       const anyPictured = selected.some((item) => item.imageUrl)
       toast.error(
         anyPictured
-          ? 'ما قدرنا نقرأ صور القطع المختارة. جرّبي ترفعين صورة للقطعة من صفحتها.'
-          : 'القطع المختارة ما لها صور. أضيفي صورة للقطعة من صفحتها.',
+          ? say(
+              'ما قدرنا نقرأ صور القطع المختارة. جرّبي ترفعين صورة للقطعة من صفحتها.',
+              'ما قدرنا نقرأ صور القطع المختارة. جرّب ترفع صورة للقطعة من صفحتها.',
+            )
+          : say(
+              'القطع المختارة ما لها صور. أضيفي صورة للقطعة من صفحتها.',
+              'القطع المختارة ما لها صور. أضِف صورة للقطعة من صفحتها.',
+            ),
       )
       return undefined
     }
@@ -235,7 +256,7 @@ export function StudioPage() {
 
   const generateLook = async () => {
     if (!personImageUrl) {
-      toast.error('اختاري موديلاً أو ارفعي صورتك أول.')
+      toast.error(say('اختاري موديلاً أو ارفعي صورتك أول.', 'اختر موديلاً أو ارفع صورتك أول.'))
       return
     }
     const person = await referenceFromUrl(personImageUrl)
@@ -480,12 +501,12 @@ export function StudioPage() {
         open={modelPickerOpen}
         onClose={() => setModelPickerOpen(false)}
         eyebrow="Model"
-        title="على مين تبين نجرب الإطلالة؟"
+        title={say('على مين تبين نجرب الإطلالة؟', 'على مين تبي نجرب الإطلالة؟')}
         width="lg"
       >
         <ModelPicker
           choice={modelChoice}
-          readyModelId={models.readyModelId ?? READY_MODELS[0].id}
+          readyModelId={models.readyModelId ?? readyModelFor(declaredGender ?? 'female').id}
           savedModels={models.models}
           activeModelId={measurementSource?.id}
           hasPhoto={Boolean(photo)}
