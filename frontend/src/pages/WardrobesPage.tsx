@@ -6,13 +6,14 @@ import { PageContainer } from '@/shared/components/layout'
 import { WardrobeCard } from '@/features/wardrobe/components/WardrobeCard'
 import { ItemGrid } from '@/features/wardrobe/components/ItemGrid'
 import { useWardrobe } from '@/features/wardrobe/store'
-import { filterItems } from '@/domain/wardrobe'
+import { TRY_SHELF, filterItems, tryItems } from '@/domain/wardrobe'
 import { useVoice } from '@/features/onboarding/voice'
 
 export function WardrobesPage() {
   const say = useVoice()
   const { wardrobes, items, createWardrobe } = useWardrobe()
   const [params, setParams] = useSearchParams()
+  const pieces = tryItems(items)
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
   const [latin, setLatin] = useState('')
@@ -86,6 +87,7 @@ export function WardrobesPage() {
       <div className="mb-8 flex items-center border-b border-line pb-5">
         <span className="lat text-[11px] text-faint">
           {wardrobes.length} wardrobes · {items.filter((i) => i.source === 'wardrobe').length} pieces
+          {pieces.length > 0 && ` · ${pieces.length} on trial`}
         </span>
       </div>
 
@@ -93,6 +95,13 @@ export function WardrobesPage() {
         {wardrobes.map((w) => (
           <WardrobeCard key={w.id} wardrobe={w} />
         ))}
+
+        {/*
+          رفّ التجربة **بعد الخزائن وقبل «خزانة جديدة»**: هو وجهة دائمة لا
+          خزانة تُنشأ، فموضعه بين ما تملكه وما تقدر تضيفه يقول ذلك بلا شرح.
+          ويظهر إن كانت فيه قطع — رفّ فاضٍ دائم يشغل مكانًا بلا فائدة.
+        */}
+        {pieces.length > 0 && <WardrobeCard wardrobe={TRY_SHELF} />}
         <button
           onClick={() => setOpen(true)}
           className="flex aspect-[4/4.5] flex-col items-center justify-center gap-2 rounded-md border border-dashed border-line-strong text-muted transition-colors hover:border-line-strong hover:text-ink"

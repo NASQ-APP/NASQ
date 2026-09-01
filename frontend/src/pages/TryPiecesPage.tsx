@@ -10,9 +10,11 @@ import { useNavigate } from 'react-router-dom'
 import { Camera, Check, Link2, Wand2 } from 'lucide-react'
 import {
   Button,
+  Chip,
   EmptyState,
   Modal,
   PageHeader,
+  SearchInput,
   SectionHeader,
   toast,
 } from '@/shared/components/ui'
@@ -22,7 +24,15 @@ import { itemBySourceLink, useWardrobe } from '@/features/wardrobe/store'
 import { useStudio } from '@/features/studio/store'
 import { useAppShell } from '@/app/layout'
 import { useVoice } from '@/features/onboarding/voice'
-import { CATEGORIES, categoryById, ITEM_COLORS, shapesForSlot } from '@/domain/wardrobe'
+import {
+  CATEGORIES,
+  ITEM_COLORS,
+  SLOT_FILTERS,
+  categoryById,
+  matchesQuery,
+  shapesForSlot,
+  slotOfItem,
+} from '@/domain/wardrobe'
 import { sourceById } from '@/features/try-pieces/sources'
 import { importFromUrl } from '@/features/try-pieces/import'
 import { useImportedImageAudit } from '@/features/try-pieces/audit'
@@ -58,7 +68,27 @@ export function TryPiecesPage() {
    */
   const [blocked, setBlocked] = useState<{ storeName: string; link: string }>()
 
-  const tryItems = items.filter((i) => i.source === 'try')
+  const allTryItems = items.filter((i) => i.source === 'try')
+
+  /*
+    الفلتر على الرفّ نفسه لا على الخزانة.
+
+    القطع تُجمَّع تحت متاجرها، فمع عشر قطع من ثلاثة متاجر يصير الدوران عليها
+    بالتمرير وحده. والفئة هي أكثر ما يُسأل عنه هنا: «وين الفساتين اللي جبتها؟»
+  */
+  const [query, setQuery] = useState('')
+  const [activeSlot, setActiveSlot] = useState('all')
+
+  const tryItems = useMemo(() => {
+    let pool = allTryItems
+    if (activeSlot !== 'all') pool = pool.filter((item) => slotOfItem(item) === activeSlot)
+    if (query.trim()) {
+      pool = pool.filter((item) =>
+        matchesQuery(`${item.name} ${item.colorName} ${item.brand ?? ''}`, query),
+      )
+    }
+    return pool
+  }, [allTryItems, activeSlot, query])
 
   /*
     القطع مرتّبة **تحت مصدرها**، لا مرصوفة في رفّ واحد.
@@ -236,13 +266,42 @@ export function TryPiecesPage() {
         }
       />
 
+      {/*
+        شريط الفلترة يظهر إن كان فيه ما يُفلتَر: مع قطعتين هو زحام لا أداة.
+      */}
+      {allTryItems.length > 2 && (
+        <div className="mb-8 flex flex-wrap items-center gap-3">
+          <SearchInput
+            value={query}
+            onChange={setQuery}
+            placeholder={say('ابحثي في قطع التجربة…', 'ابحث في قطع التجربة…')}
+            className="w-full max-w-[280px]"
+          />
+          <div className="flex flex-wrap gap-2">
+            {SLOT_FILTERS.map((filter) => (
+              <Chip
+                key={filter.slot}
+                active={activeSlot === filter.slot}
+                onClick={() => setActiveSlot(filter.slot)}
+              >
+                {filter.name}
+              </Chip>
+            ))}
+          </div>
+        </div>
+      )}
+
       {tryItems.length === 0 ? (
         <EmptyState
-          title="ما فيه قطع للتجربة."
-          body={say(
-              'الصقي رابط قطعة فوق، أو شاركيها لـ«نَسّق» من أي متجر.',
-              'الصق رابط قطعة فوق، أو شاركها لـ«نَسّق» من أي متجر.',
-            )}
+          title={allTryItems.length > 0 ? 'ما لقينا قطعة.' : 'ما فيه قطع للتجربة.'}
+          body={
+            allTryItems.length > 0
+              ? say('جرّبي كلمة ثانية أو غيّري الفئة.', 'جرّب كلمة ثانية أو غيّر الفئة.')
+              : say(
+                  'الصقي رابط قطعة فوق، أو شاركيها لـ«نَسّق» من أي متجر.',
+                  'الصق رابط قطعة فوق، أو شاركها لـ«نَسّق» من أي متجر.',
+                )
+          }
         />
       ) : (
         <>
