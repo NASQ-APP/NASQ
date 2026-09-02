@@ -29,9 +29,9 @@ import {
   Users,
 } from 'lucide-react'
 import { DRAG_MIME } from './ClothingCard'
-import { StudioSet, type LightTone } from './StudioSet'
+import { useStageBackdrop } from '../stageBackdrop'
 import { useVoice } from '@/features/onboarding/voice'
-import { Button, Segmented } from '@/shared/components/ui'
+import { Button } from '@/shared/components/ui'
 import { AIProcessingState } from '@/shared/components/render'
 import { AI_DISCLAIMER, STAGE_LABELS } from '@/domain/tryon'
 import { cn } from '@/shared/lib'
@@ -70,11 +70,7 @@ const FRAME_FIT: Record<string, { scale: number; y: number }> = {
   '/models/male-base.png': { scale: 0.88, y: 0.9 },
 }
 
-const STAGE_IMAGE =
-  'absolute inset-0 z-[1] h-full w-full object-contain p-4 ' +
-  // صور الموديل والنتيجة خلفيتها بيضاء صمّاء، فعلى أرضية رمادية تُقرأ
-  // مستطيلاً يغطّي المنصّة. `multiply` يذيب الأبيض في الأرضية ويُبقي القوام.
-  'mix-blend-multiply'
+const STAGE_IMAGE = 'absolute inset-0 z-[1] h-full w-full object-contain p-4'
 
 export function ModelWorkspace({
   modelImageUrl,
@@ -113,6 +109,8 @@ export function ModelWorkspace({
 }) {
   const [over, setOver] = useState(false)
   const [zoom, setZoom] = useState(1)
+  /** لون خلفية الصورة المعروضة — تُطلى به اللوحة فما يبقى لها حدّ */
+  const backdrop = useStageBackdrop(generatedLook ?? modelImageUrl)
   /**
    * إزاحة المشهد داخل اللوحة.
    *
@@ -206,12 +204,7 @@ export function ModelWorkspace({
     }
   }
 
-  /**
-   * تبدأ **بلا إضاءة**: المشهد النظيف هو الأصل، والأبجورة زينة تُطلب لا تُفرَض.
-   * والضوء الملوّن يغيّر إحساس لون القطعة، فالبداية المحايدة أصدق لتقييمها.
-   */
   const say = useVoice()
-  const [tone, setTone] = useState<LightTone>('none')
 
 
   return (
@@ -222,16 +215,6 @@ export function ModelWorkspace({
           {generatedLook ? 'إطلالتك المولّدة' : hasModel ? modelName : 'ما فيه موديل'}
         </p>
         <div className="flex flex-none items-center gap-2">
-          {/* لون إضاءة الاستوديو — اختيار المستخدمة */}
-          <Segmented<LightTone>
-            value={tone}
-            onChange={setTone}
-            options={[
-              { value: 'warm', label: 'دافئ' },
-              { value: 'white', label: 'أبيض' },
-              { value: 'none', label: 'بدون' },
-            ]}
-          />
           <Button variant="secondary" size="sm" onClick={onChooseModel}>
             <Sliders size={13} strokeWidth={1.5} aria-hidden />
             {hasModel ? 'تغيير الموديل' : 'اختيار الموديل'}
@@ -263,12 +246,12 @@ export function ModelWorkspace({
         className={cn(
           // touch-none يمنع المتصفّح من ابتلاع القرص لتكبير الصفحة نفسها
           'relative mx-5 grid min-h-0 flex-1 cursor-grab touch-none place-items-center overflow-hidden rounded-md active:cursor-grabbing',
-          // أرضية الاستوديو. الدائرة البيضاء تحت الموديل هي المنصّة، فالتباين
-          // بينهما هو اللي يرسم المكان. والوضع الأبيض يحتاج أرضية أغمق لأن
-          // سطوع الضوء نسبي — ما يميّز الأبيض إلا فرقه عمّا تحته.
+          // خلفية بيضاء ساذجة — نفس خلفية صور الموديلات. المنصّة والإضاءة
+          // كانتا ترسمان مكانًا، لكنهما تُرسمان **تحت** الصورة، فلا تبينان إلا
+          // بخلط `multiply` — والخلط يمزج ولا يغطّي، فيطلّ ما تحته من خلال
+          // القماش ويُقرأ اللبس شفافًا. فذهبتا وذهب معهما الخلط.
           'transition-[box-shadow,background-color] duration-[250ms] ease-soft',
-          // الأبيض وحده يحتاج أرضية أغمق ليبان؛ «بدون» ما فيها ضوء تُقاس عليه
-          tone === 'white' ? 'bg-studio-floor-dim' : 'bg-studio-floor',
+          'bg-white',
           over && 'ring-1 ring-ink',
           dragging && !over && 'ring-1 ring-line-strong',
         )}
@@ -276,22 +259,25 @@ export function ModelWorkspace({
         {/*
           طبقة المشهد — تتكبّر كصورة واحدة: المنصّة والإضاءة والموديل معًا، لا
           الموديل وحده. الأرضية تبقى برّاها فما تتمدّد حدودها مع التكبير.
+
+          و`!busy` تُخليها للمؤشّر أثناء التوليد — نفس شرط بقية الطبقات هنا.
         */}
-        {(hasModel || generatedLook) && (
+        {!busy && (hasModel || generatedLook) && (
           <div
             className={cn(
               'absolute inset-0',
-              // الطبقة تحمل لون الأرضية بنفسها: الـ transform يصنع سياق تراص
-              // جديد، و mix-blend-multiply يمزج داخل سياقه فقط — فبلا هذي
-              // الخلفية تطلع خلفية صورة الموديل البيضاء مستطيلاً ظاهرًا.
-              tone === 'white' ? 'bg-studio-floor-dim' : 'bg-studio-floor',
+              // الطبقة تحمل خلفيّتها بنفسها: الـ transform يصنع سياق تراص جديد،
+              // فبلا هذي تبين حدود الصورة على ما وراءها
+              !backdrop && 'bg-white',
               // بلا انتقال أثناء القرص — التنعيم يخلّي الإصبع يسبق الصورة
               !interacting && 'transition-transform duration-[250ms] ease-soft',
             )}
-            style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }}
+            style={{
+              transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+              // لون خلفية الصورة نفسها: يتّصل ما حولها بما فيها فيختفي حدّها
+              ...(backdrop && { backgroundColor: backdrop }),
+            }}
           >
-            <StudioSet tone={tone} />
-
             {generatedLook ? (
               <img
                 src={generatedLook}
