@@ -59,6 +59,8 @@ type StudioState = {
   remove: (itemId: string) => void
   toggle: (itemId: string) => void
   replaceAll: (itemIds: string[]) => void
+  /** يُبقي الموجود فعلًا — القطعة المحذوفة ما تبقى مختارة بعد ذهابها */
+  keepOnly: (existingIds: string[]) => void
   clear: () => void
   has: (itemId: string) => boolean
 
@@ -94,6 +96,20 @@ export const useStudio = create<StudioState>()(
         })),
 
       replaceAll: (itemIds) => set({ selection: itemIds }),
+
+      /*
+        الاختيار يعيش في التخزين، والقطع تُحذف — فيبقى في الاختيار معرّف لا
+        يقابله شيء. أثره صامت وموجع: الاستوديو يظن أن عندك قطعة مختارة، بينما
+        الحلّ يُسقطها فيبقى الزر معطّلًا يقول «اختاري قطعة» وأنتِ اخترتِ.
+
+        نرجّع الحالة نفسها لو ما تغيّر شيء، فما يعيد zustand الرسم بلا سبب.
+      */
+      keepOnly: (existingIds) =>
+        set((s) => {
+          const alive = new Set(existingIds)
+          const next = s.selection.filter((id) => alive.has(id))
+          return next.length === s.selection.length ? s : { selection: next }
+        }),
       clear: () => set({ selection: [] }),
       has: (itemId) => get().selection.includes(itemId),
 

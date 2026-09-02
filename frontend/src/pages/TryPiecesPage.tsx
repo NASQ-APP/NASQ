@@ -34,6 +34,7 @@ import {
 } from '@/domain/wardrobe'
 import { sourceById } from '@/features/try-pieces/sources'
 import { importFromUrl } from '@/features/try-pieces/import'
+import { adoptStorePhoto } from '@/features/try-pieces/adoptPhoto'
 import { useImportedImageAudit } from '@/features/try-pieces/audit'
 import { cn } from '@/shared/lib'
 import { ROUTES } from '@/shared/config'
@@ -66,6 +67,30 @@ export function TryPiecesPage() {
    * عندنا. السبب يُقال، والمخرج يُعرَض — والقرار لها.
    */
   const [blocked, setBlocked] = useState<{ storeName: string; link: string }>()
+
+  /**
+   * تُمسح آثار المحاولة السابقة.
+   *
+   * `blocked` كان يعيش أطول من محاولته: تُغلق المستخدمة الحوار أو لا تُغلقه، ثم
+   * تلصق رابطًا من متجر ثانٍ — فيظهر لها **اسم المتجر القديم** لأن الحالة ما
+   * زالت محمّلة به. كل رابط يبدأ من الصفر، فما يُنسب موقع لموقع.
+   */
+  const forgetLastAttempt = () => {
+    setBlocked(undefined)
+    setStep(0)
+  }
+
+  /** اسم المتجر من الرابط الحالي وحده — بلا أي أثر لمحاولة سبقت. */
+  const storeNameFor = (product: { storeId?: string }, url: string): string => {
+    const known = sourceById(product.storeId)?.name
+    if (known) return known
+    try {
+      return new URL(url).hostname.replace(/^www\./, '')
+    } catch {
+      // ما هو رابطًا أصلًا — ما ننسبه لأحد
+      return 'المتجر'
+    }
+  }
 
   const allTryItems = items.filter((i) => i.source === 'try')
 
@@ -139,10 +164,9 @@ export function TryPiecesPage() {
       لصفحة القطعة تكمّل الفئة والصورة. قطعة ناقصة أفضل من رسالة خطأ.
     */
     if (!product.extracted && product.blocked) {
-      const store = sourceById(product.storeId)
       setImporting(false)
       setStep(0)
-      setBlocked({ storeName: store?.name ?? new URL(link).hostname.replace(/^www\./, ''), link })
+      setBlocked({ storeName: storeNameFor(product, link), link })
       return
     }
 
@@ -197,6 +221,9 @@ export function TryPiecesPage() {
       sourceLink: product.sourceLink,
     })
 
+    /* صورة المتجر تصير صورتنا — بدونها ما تقدر القطعة تُلبَس */
+    void adoptStorePhoto(item.id, product.imageUrl)
+
     setImporting(false)
     setStep(0)
     setLink('')
@@ -220,7 +247,7 @@ export function TryPiecesPage() {
       toast.error('الصقي رابط القطعة أولًا')
       return
     }
-    setStep(0)
+    forgetLastAttempt()
     setImporting(true)
   }
 
@@ -242,7 +269,11 @@ export function TryPiecesPage() {
         <Link2 size={17} strokeWidth={1.3} className="text-faint" />
         <input
           value={link}
-          onChange={(e) => setLink(e.target.value)}
+          onChange={(e) => {
+            setLink(e.target.value)
+            // رابط جديد = محاولة جديدة: ما يبقى منها اسم متجر ولا حالة حجب
+            forgetLastAttempt()
+          }}
           onKeyDown={(e) => e.key === 'Enter' && startImport()}
           placeholder="الصقي رابط القطعة من أي متجر…"
           className="h-10 w-full bg-transparent text-[13.5px] outline-none placeholder:text-faint"
@@ -379,17 +410,30 @@ export function TryPiecesPage() {
             نقدر نسحب صورة القطعة ولا اسمها ولا سعرها. مو عطلًا عندنا — يفتح للمتصفّح وحده.
           </p>
           <p>
-            {say('بس تقدرين تضيفينها بنفسك عن طريق ', 'بس تقدر تضيفها بنفسك عن طريق ')}<strong className="text-ink">رفع صورتها</strong>،
-            ونقرأ فئتها ولونها من الصورة.
+            الطريق الأول <strong className="text-ink">إضافة نَسّق للمتصفّح</strong>:{' '}
+            {say(
+              'هي تقرأ الصفحة وهي مفتوحة عندك، فتأخذ الاسم والصورة والسعر كاملة',
+              'هي تقرأ الصفحة وهي مفتوحة عندك، فتأخذ الاسم والصورة والسعر كاملة',
+            )}{' '}
+            — نفس ما يعجز عنه الخادم من برّا.
           </p>
 
           <div className="rounded-md border border-line bg-surface p-4">
             <ol className="flex list-inside list-decimal flex-col gap-1.5 text-[12.5px]">
-              <li>افتحي صفحة القطعة في المتجر</li>
-              <li>خذي لقطة شاشة للقطعة وحدها</li>
-              <li>{say('ارجعي واضغطي «ارفعي صورة القطعة» تحت', 'ارجع واضغط «ارفع صورة القطعة» تحت')}</li>
+              <li>{say('افتحي صفحة القطعة في المتجر والإضافة مركّبة', 'افتح صفحة القطعة في المتجر والإضافة مركّبة')}</li>
+              <li>
+                {say(
+                  'اضغطي «إضافة إلى نَسّق» داخل الصفحة — أو ارجعي والصقي الرابط هنا',
+                  'اضغط «إضافة إلى نَسّق» داخل الصفحة — أو ارجع والصق الرابط هنا',
+                )}
+              </li>
             </ol>
           </div>
+
+          <p>
+            وإن ما كانت الإضافة مركّبة، يبقى <strong className="text-ink">رفع صورة القطعة</strong>
+            — ونقرأ فئتها ولونها من الصورة.
+          </p>
         </div>
       </Modal>
 

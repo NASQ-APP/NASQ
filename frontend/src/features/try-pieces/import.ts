@@ -13,6 +13,8 @@ import { CATEGORIES, ITEM_COLORS, categoryById, shapesForSlot } from '@/domain/w
 import { supabase } from '@/infrastructure/supabase'
 import { pickBestImage } from './pick-image'
 import { storeIdFromUrl } from './sources'
+import { askExtension } from './extensionLookup'
+import { DEV_IMPORT_PATH } from '../../../vite-plugins/import-path'
 import type { GarmentShape } from '@/domain/wardrobe'
 
 /** ردّ `items-from-url` — نفس الحقول ونفس المعاني. */
@@ -288,9 +290,65 @@ export async function importFromUrl(url: string): Promise<ImportedProduct> {
   const link = url.trim()
   if (!link) return { extracted: false, sourceLink: link, reason: 'الصقي رابط القطعة أولًا.' }
 
+  const storeId = storeIdFromUrl(link)
+
+  /**
+     المتصفّح آخر ما نسأل، ويُسأل في **كل** طرق العجز.
+
+     المتجر المحمي يفشل بأشكال مختلفة: ردّ يقول `extracted:false`، أو خطأ من
+     البوابة (502) لأن الاتصال سقط ولم يُكمل، أو استثناء شبكة. كلها تعني الشيء
+     نفسه — الخادم ما قرأ الصفحة. فلو سألنا الإضافة في حالة واحدة منها بقيت
+     البقية مسدودة، وهي الأكثر وقوعًا.
+   */
+  const rescue = async (fallback: ImportedProduct): Promise<ImportedProduct> => {
+    const accept = async (raw: RawProduct | undefined): Promise<ImportedProduct | undefined> => {
+      if (!raw?.name) return undefined
+      const product = await productFromRaw({
+        ...raw,
+        extracted: true,
+        sourceLink: link,
+        storeId: raw.storeId ?? storeId,
+      })
+      return product.extracted ? product : undefined
+    }
+
+    // ١. ما قرأه المتصفّح من صفحة فتحتها المستخدمة
+    const fromExtension = await accept(await askExtension(link))
+    if (fromExtension) return fromExtension
+
+    /*
+      ٢. وسيط خادم التطوير — **على جهاز المطوّرة وحده**.
+
+      يقرأ الصفحة من Node لا من Deno، وبعض المتاجر تمرّره وتحجب الدالة. وهو
+      شبكة أمان لا مسار أساسي: `import.meta.env.DEV` تُسقطه من حزمة البناء،
+      فما نبني عليه سلوكًا لا يوجد عند المستخدمة.
+
+      يفيد حين تكون الدالة نفسها معطّلة — نشرٌ مكسور مثلًا — فلا يبقى التطوير
+      رهينة حالة الخادم.
+    */
+    if (import.meta.env.DEV) {
+      try {
+        const response = await fetch(DEV_IMPORT_PATH, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ url: link }),
+        })
+        if (response.ok) {
+          const fromProxy = await accept((await response.json()) as RawProduct)
+          if (fromProxy) return fromProxy
+        }
+      } catch {
+        // الوسيط غير موجود أو رفض — نكمل للسبب الأصلي
+      }
+    }
+
+    // لا بيانات من أي مسار: نقول السبب ولا نصنع قطعة من رابط وحده
+    return fallback
+  }
+
   const db = supabase
   if (!db) {
-    return { extracted: false, sourceLink: link, reason: 'الخادم غير مهيّأ.' }
+    return rescue({ extracted: false, sourceLink: link, storeId, reason: 'الخادم غير مهيّأ.' })
   }
 
   try {
@@ -298,34 +356,36 @@ export async function importFromUrl(url: string): Promise<ImportedProduct> {
 
     if (error) {
       /*
-        فشل النداء نفسه — **نعامله حجبًا**.
-
-        المتاجر اللي تُسقط الاتصال تخلي الدالة تنتظر حتى تردّ البوابة 502 قبل ما
-        يوصلنا ردّها. والنتيجة واحدة من ناحية المستخدمة: ما قدرنا نقرأ الصفحة،
-        والمخرج إدخال يدوي لا إعادة محاولة. فما نفرّق بينهما في الواجهة.
+        فشل النداء نفسه. المتاجر التي تُسقط الاتصال تخلي الدالة تنتظر حتى تردّ
+        البوابة 502 قبل ما يوصلنا ردّها — وهذي أكثر حالات المتجر المحمي شيوعًا،
+        فلا بد أن تمرّ على المتصفّح قبل أن نستسلم.
       */
       const body = await error.context?.json?.().catch(() => undefined)
       const message = typeof body?.message === 'string' ? body.message : undefined
-      return {
+      return rescue({
         extracted: false,
         blocked: true,
         sourceLink: link,
-        storeId: storeIdFromUrl(link),
+        storeId,
         reason: message ?? 'ما قدرنا نقرأ صفحة المنتج.',
-      }
+      })
     }
 
     const raw = data as RawProduct
     // الخادم ما تعرّف على المتجر؟ الرابط وحده يكفي لمعرفته
-    const product = await productFromRaw({ ...raw, storeId: raw.storeId ?? storeIdFromUrl(link) })
-    return raw.blocked ? { ...product, blocked: true, reason: raw.reason } : product
+    const product = await productFromRaw({ ...raw, storeId: raw.storeId ?? storeId })
+    if (product.extracted) return product
+
+    return rescue(
+      raw.blocked ? { ...product, blocked: true, storeId, reason: raw.reason } : product,
+    )
   } catch {
-    return {
+    return rescue({
       extracted: false,
       blocked: true,
       sourceLink: link,
-      storeId: storeIdFromUrl(link),
+      storeId,
       reason: 'ما قدرنا نقرأ صفحة المنتج.',
-    }
+    })
   }
 }

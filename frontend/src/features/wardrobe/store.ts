@@ -21,6 +21,7 @@ import { stamp, uid, uuid } from '@/shared/lib'
 import { toast } from '@/shared/components/ui'
 import * as remote from '@/infrastructure/wardrobe/repository'
 import { useItemPhotos } from './photos'
+import { canonicalLink } from '@/features/try-pieces/sources'
 import type { Wardrobe, WardrobeItem } from '@/domain/wardrobe'
 
 /** المعرّف من القاعدة `uuid`، ومن غيرها بادئة مقروءة تكفي التطوير المحلي. */
@@ -274,5 +275,16 @@ export const wardrobeById = (id?: string | null): Wardrobe | undefined =>
  * المقارنة على الرابط وحده لا على الاسم: المتجر يغيّر اسم المنتج، ومنتجات
  * مختلفة تتشابه أسماؤها.
  */
-export const itemBySourceLink = (link?: string): WardrobeItem | undefined =>
-  link ? useWardrobe.getState().items.find((item) => item.sourceLink === link) : undefined
+/**
+ * القطعة التي جاءت من هذا الرابط — بالمطابقة على صورته المُطبَّعة.
+ *
+ * ذيل الرابط يتغيّر بين زيارة وأخرى (مرجع حملة، معرّف جلسة)، فالمقارنة الخام
+ * تعتبر نفس المنتج جديدًا وتكرّره في الرفّ. `canonicalLink` تسقط ما لا يميّز.
+ */
+export const itemBySourceLink = (link?: string): WardrobeItem | undefined => {
+  const wanted = canonicalLink(link)
+  if (!wanted) return undefined
+  return useWardrobe
+    .getState()
+    .items.find((item) => canonicalLink(item.sourceLink) === wanted)
+}

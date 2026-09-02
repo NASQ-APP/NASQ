@@ -66,6 +66,8 @@ const DOMAINS: Record<string, string> = {
   'ounass.com': 'ounass',
   'nisnass.com': 'nisnass',
   'trendyol.com': 'trendyol',
+  // نطاق ترينديول السعودي — يخدم المستخدمة هنا، ونسبته للمتجر نفسه
+  'trendyol.sa': 'trendyol',
   'mango.com': 'mango',
   'centrepointstores.com': 'centrepoint',
   'amazon.sa': 'amazon',
@@ -83,6 +85,33 @@ const DOMAINS: Record<string, string> = {
   'maxfashion.com': 'max',
   '6thstreet.com': '6th',
   'styli.com': 'styli',
+}
+
+/**
+ * الرابط في صورته المُطابِقة — به نعرف أن قطعتين هما قطعة واحدة.
+ *
+ * المتاجر تعلّق على الرابط ذيلًا يتغيّر مع كل زيارة: مرجع الحملة، معرّف
+ * الجلسة، المرساة. فمقارنة النصّ الخام تجعل نفس المنتج «جديدًا» كل مرة —
+ * وهذا بالضبط ما يخلّي القطعة تتكرّر في الرفّ عند إعادة المحاولة.
+ *
+ * نسقط المرساة ومعاملات التتبّع المعروفة فقط. المعاملات الأخرى قد تحدّد
+ * المنتج نفسه (اللون أو المقاس عند بعض المتاجر)، فإسقاطها يدمج قطعتين
+ * مختلفتين — والخطأ هنا أسوأ من التكرار.
+ */
+const TRACKING = /^(utm_|gclid|fbclid|ref|source|spm|aff|scm|pvid|algo|sk|_t)/i
+
+export function canonicalLink(link?: string): string | undefined {
+  if (!link) return undefined
+  try {
+    const url = new URL(link)
+    url.hash = ''
+    for (const key of [...url.searchParams.keys()]) {
+      if (TRACKING.test(key)) url.searchParams.delete(key)
+    }
+    return url.toString().replace(/\/$/, '')
+  } catch {
+    return undefined
+  }
 }
 
 export function storeIdFromUrl(link: string): string | undefined {

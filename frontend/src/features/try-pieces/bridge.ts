@@ -18,6 +18,7 @@ import { toast } from '@/shared/components/ui'
 import { ITEM_COLORS, categoryById, shapesForSlot } from '@/domain/wardrobe'
 import { productFromRaw, type ImportedProduct, type RawProduct } from './import'
 import { sourceById } from './sources'
+import { adoptStorePhoto } from './adoptPhoto'
 
 const EXTENSION = 'nasaq-extension'
 const APP = 'nasaq-app'
@@ -170,7 +171,7 @@ export function useStoreBridge() {
         const categoryId = product.categoryId
         const slot = categoryById(categoryId)?.slot ?? 'top'
 
-        addItem({
+        const added = addItem({
           name: product.name ?? `قطعة من ${store?.name ?? 'متجر خارجي'}`,
           categoryId,
           shape: product.shape ?? shapesForSlot(slot)[0].id,
@@ -186,6 +187,9 @@ export function useStoreBridge() {
           storeId: product.storeId,
           sourceLink: product.sourceLink,
         })
+
+        /* صورة المتجر تصير صورتنا — بدونها ما تقدر القطعة تُلبَس */
+        void adoptStorePhoto(added.id, product.imageUrl)
 
         toast.ok(`أضفنا ${product.name} لقطع التجربة`)
         ack()

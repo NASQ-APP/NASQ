@@ -42,6 +42,26 @@ window.addEventListener('message', (event) => {
   if (data.type === 'ack' && Array.isArray(data.ids) && data.ids.length > 0) {
     void chrome.runtime.sendMessage({ type: 'nasaq:ack', ids: data.ids })
   }
+
+  /*
+    التطبيق يسأل عن رابط لصقته المستخدمة والخادم عجز عن قراءته.
+    نجيب بما قرأته الإضافة من صفحة فتحتها هي — ولا نفتح صفحة ولا نطلب شيئًا.
+  */
+  if (data.type === 'lookup' && typeof data.url === 'string') {
+    void (async () => {
+      let product = null
+      try {
+        const reply = await chrome.runtime.sendMessage({ type: 'nasaq:lookup', url: data.url })
+        product = reply?.product ?? null
+      } catch {
+        // الخلفية نائمة أو الإضافة أُعيد تحميلها — نجيب بلا نتيجة
+      }
+      window.postMessage(
+        { source: SOURCE, type: 'lookup-result', ticket: data.ticket, data: product },
+        location.origin,
+      )
+    })()
+  }
 })
 
 // إعلان للتطبيق إن الإضافة موجودة، وتسليم دوري لو أُضيفت قطعة والتبويب مفتوح

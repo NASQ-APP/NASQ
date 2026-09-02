@@ -65,6 +65,7 @@ export function StudioPage() {
   const { openAdd, openStylist } = useAppShell()
 
   const items = useWardrobe((state) => state.items)
+  const wardrobeStatus = useWardrobe((state) => state.status)
   const models = useAiModels()
   const looks = useLooks()
   const studio = useStudio()
@@ -130,6 +131,20 @@ export function StudioPage() {
       cancelled = true
     }
   }, [])
+
+  /*
+    ننقّي الاختيار من معرّفات لا يقابلها شيء.
+
+    الاختيار محفوظ ويعيش أطول من القطع: تُحذف قطعة فيبقى معرّفها مختارًا،
+    فيقول الزر «اختاري قطعة» وأنتِ اخترتِ — والسبب غير مرئي تمامًا.
+
+    بعد جاهزية الخزانة فقط: قبلها القائمة فاضية، والتنقية عليها تمسح اختيارًا
+    سليمًا.
+  */
+  useEffect(() => {
+    if (wardrobeStatus !== 'ready') return
+    studio.keepOnly(items.map((item) => item.id))
+  }, [wardrobeStatus, items, studio])
 
   const owned = useMemo(() => ownedItems(items), [items])
 
@@ -359,7 +374,7 @@ export function StudioPage() {
   const pick = (item: WardrobeItem) => studio.toggle(item.id)
 
   const dropItem = (itemId: string) => {
-    const item = owned.find((candidate) => candidate.id === itemId)
+    const item = items.find((candidate) => candidate.id === itemId)
     if (item && !studio.has(item.id)) pick(item)
   }
 

@@ -335,8 +335,25 @@ async function send(button) {
 /* المتاجر تطبيقات صفحة واحدة: الرابط يتغيّر بلا إعادة تحميل، فنراجع دوريًا. */
 let lastUrl = ''
 
+/**
+ * نحفظ ما قرأناه من هذي الصفحة — **بلا أن نضيف شيئًا**.
+ *
+ * الإضافة تضيف بالزر وحده. وهذا حفظٌ صامت يخدم حالة واحدة: تلصق المستخدمة
+ * رابط هذي الصفحة في نَسّق، فيعجز الخادم عن قراءتها (المتجر يحجبه)، فيسأل
+ * التطبيق الإضافة — ونعطيه ما قرأناه من الصفحة التي كانت مفتوحة أمامها.
+ */
+function cache(product) {
+  try {
+    void chrome.runtime.sendMessage({ type: 'nasaq:cache', product })
+  } catch {
+    // الإضافة أُعيد تحميلها — الحفظ مساعدة، وغيابه لا يكسر شيئًا
+  }
+}
+
 function refresh() {
-  const onProductPage = Boolean(readProduct())
+  const product = readProduct()
+  const onProductPage = Boolean(product)
+  if (product) cache(product)
   if (onProductPage) mountButton()
   else unmountButton()
   lastUrl = location.href
