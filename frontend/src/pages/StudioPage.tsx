@@ -38,7 +38,7 @@ import { useWardrobe } from '@/features/wardrobe/store'
 import { useAiModels } from '@/features/ai-model/store'
 import { useLooks } from '@/features/looks/store'
 import { useAppShell } from '@/app/layout'
-import { sheetPanels, studioLayout, type OutfitSlotId } from '@/domain/studio'
+import { resolveSelection, sheetPanels, studioLayout, type OutfitSlotId } from '@/domain/studio'
 import { OCCASIONS, ownedItems } from '@/domain/wardrobe'
 import {
   Button,
@@ -132,12 +132,21 @@ export function StudioPage() {
   }, [])
 
   const owned = useMemo(() => ownedItems(items), [items])
+
+  /**
+   * الاختيار يُحلّ من **كل** القطع لا من الخزانة وحدها.
+   *
+   * كان يُبحث في `owned` (وهي `source === 'wardrobe'` فقط)، فقطعة التجربة
+   * تدخل الاختيار ولا تُوجد أبدًا — تختفي من «إطلالتك الحالية» ولا تُرسل مع
+   * الطلب. تضغط المستخدمة «نسّقي هذي القطعة» على قطعة مستوردة فتصل الاستوديو
+   * ولا شيء فيها، بلا خطأ ولا تفسير.
+   *
+   * ولوحة الخزانة تبقى على الخزانة وحدها: هي للتصفّح، وقطع التجربة لها
+   * صفحتها. الفرق أن ما **اختير** يُعرض أيًّا كان مصدره.
+   */
   const selected = useMemo(
-    () =>
-      studio.selection
-        .map((id) => owned.find((item) => item.id === id))
-        .filter((item): item is WardrobeItem => Boolean(item)),
-    [studio.selection, owned],
+    () => resolveSelection(studio.selection, items),
+    [studio.selection, items],
   )
 
   /**

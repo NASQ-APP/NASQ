@@ -18,3 +18,4 @@ export {
 export type { PanelPlacement, PanelState, StudioLayout } from './layout'
 export { OUTFIT_SLOTS, filledSlots, toSlots } from './outfit'
 export type { FilledSlot, OutfitSlotDefinition, OutfitSlotId } from './outfit'
+export { resolveSelection } from './selection'

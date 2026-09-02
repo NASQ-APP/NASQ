@@ -18,7 +18,6 @@
 import { useRef, useState } from 'react'
 import {
   Bookmark,
-  Loader2,
   Minus,
   Plus,
   RefreshCw,
@@ -33,6 +32,7 @@ import { DRAG_MIME } from './ClothingCard'
 import { useStageBackdrop } from '../stageBackdrop'
 import { useVoice } from '@/features/onboarding/voice'
 import { Button } from '@/shared/components/ui'
+import { AIProcessingState } from '@/shared/components/render'
 import { AI_DISCLAIMER, STAGE_LABELS } from '@/domain/tryon'
 import { cn } from '@/shared/lib'
 import type { TryOnStage } from '@/domain/tryon'
@@ -206,7 +206,6 @@ export function ModelWorkspace({
 
   const say = useVoice()
 
-  const canGenerate = hasModel && itemCount > 0 && !busy
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -258,7 +257,7 @@ export function ModelWorkspace({
         )}
       >
         {/* طبقة المشهد — تتكبّر كصورة واحدة، والحاوية تبقى برّاها فما تتمدّد حدودها */}
-        {!busy && (hasModel || generatedLook) && (
+        {(hasModel || generatedLook) && (
           <div
             className={cn(
               'absolute inset-0',
@@ -307,7 +306,7 @@ export function ModelWorkspace({
           </p>
         )}
 
-        {busy && <GenerationStages stage={stage} />}
+        {busy && <AIProcessingState stage={stage} stages={STAGE_LABELS} />}
 
         {!busy && !hasModel && !generatedLook && (
           <div className="flex max-w-[320px] flex-col items-center gap-4 text-center">
@@ -367,7 +366,13 @@ export function ModelWorkspace({
                 متاحًا — قرارها، بس ما يكون هو المقترح.
               */}
               {stale ? (
-                <Button size="sm" onClick={onGenerate} disabled={itemCount === 0}>
+                <Button
+                  size="sm"
+                  onClick={onGenerate}
+                  disabled={itemCount === 0}
+                  pending={busy}
+                  pendingLabel="نجهّز إطلالتك…"
+                >
                   <Sparkles size={13} strokeWidth={1.5} aria-hidden />
                   حدّثي الإطلالة
                 </Button>
@@ -406,7 +411,13 @@ export function ModelWorkspace({
           </>
         ) : (
           <>
-            <Button block onClick={onGenerate} disabled={!canGenerate}>
+            <Button
+              block
+              onClick={onGenerate}
+              disabled={!hasModel || itemCount === 0}
+              pending={busy}
+              pendingLabel="نجهّز إطلالتك…"
+            >
               <Sparkles size={14} strokeWidth={1.5} aria-hidden />
               {say('جرّبي الإطلالة', 'جرّب الإطلالة')}
             </Button>
@@ -424,37 +435,3 @@ export function ModelWorkspace({
   )
 }
 
-/** مراحل معلنة — بلا نسبة مئوية مخترعة. */
-function GenerationStages({ stage }: { stage?: TryOnStage }) {
-  const index = STAGE_LABELS.findIndex((entry) => entry.id === stage)
-  const reached = index < 0 ? 0 : index
-
-  return (
-    <div className="flex w-full max-w-[280px] flex-col items-center gap-5">
-      <span className="grid h-11 w-11 place-items-center rounded-full border border-line bg-canvas">
-        <Loader2 size={17} strokeWidth={1.5} aria-hidden className="animate-spin text-muted" />
-      </span>
-
-      <ul className="w-full">
-        {STAGE_LABELS.map((entry, position) => (
-          <li
-            key={entry.id}
-            className={cn(
-              'py-1 text-center text-[12px] transition-colors',
-              position <= reached ? 'text-ink' : 'text-faint',
-            )}
-          >
-            {entry.label}
-          </li>
-        ))}
-      </ul>
-
-      <span className="h-px w-full overflow-hidden bg-line">
-        <span
-          className="block h-full bg-ink transition-all duration-500"
-          style={{ width: `${((reached + 1) / STAGE_LABELS.length) * 100}%` }}
-        />
-      </span>
-    </div>
-  )
-}

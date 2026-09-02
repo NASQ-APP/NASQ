@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ChevronLeft, Heart, MoveRight, Trash2, Wand2 } from 'lucide-react'
+import { ChevronLeft, ExternalLink, Heart, MoveRight, Trash2, Wand2 } from 'lucide-react'
 import {
   Button,
+  ButtonAnchor,
   ButtonLink,
   ConfirmDialog,
   Field,
@@ -135,7 +136,14 @@ export function ItemPage() {
             <Button
               size="lg"
               onClick={() => {
-                studio.add(item.id)
+                /*
+                  تبدأ إطلالة جديدة بهذي القطعة وحدها.
+
+                  كانت تُضاف لما هو مختار، فتصل الاستوديو فوق اختيار قديم:
+                  فستان فوق تيشيرت وبنطلون. و«نسّقي هذي القطعة» وعدٌ بقطعة
+                  واحدة، لا بإضافتها لطبقة سابقة.
+                */
+                studio.replaceAll([item.id])
                 navigate('/studio')
               }}
             >
@@ -153,6 +161,25 @@ export function ItemPage() {
               <MoveRight size={15} strokeWidth={1.5} />
               {isTry ? 'نقل لخزانتي' : 'نقل'}
             </Button>
+            {/*
+              رابط القطعة الأصلي — `<a>` حقيقي لا `window.open`.
+
+              وقبله ما كان فيه طريق للرجوع للمتجر: القطعة تُستورد ويبقى رابطها
+              مخزّنًا بلا أن يُعرض، فمن أرادت تشتريها فعلاً تبحث عنها من جديد.
+              ويُعرض إن وُجد الرابط وحده — زرّ لا يذهب لشيء أسوأ من غيابه.
+            */}
+            {item.sourceLink && (
+              <ButtonAnchor
+                size="lg"
+                variant="secondary"
+                href={item.sourceLink}
+                target="_blank"
+                rel="noreferrer noopener"
+              >
+                <ExternalLink size={15} strokeWidth={1.5} />
+                {store ? `افتحي في ${store.name}` : 'افتحي رابط القطعة'}
+              </ButtonAnchor>
+            )}
             <Button
               size="lg"
               variant="secondary"

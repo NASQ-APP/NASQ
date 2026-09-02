@@ -21,6 +21,15 @@ import { storageKey } from '@/infrastructure/storage'
 /** «كل ملابسي» — تنسيق من كل الخزائن مو من وحدة (متطلب ٧). */
 export const ALL_WARDROBES = 'all'
 
+/**
+ * رفّ التجربة داخل الاستوديو — **نفس معرّف النطاق**، لا اسم ثانٍ له.
+ *
+ * الاستوديو يعرضه في قائمة الخزائن، وصفحة الخزائن تعرضه بطاقة، والاثنان
+ * يقصدان الشيء نفسه. معرّفان لمفهوم واحد يتفارقان عند أول تعديل، فيصير
+ * الاختيار في مكان لا يُقرأ في الآخر.
+ */
+export { TRY_SHELF_ID as TRY_PIECES } from '@/domain/wardrobe'
+
 export type PreviewStatus = 'empty' | 'ready' | 'generating' | 'generated' | 'stale'
 
 type StudioState = {

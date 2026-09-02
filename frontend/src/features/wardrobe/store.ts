@@ -101,9 +101,18 @@ export const useWardrobe = create<WardrobeState>()(
           try {
             const snapshot = await remote.fetchWardrobe()
             set({ ...snapshot, status: 'ready' })
-            void useItemPhotos.getState().hydrate()
           } catch {
             set({ status: 'error' })
+          } finally {
+            /*
+              الصور تُطلَب في الحالتين — نجح الجلب أو فشل.
+
+              القطع محفوظة محليًا وتُعرض حتى لو فشلت المزامنة، وطلب الصور كان
+              داخل مسار النجاح وحده. فمع فشل الجلب يبقى مخزن الصور على «ما
+              وصلتنا بعد» أبدًا، وتظهر القطع هياكل رمادية للأبد بدل أن ترجع
+              لكتلها اللونية.
+            */
+            void useItemPhotos.getState().hydrate()
           }
         },
 
