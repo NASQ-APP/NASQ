@@ -24,6 +24,8 @@ export type TurnIntent = {
   requestedShapes: string[]
   /** مواضع رفضتها — «بدون فستان» */
   excludedSlots: BodySlot[]
+  /** أشكال رفضتها — «بدون كعب» تمنع الكعب وحده لا كل حذاء */
+  excludedShapes: string[]
   /** ألوان رفضتها — «لا أبي أسود» */
   excludedColors: string[]
   /**
@@ -89,6 +91,7 @@ export const EMPTY_TURN_INTENT: TurnIntent = {
   requestedSlots: [],
   requestedShapes: [],
   excludedSlots: [],
+  excludedShapes: [],
   excludedColors: [],
   requestedColors: [],
   anchorAction: 'keep',

@@ -114,8 +114,12 @@ const CATEGORY_SLOT: Record<string, { slot: BodySlot; shape?: string }> = {
   blazer: { slot: 'outer' },
   coat: { slot: 'outer' },
   shoes: { slot: 'shoes' },
-  heels: { slot: 'shoes' },
-  sneakers: { slot: 'shoes' },
+  /* أشكال الحذاء تُذكر بأسمائها: «بدون كعب» تمنع الكعب لا كل حذاء */
+  heels: { slot: 'shoes', shape: 'heels' },
+  sneakers: { slot: 'shoes', shape: 'sneakers' },
+  flats: { slot: 'shoes', shape: 'flats' },
+  boots: { slot: 'shoes', shape: 'boots' },
+  sandals: { slot: 'shoes', shape: 'sandals' },
   bag: { slot: 'bag' },
   accessory: { slot: 'accessory' },
 }
@@ -163,6 +167,24 @@ const OCCASIONS: Record<string, TurnIntent['occasion']> = {
  * الفئة المجهولة **تُهمَل ولا تُخمَّن**: «kimono» لا نعرف موضعها، وإسقاطها على
  * `top` يبني إطلالة على افتراض لم يقله أحد.
  */
+/**
+ * هل يحمل الدور ما يكفي للتنفيذ؟
+ *
+ * أي إشارة صريحة تغيّر النتيجة: طلب بديل، أو لون، أو فئة، أو مناسبة، أو درجة
+ * رسمية. وجودُ واحدة منها يعني أن السؤال عن المقصود صار سؤالًا عمّا نعرفه.
+ */
+function actionable(semantic: SemanticIntent): boolean {
+  return (
+    semantic.variation !== 'none' ||
+    semantic.requestedCategories.length > 0 ||
+    semantic.excludedCategories.length > 0 ||
+    semantic.requestedColors.length > 0 ||
+    semantic.excludedColors.length > 0 ||
+    Boolean(semantic.occasion) ||
+    Boolean(semantic.formality)
+  )
+}
+
 export function toTurnIntent(semantic: SemanticIntent): TurnIntent {
   const requestedSlots: BodySlot[] = []
   const requestedShapes: string[] = []
@@ -191,12 +213,24 @@ export function toTurnIntent(semantic: SemanticIntent): TurnIntent {
     }
   }
 
+  /*
+    الكلمة المستبعَدة: شكلٌ أم موضع؟
+
+    «بدون كعب» تسمّي شكلًا داخل موضع، فاستبعاد الموضع كلّه يخفي المسطّح
+    والسنيكر معه. و«بدون فستان» تسمّي الموضع نفسه، فيُستبعد كاملاً. والفرق
+    مقروء من الخريطة: ما له `shape` شكلٌ، وما ليس له موضع.
+  */
   const excludedSlots: BodySlot[] = []
+  const excludedShapes: string[] = []
   for (const name of semantic.excludedCategories) {
     const mapped = slotOfCategory(name)
-    if (mapped && !excludedSlots.includes(mapped.slot)) excludedSlots.push(mapped.slot)
+    if (!mapped) continue
+    if (mapped.shape) {
+      if (!excludedShapes.includes(mapped.shape)) excludedShapes.push(mapped.shape)
+    } else if (!excludedSlots.includes(mapped.slot)) {
+      excludedSlots.push(mapped.slot)
+    }
   }
-
   const anchorMapped = semantic.requestedAnchorCategory
     ? slotOfCategory(semantic.requestedAnchorCategory)
     : undefined
@@ -217,6 +251,7 @@ export function toTurnIntent(semantic: SemanticIntent): TurnIntent {
     requestedSlots,
     requestedShapes,
     excludedSlots,
+    excludedShapes,
     excludedColors: semantic.excludedColors,
     requestedColors: semantic.requestedColors,
     /*
@@ -235,8 +270,19 @@ export function toTurnIntent(semantic: SemanticIntent): TurnIntent {
     occasion,
     wantsFind: semantic.task === 'find_items',
     outOfScope: semantic.task === 'out_of_scope',
+    /*
+      الاستيضاح **حين لا نملك ما ننفّذه**، لا كلما سأل النموذج.
+
+      كان يكفي `needsClarification` لإيقاف الدور، فتقول «أبي اقتراح ثاني
+      مختلف» ويصلنا معها `variation: 'alternative'` — أي أن المطلوب مفهوم
+      تمامًا — ومع ذلك نردّ بسؤال بدل الإطلالة. والمستخدمة كرّرت طلبها فرأت
+      سؤالًا كل مرة، لا اقتراحًا.
+
+      فالسؤال يبقى للغموض الحقيقي: حين ما يحمل الدور بديلًا مطلوبًا، ولا لونًا،
+      ولا فئة، ولا مناسبة، ولا رسمية. وعندها فقط السؤال أصدق من التخمين.
+    */
     clarification:
-      semantic.needsClarification && semantic.clarificationQuestion
+      semantic.needsClarification && semantic.clarificationQuestion && !actionable(semantic)
         ? semantic.clarificationQuestion
         : undefined,
     /*

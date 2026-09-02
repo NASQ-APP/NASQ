@@ -19,6 +19,7 @@ import {
 import {
   applyIntent,
   rememberRecommendation,
+  rememberRecommendations,
   signatureOf,
   violatesSession,
   type StylistSession,
@@ -155,9 +156,26 @@ export async function respond(input: {
   */
   if (!input.intentProvider) return understandingFailed(input.session, previousAnchor)
 
+  /*
+    السياق يشمل **ما هو معروض الآن**.
+
+    بدونه يقرأ النموذج «بدون كعب» جملةً معلّقة في الهواء: لا يعرف أن هناك
+    إطلالة على الشاشة، فيصنّفها هدفًا جديدًا أو يسأل عمّا تقصد. وذكرُ آخر
+    توصية يجعل التعديل تعديلاً، لا بداية من الصفر.
+  */
+  const lastShown = input.session.previousItemIds
+    .map((id) => input.wardrobe.find((item) => item.id === id)?.name)
+    .filter((name): name is string => Boolean(name))
+    .join('، ')
+
   const semantic = await input.intentProvider.extract({
     message: input.message,
-    context: semanticContextOf(input.session, previousAnchor?.name),
+    context: semanticContextOf(
+      input.session,
+      previousAnchor?.name,
+      previousAnchor ? SHAPE_NAME[previousAnchor.shape] : undefined,
+      lastShown || undefined,
+    ),
   })
   if (!semantic) return understandingFailed(input.session, previousAnchor)
 
@@ -481,7 +499,15 @@ export async function respond(input: {
         occasion: session.occasion ?? undefined,
       }),
       3,
-      intent.variation === 'none' ? [] : session.recentSignatures,
+      /*
+        الذاكرة تعمل في **كل** دور، لا حين تطلب البديل صراحةً.
+
+        كان تفريغها عند `variation: 'none'` يعيد أعلى الإطلالات ترتيبًا كما
+        هي: تسأل «شي كاجوال» بعد إطلالات الدوام فتصلها نفس الأطقم. والمحرّك
+        يتراجع وحده إن لم يبقَ بديل (`fresh.length > 0 ? fresh : all`)، فلا
+        خطر تجويع على خزانة صغيرة — والرسالة تقول إنه أقرب المختلف.
+      */
+      session.recentSignatures,
     ).filter((outfit) => outfit.itemIds.some((id) => candidates.some((item) => item.id === id)))
 
     if (outfits.length > 0) {
@@ -489,7 +515,7 @@ export async function respond(input: {
       const repeated = session.recentSignatures.includes(signatureOf(best.itemIds))
 
       return {
-        session: rememberRecommendation(session, best.itemIds),
+        session: rememberRecommendations(session, outfits.map((outfit) => outfit.itemIds)),
         answer: {
           message: repeated
             ? 'هذا أقرب خيار مختلف عندك حاليًا.'
@@ -560,14 +586,14 @@ export async function respond(input: {
   const outfits = buildOutfits(
     context,
     3,
-    intent.variation === 'none' ? [] : session.recentSignatures,
+    session.recentSignatures,
   )
   if (outfits.length > 0) {
     const best = outfits[0]
     const repeated = session.recentSignatures.includes(signatureOf(best.itemIds))
 
     return {
-      session: rememberRecommendation(session, best.itemIds),
+      session: rememberRecommendations(session, outfits.map((outfit) => outfit.itemIds)),
       answer: {
         message: repeated
           ? 'هذا أقرب خيار مختلف عندك حاليًا.'

@@ -219,7 +219,9 @@ export function StylistDrawer({ open, onClose }: { open: boolean; onClose: () =>
                 )}
 
                 {turn.answer.looks.map((look) => (
-                  <article key={look.title} className="overflow-hidden rounded-md border border-line">
+                  /* المفتاح من القطع لا من العنوان: النبرات ثلاث، فرابعة تكرّر
+                     «الأقرب لذوقك» فتعيد React استعمال البطاقة بصورها القديمة. */
+                  <article key={look.itemIds.join('+')} className="overflow-hidden rounded-md border border-line">
                     <div className="flex gap-3 p-3">
                       {look.itemIds.map((id) => {
                         const item = itemById(id)

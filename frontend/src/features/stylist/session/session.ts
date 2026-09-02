@@ -35,6 +35,14 @@ export type StylistSession = {
   requestedShapes: string[]
   /** ما رفضته — يبقى مرفوضًا لبقيّة الجلسة */
   excludedSlots: BodySlot[]
+  /**
+   * أشكال رفضتها — «بدون كعب» ترفض الكعب لا كل الأحذية.
+   *
+   * الموضع أخشن من أن يحمل هذا: استبعاد `shoes` يخفي المسطّح والسنيكر معه،
+   * فتخرج المستخدمة بإطلالة حافية ردًّا على «بدون كعب». والشكل هو الوحدة
+   * التي قالتها فعلاً.
+   */
+  excludedShapes: string[]
   excludedColors: string[]
   excludedItemIds: string[]
   occasion: StylistOccasion | null
@@ -61,8 +69,21 @@ export type StylistSession = {
 /** بصمة توصية — معرّفات مرتّبة، فترتيب العرض لا يجعل الطقم طقمين. */
 export const signatureOf = (itemIds: readonly string[]): string => itemIds.toSorted().join(',')
 
-/** كم توصية نتذكّر قبل أن نسمح بتكرارها. */
-const MEMORY = 4
+/**
+ * كم إطلالة نتذكّر قبل أن نسمح بتكرارها.
+ *
+ * **تُقاس بالإطلالات لا بالأدوار.** الدور الواحد يعرض ثلاثًا، فذاكرةٌ بأربع
+ * تنسى دورًا سابقًا بمجرّد أن يمرّ دور — وترجع إطلالاته كأنها جديدة.
+ *
+ * وتسعةٌ — أي ثلاثة أدوار — كانت قصيرة بالقدر نفسه: في الدور الخامس تسقط
+ * إطلالات الأول من الذاكرة فتُعرض ثانيةً، والمستخدمة لم تنسَها. المدى الصحيح
+ * هو **المحادثة كلها**: ستون إطلالة تغطي عشرين دورًا، وما بعدها حديثٌ آخر.
+ *
+ * والحدّ ليس هو ما يسمح بالتكرار عند نفاد الخزانة — ذاك يتكفّل به تراجع
+ * المحرّك (`fresh.length > 0 ? fresh : all`)، ومعه رسالة تقول إن الخيار أقرب
+ * المتاح لا جديدٌ.
+ */
+export const MEMORY = 60
 
 export const EMPTY_SESSION: StylistSession = {
   anchorItemId: null,
@@ -72,6 +93,7 @@ export const EMPTY_SESSION: StylistSession = {
   requestedSlots: [],
   requestedShapes: [],
   excludedSlots: [],
+  excludedShapes: [],
   excludedColors: [],
   excludedItemIds: [],
   occasion: null,
@@ -111,6 +133,7 @@ export function applyIntent(
     ...session,
     ...structural,
     excludedSlots: merge(session.excludedSlots, intent.excludedSlots),
+    excludedShapes: merge(session.excludedShapes, intent.excludedShapes),
     excludedColors: merge(session.excludedColors, intent.excludedColors),
     occasion: intent.occasion ?? session.occasion,
     unknownClosetName: undefined,
@@ -215,6 +238,34 @@ export function rememberRecommendation(
   }
 }
 
+/**
+ * يسجّل **كل ما عُرض في الدور**، لا الإطلالة الأولى وحدها.
+ *
+ * العطل الذي تعالجه: الواجهة تعرض ثلاث إطلالات، وكانت الذاكرة تحفظ الأولى
+ * فقط. فالدور التالي يستبعد واحدة ويعيد الثنتين الأخريين — والمستخدمة ترى
+ * نفس القطع ونفس الصور وتظن أن المساعد لم يفهمها.
+ *
+ * والأولى تبقى `previousItemIds` لأنها التوصية الأساس التي يُبنى عليها
+ * «نفسها بس…»، أما البصمات فتشمل الجميع.
+ */
+export function rememberRecommendations(
+  session: StylistSession,
+  looks: readonly (readonly string[])[],
+): StylistSession {
+  const shown = looks.filter((ids) => ids.length > 0)
+  if (shown.length === 0) return session
+
+  const fresh = shown.map((ids) => signatureOf([...ids]))
+  return {
+    ...session,
+    previousItemIds: [...shown[0]],
+    recentSignatures: [
+      ...fresh,
+      ...session.recentSignatures.filter((old) => !fresh.includes(old)),
+    ].slice(0, MEMORY),
+  }
+}
+
 /** يختار مرساة من الخزانة تطابق ما طُلب — ولا يخترع. */
 export function pickAnchor(
   wardrobe: WardrobeItem[],
@@ -247,5 +298,6 @@ export function pickAnchor(
 export function violatesSession(item: WardrobeItem, session: StylistSession): boolean {
   if (session.excludedItemIds.includes(item.id)) return true
   if (session.excludedColors.includes(item.colorName)) return true
+  if (session.excludedShapes.includes(item.shape)) return true
   return session.excludedSlots.includes(slotOf(item))
 }

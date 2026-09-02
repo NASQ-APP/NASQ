@@ -53,6 +53,18 @@ function rankedFor(pool: WardrobeItem[], anchor: WardrobeItem | undefined): Ward
 export function generateCandidates(
   context: StylistContext,
   depth = 3,
+  /**
+   * قطعٌ عُرضت عليها من قبل — تتأخّر في الترتيب ولا تُحذف.
+   *
+   * `depth` يقصّ كل موضع إلى أفضل ثلاث قطع، والترتيب ثابت — فكان كون
+   * المرشّحات كله تسع إطلالات مهما اتّسعت الخزانة، وقطعةٌ ترتيبها الرابع لا
+   * تدخل الترشيح ولو سألت عشرين مرة. وكانت الذاكرة تصفّي **مخرجات** هذي
+   * المجموعة المبتورة، فتنفد بعد ثلاثة أدوار وتبدأ الإعادة وفي الخزانة بدائل.
+   *
+   * التأخير هنا يفتح الطبقة التالية من الخزانة بلا عشوائية: الترتيب داخل كل
+   * مجموعة يبقى للذوق واللون، وما تغيّر هو **من يدخل النافذة**.
+   */
+  shown: ReadonlySet<string> = new Set(),
 ): OutfitCandidate[] {
   const pool = applyConstraints(
     context.wardrobe,
@@ -65,8 +77,12 @@ export function generateCandidates(
 
   const options = (slot: BodySlot): (WardrobeItem | undefined)[] => {
     if (anchorSlot === slot) return [anchor]
-    const ranked = rankedFor(bySlot(pool, slot), anchor).slice(0, depth)
-    return ranked.length > 0 ? ranked : [undefined]
+    const ranked = rankedFor(bySlot(pool, slot), anchor)
+    const ordered = [
+      ...ranked.filter((item) => !shown.has(item.id)),
+      ...ranked.filter((item) => shown.has(item.id)),
+    ].slice(0, depth)
+    return ordered.length > 0 ? ordered : [undefined]
   }
 
   const candidates: OutfitCandidate[] = []

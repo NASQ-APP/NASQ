@@ -10,7 +10,7 @@
  */
 import { describe, expect, it, vi } from 'vitest'
 import { respond } from './respond'
-import { EMPTY_SESSION, signatureOf, type StylistSession } from './session/session'
+import { EMPTY_SESSION, signatureOf, type StylistSession, MEMORY } from './session/session'
 import type { SemanticIntent, StylistIntentProvider } from './intent/provider'
 import { EMPTY_DECLARED, EMPTY_STYLE_PROFILE } from '@/domain/style/types'
 import type { WardrobeItem } from '@/domain/wardrobe'
@@ -239,7 +239,7 @@ describe('ذاكرة التوصيات', () => {
     }
 
     // محدودة عمدًا: خزانة صغيرة لا تحتمل استبعادًا أبديًّا
-    expect(session.recentSignatures.length).toBeLessThanOrEqual(4)
+    expect(session.recentSignatures.length).toBeLessThanOrEqual(MEMORY)
     expect(new Set(session.recentSignatures).size).toBe(session.recentSignatures.length)
   })
 })

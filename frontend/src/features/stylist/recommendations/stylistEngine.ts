@@ -109,18 +109,48 @@ function assignTones(candidates: OutfitCandidate[]): StylistOutfit[] {
  * أقرب ما عندها. فنستبعد ما دام يبقى شيء، ونتراجع حين لا يبقى — والصدق في
  * الرسالة لا في إخفاء النتيجة.
  */
+/** بدائل كل موضع في التوليد المعتاد، ثم في التوليد الموسّع عند النفاد. */
+const NARROW = 3
+const WIDE = 8
+
 export function buildOutfits(
   context: StylistContext,
   count = 3,
   exclude: readonly string[] = [],
 ): StylistOutfit[] {
-  const all = generateCandidates(context)
+  /*
+    الاستبعاد يصل التوليد، لا التصفية وحدها.
+
+    البصمة قائمة معرّفات مفصولة بفاصلة، فمنها نعرف كل قطعة عُرضت — وتمريرها
+    للمولّد يزيح المعروض عن نافذة `depth` ويُدخل ما بعده. بلا هذا كان التصفية
+    تُطبَّق على تسع إطلالات ثابتة، فتنفد ويعود المعروض نفسه.
+  */
+  const shown = new Set(exclude.flatMap((signature) => signature.split(',')))
+  const blocked = new Set(exclude)
+  const unseen = (list: OutfitCandidate[]) =>
+    list.filter((candidate) => !blocked.has(signatureOf(candidate.items.map((item) => item.id))))
+
+  const all = generateCandidates(context, NARROW, shown)
   if (all.length === 0) return []
 
-  const blocked = new Set(exclude)
-  const fresh = all.filter(
-    (candidate) => !blocked.has(signatureOf(candidate.items.map((item) => item.id))),
-  )
+  let fresh = unseen(all)
+
+  /*
+    نافذة أوسع قبل أن نعيد — والإعادة آخر ما نلجأ إليه.
+
+    `NARROW` يقصّ كل موضع إلى ثلاث قطع، فكون المرشّحات تسع إطلالات لكل توليد.
+    وبعد أن تُعرض كلها لا يبقى جديد **في هذي النافذة**، بينما في الخزانة
+    توليفات لم تُعرض: خمسة فساتين بخمسة أحذية خمسٌ وعشرون، لا تسع.
+
+    فبدل أن نعيد ونعتذر، نوسّع النافذة مرة واحدة ونعيد التوليد. الاتّساع
+    محسوب لا مفتوح — والتكلفة لا تُدفع إلا حين ينفد الضيّق فعلاً.
+  */
+  if (fresh.length === 0) {
+    const wider = generateCandidates(context, WIDE, shown)
+    const widerFresh = unseen(wider)
+    if (widerFresh.length > 0) fresh = widerFresh
+  }
+
   const candidates = fresh.length > 0 ? fresh : all
 
   /*
