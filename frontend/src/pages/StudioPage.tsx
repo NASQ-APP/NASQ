@@ -377,7 +377,17 @@ export function StudioPage() {
       notes: lookNotes.trim() || undefined,
       itemIds: studio.selection,
       resultImageUrl: generatedLook ?? '',
-      modelId: modelChoice === 'photo' ? undefined : readyModel.id,
+      /*
+        **معرّف صفٍّ في `models`، لا اسم موديل جاهز.**
+
+        العمود `model_id` مفتاح أجنبي من نوع uuid على جدول الموديلات، والجاهز
+        `ready-female` ثابتٌ في الشيفرة لا صفٌّ في القاعدة. فكان الحفظ يرجع
+        `invalid input syntax for type uuid` ويسقط الإدراج كلّه — فلا تُحفظ
+        الإطلالة ولا تُعرض، لأن المخزن يعيد القراءة بعد الفشل فيمسح نسخته
+        المتفائلة. ومن لا موديل محفوظ له يُترك العمود فارغًا، و`owns_model`
+        تقبل الفارغ.
+      */
+      modelId: modelChoice === 'photo' ? undefined : measurementSource?.id,
       framing: 'full',
     })
     toast.ok('حفظنا الإطلالة')
