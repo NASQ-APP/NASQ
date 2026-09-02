@@ -9,7 +9,7 @@
  */
 import { handlePreflight } from '../_shared/cors.ts'
 import { HandledError, fail, ok } from '../_shared/response.ts'
-import { optionalEnv } from '../_shared/env.ts'
+import { agentConfigured } from '../_shared/agent.ts'
 import { readJson, requireUser, serviceClient } from '../_shared/supabase.ts'
 
 type ChatRequest = {
@@ -46,7 +46,17 @@ Deno.serve(async (request) => {
       })
     }
 
-    if (!optionalEnv('AGENT_PROVIDER')) {
+    /*
+      البوّابة كانت على `AGENT_PROVIDER` — **سرٌّ لا وجود له**.
+
+      البنية المركزية (`_shared/agent.ts`) تُهيَّأ بـ`AGENT_API_KEY` وهو مضبوط
+      فعلاً، فالدالة كانت ترجّع ٥٠٣ دائمًا لا لنقص مفتاح بل لشرطٍ يسأل عن
+      إعداد من تصميم سابق. وهذا أسوأ من العطل: يبدو نقصَ تهيئة فيُبحَث عن
+      مفتاح موجود أصلاً.
+
+      والسؤال الآن من مالكه: `agentConfigured()` — مصدر واحد لا شرطان.
+    */
+    if (!agentConfigured()) {
       throw new HandledError(
         'not-supported-by-provider',
         'الوكيل يحتاج تفعيل المزوّد على الخادم.',

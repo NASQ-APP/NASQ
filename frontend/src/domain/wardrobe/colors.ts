@@ -38,3 +38,80 @@ export const NEUTRAL_COLOR_NAMES = [
 
 export const colorByName = (name: string): ItemColor =>
   ITEM_COLORS.find((color) => color.name === name) ?? ITEM_COLORS[0]
+
+/** تطبيع عربي: التشكيل والشدّة والهمزات — «عنّابي» و«عنابي» اسمٌ واحد. */
+const normalize = (text: string): string =>
+  text
+    .replace(/[ً-ْ]/g, '')
+    .replace(/[أإآ]/g, 'ا')
+    .replace(/ى/g, 'ي')
+    .trim()
+
+/**
+ * أسماء تقولها الناس، وعلاقتها بلوحتنا **ليست واحدة**.
+ *
+ * «رصاصي» و«رمادي» اسمان لشيء واحد. أما «أحمر» و«عنّابي» فلونان من عائلة
+ * واحدة وليسا سواء — وردّ الأول إلى الثاني بصمت يجعلنا نقول «مع عنّابي…» ردًّا
+ * على من سألت عن الأحمر، فتظنّ أننا لم نفهمها. وكذلك «ذهبي» و«جملي»: قريبان
+ * في العائلة، مختلفان في الصفة.
+ *
+ * فالتفريق هنا صريح: المرادف يُبدَّل بلا تعليق، والقريب يُقال إنه **الأقرب**.
+ */
+const ALIAS: Record<string, string> = {
+  رصاصي: 'رمادي',
+  زهري: 'وردي هادئ',
+  سكري: 'كريمي',
+  عاجي: 'أبيض مكسور',
+  اوفوايت: 'أبيض مكسور',
+}
+
+/** قريبٌ من العائلة — يُعرَض بوصفه أقرب المتاح، لا بوصفه المطلوب. */
+const FAMILY: Record<string, string> = {
+  احمر: 'عنّابي',
+  خمري: 'عنّابي',
+  نبيتي: 'عنّابي',
+  بورجندي: 'عنّابي',
+  نيود: 'بيج',
+  ذهبي: 'جملي',
+  عسلي: 'جملي',
+  فضي: 'رمادي',
+  اخضر: 'زيتي',
+  ازرق: 'كحلي',
+  وردي: 'وردي هادئ',
+}
+
+export type ColorMatch = {
+  color: ItemColor
+  /** `exact` مطابقة · `alias` اسمٌ آخر لنفسه · `family` أقرب المتاح */
+  relation: 'exact' | 'alias' | 'family'
+}
+
+export function resolveColorName(spoken: string): ColorMatch | undefined {
+  const wanted = normalize(spoken)
+  if (!wanted) return undefined
+
+  const exact = ITEM_COLORS.find((color) => normalize(color.name) === wanted)
+  if (exact) return { color: exact, relation: 'exact' }
+
+  const alias = ALIAS[wanted]
+  if (alias) {
+    const found = ITEM_COLORS.find((color) => color.name === alias)
+    if (found) return { color: found, relation: 'alias' }
+  }
+
+  const family = FAMILY[wanted]
+  if (family) {
+    const found = ITEM_COLORS.find((color) => color.name === family)
+    if (found) return { color: found, relation: 'family' }
+  }
+
+  /*
+    الاحتواء الجزئي قريبٌ لا مطابق: «أحمر غامق» ليست لونًا في لوحتنا، وأقرب
+    ما فيها يُقال أقربَ لا مطلوبًا.
+  */
+  const partial = ITEM_COLORS.find((color) => {
+    const name = normalize(color.name)
+    return wanted.includes(name) || name.includes(wanted)
+  })
+  return partial ? { color: partial, relation: 'family' } : undefined
+}
