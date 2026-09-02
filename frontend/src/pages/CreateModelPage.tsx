@@ -32,6 +32,7 @@ function ModelForm({ editing }: { editing?: AiModel }) {
   const say = useVoice()
   const saveModel = useAiModels((state) => state.saveModel)
   const photo = useAiModels((state) => state.photo)
+  const setPreferredSource = useAiModels((state) => state.setPreferredSource)
   const updateModel = useAiModels((state) => state.updateModel)
 
   const [step, setStep] = useState<1 | 2 | 'photo'>(editing ? 2 : 1)
@@ -100,7 +101,18 @@ function ModelForm({ editing }: { editing?: AiModel }) {
             صورتك ما تُرفع لأي خادم — تعيش في متصفحك لهذي الجلسة فقط.
           </p>
           <div className="mt-8 flex gap-3">
-            <Button size="lg" onClick={() => navigate(ROUTES.studio)} disabled={!photo}>
+            {/*
+              الاختيار يُعلَن قبل الانتقال — وإلا فتح الاستوديو على الموديل
+              الجاهز وتجاهل الصورة التي رفعتها للتوّ.
+            */}
+            <Button
+              size="lg"
+              onClick={() => {
+                setPreferredSource('photo')
+                navigate(ROUTES.studio)
+              }}
+              disabled={!photo}
+            >
               {photo ? say('ابدئي التجربة', 'ابدأ التجربة') : say('ارفعي صورتك أول', 'ارفع صورتك أول')}
             </Button>
             <BackButton size="lg" onClick={() => setStep(1)} />
