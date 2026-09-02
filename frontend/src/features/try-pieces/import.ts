@@ -149,30 +149,53 @@ const COLOR_WORDS: [RegExp, string][] = [
   [/pink|rose|وردي/i, 'وردي هادئ'],
 ]
 
-function paletteColor(declared?: string) {
-  if (!declared) return UNKNOWN_COLOR
-  const match = COLOR_WORDS.find(([pattern]) => pattern.test(declared))
-  if (!match) return UNKNOWN_COLOR
-  const found = ITEM_COLORS.find((c) => c.name === match[1])
-  return found ? { hex: found.hex, name: found.name } : UNKNOWN_COLOR
+/**
+ * لون القطعة — من حقل المتجر، **ثم من اسمها**.
+ *
+ * أغلب المتاجر لا تنشر حقل لون، فكانت كل قطعة مستوردة تدخل بلون «غير محدد» —
+ * وأربعٌ وعشرون من سبع وثلاثين قطعة في خزانةٍ حقيقية كذلك. ونظرية الألوان لا
+ * تملك ما تحسب عليه، فيضعف التنسيق كله لسببٍ في الاستيراد لا في المنسّق.
+ *
+ * والاسم يحمله عادةً: «نظارة شمسية مستطيلة - **أسود**». وقراءته منه ليست
+ * تخمينًا: الكلمة مكتوبة، ونقرأ ما كُتب. وما لا نجد فيه لونًا يبقى غير محدَّد.
+ */
+function paletteColor(declared?: string, name?: string) {
+  for (const source of [declared, name]) {
+    if (!source) continue
+    const match = COLOR_WORDS.find(([pattern]) => pattern.test(source))
+    if (!match) continue
+    const found = ITEM_COLORS.find((c) => c.name === match[1])
+    if (found) return { hex: found.hex, name: found.name }
+  }
+  return UNKNOWN_COLOR
 }
 
 /** التصنيف ما تنشره المتاجر عادة — نستنتجه من الاسم. */
 const CATEGORY_WORDS: [RegExp, string][] = [
+  /*
+    الترتيب مقصود: **اسم القطعة قبل اسم القماش**.
+
+    «جاكيت جينز» كانت تُقرأ جينزًا لأن `جينز` تسبق `جاكيت` في القائمة — فيدخل
+    الجاكيت الخزانة قطعةً سفلية. والقماش صفةٌ للقطعة لا القطعة نفسها، فما يسمّي
+    القطعة يُفحص أولاً.
+  */
   [/abaya|عباي/i, 'women-abayas'],
   [/dress|فستان/i, 'women-dresses'],
+  [/jacket|blazer|جاكيت|بليزر/i, 'women-jackets'],
+  [/coat|معطف/i, 'women-coats'],
   [/skirt|تنور/i, 'women-skirts'],
-  [/jean|denim|جينز/i, 'women-jeans'],
   [/short|شورت/i, 'women-shorts'],
+  [/jean|denim|جينز/i, 'women-jeans'],
   [/pant|trouser|بنطلون|سروال/i, 'women-pants'],
   [/blouse|بلوز/i, 'women-blouses'],
   [/shirt|top|tee|t-shirt|قميص|تيشرت/i, 'women-shirts'],
-  [/jacket|blazer|جاكيت|بليزر/i, 'women-jackets'],
-  [/coat|معطف/i, 'women-coats'],
   [/hoodie|sweat|هودي/i, 'women-hoodies'],
   [/shoe|heel|sneaker|boot|sandal|حذاء|كعب|جزم|صندل/i, 'women-shoes'],
   [/bag|purse|tote|clutch|حقيب|شنط/i, 'women-bags'],
-  [/scarf|belt|شال|طرح|حزام|اكسسوار/i, 'women-accessories'],
+  [
+    /scarf|belt|sunglass|eyewear|glasses|watch|jewel|necklace|earring|bracelet|hat|cap|شال|طرح|حزام|اكسسوار|إكسسوار|نظار|ساع[ةه]|قلاد|حلق|سوار|قبع/i,
+    'women-accessories',
+  ],
 ]
 
 /**
@@ -194,10 +217,20 @@ function cleanName(raw: string): string {
  * حتى لمّا يحجب المتجر صفحته، يبقى اسم المنتج في الرابط — وفيه كلمة تقول
  * وش هي: `dress`، `skirt`، `heels`. فنخمّن منها بدل ما نسقط على أول فئة في القائمة.
  */
-export function guessCategoryId(name: string): string {
+/**
+ * فئة القطعة من اسمها — أو **لا شيء**.
+ *
+ * كان الرجوع عند الفشل إلى `CATEGORIES[0]`، وهي `women-tshirts`. فكل اسمٍ لا
+ * يطابق نمطًا يدخل الخزانة **تيشيرتًا**: نظّارة شمسية صارت قطعةً علوية، ثم
+ * قادت إطلالة كاملة في المنسّق. والخطأ لم يكن في المنسّق — كان في هذا السطر.
+ *
+ * و`undefined` تعني «اسألي»: تخمينٌ خاطئ يُخزَّن ويُبنى عليه، والسؤال لحظةٌ
+ * واحدة تصحّح القطعة إلى الأبد.
+ */
+export function guessCategoryId(name: string): string | undefined {
   const hit = CATEGORY_WORDS.find(([pattern]) => pattern.test(name))
   const id = hit?.[1]
-  return CATEGORIES.some((c) => c.id === id) ? (id as string) : CATEGORIES[0].id
+  return CATEGORIES.some((c) => c.id === id) ? id : undefined
 }
 
 /** يحوّل ردّ أي قارئ إلى قطعة جاهزة للخزانة. مشترك بين اللصق والإضافة. */
@@ -213,8 +246,9 @@ export async function productFromRaw(raw: RawProduct): Promise<ImportedProduct> 
 
   const name = cleanName(raw.name)
   const categoryId = guessCategoryId(name)
-  const slot = categoryById(categoryId)?.slot ?? 'top'
-  const color = paletteColor(raw.color)
+  // الشكل يتبع الموضع؛ وبلا فئة نبقيه عامًّا حتى تُحسم الفئة
+  const slot = categoryId ? (categoryById(categoryId)?.slot ?? 'top') : 'accessory'
+  const color = paletteColor(raw.color, name)
 
   /* ترجيح صورة القطعة وحدها على صورة العارضة. لو فشل الترجيح نرجع لصورة
      المتجر الأولى — ما نترك القطعة بلا صورة. */

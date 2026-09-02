@@ -25,7 +25,6 @@ import { useStudio } from '@/features/studio/store'
 import { useAppShell } from '@/app/layout'
 import { useVoice } from '@/features/onboarding/voice'
 import {
-  CATEGORIES,
   ITEM_COLORS,
   SLOT_FILTERS,
   categoryById,
@@ -170,7 +169,14 @@ export function TryPiecesPage() {
       return
     }
 
-    const categoryId = product.categoryId ?? CATEGORIES[0].id
+    /*
+      الفئة المجهولة تدخل **إكسسوارًا** لا تيشيرتًا.
+
+      `CATEGORIES[0]` هي `women-tshirts`، فكانت نظّارة شمسية تُحفَظ قطعةً
+      علوية وتقود إطلالة كاملة. والإكسسوار أسوأ ما فيه أن يُهمَل، لا أن يفسد
+      بنية الإطلالة. والمستخدمة تصحّحه من صفحة القطعة.
+    */
+    const categoryId = product.categoryId ?? 'women-accessories'
     const slot = categoryById(categoryId)?.slot ?? 'top'
     const store = sourceById(product.storeId)
 
