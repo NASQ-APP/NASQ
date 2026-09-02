@@ -12,18 +12,43 @@ const MAX_MB = 12
 const MIN_EDGE = 480
 const ACCEPTED = ['image/jpeg', 'image/png', 'image/webp']
 
-export async function validatePhoto(file: File): Promise<PhotoValidationResult> {
-  const issues: PhotoIssue[] = []
-  const sizeKb = Math.round(file.size / 1024)
+/**
+ * `image/jpg` صيغةٌ لا وجود لها في المواصفة، وبعض الأجهزة ترسلها.
+ *
+ * `validateImageFile` — الحارس الأول عند اختيار الملف — يطبّعها منذ البداية،
+ * وهذا الفحص كان لا يطبّعها. فتمرّ الصورة من البوابة الأولى ثم تُرفض في
+ * الثانية بحجّة «الصيغة غير مدعومة»، وهي JPEG سليمة. التطبيع هنا يغلق الفجوة.
+ */
+const normalizeType = (type: string) => (type === 'image/jpg' ? 'image/jpeg' : type)
 
-  if (!ACCEPTED.includes(file.type)) {
+/** ما قيسَ عن الصورة — مدخلات القرار، بلا `canvas` ولا `File`. */
+export type PhotoMeasurements = {
+  type: string
+  bytes: number
+  width: number
+  height: number
+  brightness: number
+  detail: number
+}
+
+/**
+ * القرار وحده، مفصولاً عن القياس.
+ *
+ * القياس يحتاج `createImageBitmap` و`canvas`، وهما لا يعيشان خارج المتصفح —
+ * فكانت كل العتبات غير قابلة للاختبار، وتُعدَّل بالظنّ. الفصل هنا يجعل
+ * «هل تُرفض هذي الصورة ولماذا» سؤالاً يُجاب في اختبار.
+ */
+export function photoIssues(m: PhotoMeasurements): PhotoIssue[] {
+  const issues: PhotoIssue[] = []
+
+  if (!ACCEPTED.includes(normalizeType(m.type))) {
     issues.push({
       code: 'unsupported-type',
       message: 'نقبل JPG أو PNG أو WebP فقط.',
       severity: 'blocking',
     })
   }
-  if (file.size > MAX_MB * 1024 * 1024) {
+  if (m.bytes > MAX_MB * 1024 * 1024) {
     issues.push({
       code: 'too-large',
       message: `حجم الصورة أكبر من ${MAX_MB} ميجا.`,
@@ -31,17 +56,7 @@ export async function validatePhoto(file: File): Promise<PhotoValidationResult> 
     })
   }
 
-  const bitmap = await readImage(file).catch(() => null)
-  if (!bitmap) {
-    return {
-      ok: false,
-      issues: [{ code: 'unsupported-type', message: 'ما قدرنا نفتح هذي الصورة.', severity: 'blocking' }],
-      meta: { width: 0, height: 0, brightness: 0, sizeKb },
-      deferredChecks: [],
-    }
-  }
-
-  const { width, height } = bitmap
+  const { width, height } = m
   if (Math.min(width, height) < MIN_EDGE) {
     issues.push({
       code: 'too-small',
@@ -59,9 +74,29 @@ export async function validatePhoto(file: File): Promise<PhotoValidationResult> 
     })
   }
 
-  const { brightness, detail } = analyse(bitmap)
-  if (brightness < 46) {
-    issues.push({ code: 'too-dark', message: 'الصورة معتمة — مكان أفتح يعطي نتيجة أوضح.', severity: 'blocking' })
+  /*
+    الإعتام يمنع فقط حين تكون الصورة **غير قابلة للاستعمال**، لا حين تكون داكنة.
+
+    كان الحدّ ٤٦ ومانعًا، وهو متوسط إضاءة الصورة كلها: امرأة بلبس داكن أمام
+    جدار داكن، أو لقطة في غرفة بإضاءة مسائية، تنزل تحته وهي واضحة تمامًا —
+    فتُرفض صورة صالحة. المتوسط يصف الخلفية أكثر مما يصف الشخص.
+
+    الحدّ المانع الآن هو السواد الفعلي (٢٥) — إطار لا يُرى فيه شيء ولا يفيد
+    المزوّد. وما بينه وبين ٦٠ تنبيهٌ يُقال ولا يوقف.
+  */
+  const { brightness, detail } = m
+  if (brightness < 25) {
+    issues.push({
+      code: 'too-dark',
+      message: 'الصورة معتمة لدرجة ما نميّز فيها الشخص — نحتاج إضاءة أوضح.',
+      severity: 'blocking',
+    })
+  } else if (brightness < 60) {
+    issues.push({
+      code: 'too-dark',
+      message: 'الإضاءة خافتة — مكان أفتح يعطي نتيجة أدق.',
+      severity: 'advisory',
+    })
   } else if (brightness > 226) {
     issues.push({ code: 'too-bright', message: 'الإضاءة قوية جدًا وضايعة التفاصيل.', severity: 'advisory' })
   }
@@ -73,7 +108,27 @@ export async function validatePhoto(file: File): Promise<PhotoValidationResult> 
     })
   }
 
+  return issues
+}
+
+export async function validatePhoto(file: File): Promise<PhotoValidationResult> {
+  const sizeKb = Math.round(file.size / 1024)
+
+  const bitmap = await readImage(file).catch(() => null)
+  if (!bitmap) {
+    return {
+      ok: false,
+      issues: [{ code: 'unsupported-type', message: 'ما قدرنا نفتح هذي الصورة.', severity: 'blocking' }],
+      meta: { width: 0, height: 0, brightness: 0, sizeKb },
+      deferredChecks: [],
+    }
+  }
+
+  const { width, height } = bitmap
+  const { brightness, detail } = analyse(bitmap)
   bitmap.close?.()
+
+  const issues = photoIssues({ type: file.type, bytes: file.size, width, height, brightness, detail })
 
   return {
     ok: !issues.some((i) => i.severity === 'blocking'),

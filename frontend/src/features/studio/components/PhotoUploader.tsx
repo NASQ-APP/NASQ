@@ -29,6 +29,8 @@ export function PhotoUploader() {
   const say = useVoice()
   const { photo, setPhoto, clearPhoto } = useAiModels()
   const [validation, setValidation] = useState<PhotoValidationResult>()
+  /** السبب المانع الأول — عنوانُ الرفض، وما عداه تفاصيل تحته. */
+  const blockingIssue = validation?.issues.find((issue) => issue.severity === 'blocking')
 
   /** فحص جودة الصورة يجي بعد موافقة المستخدمة، وقبل أي حفظ. */
   const accept = async (candidate: ImageCandidate) => {
@@ -36,7 +38,15 @@ export function PhotoUploader() {
     const result = await validatePhoto(file)
     setValidation(result)
     if (!result.ok) {
-      toast.error('نحتاج صورة أوضح')
+      /*
+        السبب يُقال، لا يُخفى خلف «نحتاج صورة أوضح».
+
+        كانت كل الأسباب — صيغة غير مدعومة، حجم كبير، دقة منخفضة، إعتام —
+        تخرج برسالة واحدة. فمن رفعت صورة بدقة ٣٠٠ بكسل تحاول إضاءة الغرفة،
+        ومن أرسل HEIC يعيد التصوير: كلاهما يصلح ما ليس معطوبًا.
+      */
+      const blocking = result.issues.find((issue) => issue.severity === 'blocking')
+      toast.error(blocking?.message ?? 'ما قدرنا نقرأ هذي الصورة.')
       return
     }
     setPhoto({
@@ -119,13 +129,15 @@ export function PhotoUploader() {
 
       {validation && !validation.ok && (
         <div className="rounded-md border border-danger/30 bg-danger/[0.04] p-4">
-          <p className="mb-2 text-[13px]">نحتاج صورة أوضح.</p>
+          <p className="mb-2 text-[13px]">{blockingIssue?.message ?? 'ما قدرنا نستخدم هذي الصورة.'}</p>
           <ul className="flex flex-col gap-1.5">
-            {validation.issues.map((i) => (
-              <li key={i.code} className="text-[12px] text-muted">
-                · {i.message}
-              </li>
-            ))}
+            {validation.issues
+              .filter((i) => i !== blockingIssue)
+              .map((i) => (
+                <li key={i.code} className="text-[12px] text-muted">
+                  · {i.message}
+                </li>
+              ))}
           </ul>
         </div>
       )}
