@@ -2,7 +2,7 @@
  * نظام الفئات — مقود بالبيانات: نموذج الإضافة وفلاتر الخزانة وطبقات التجربة
  * كلها تقرأ من هنا، فإضافة فئة جديدة ما تحتاج لمس أي مكوّن واجهة.
  */
-import type { Gender, WardrobeCategory } from './types'
+import type { BodySlot, Gender, WardrobeCategory } from './types'
 
 export const CATEGORIES: WardrobeCategory[] = [
   // ---------- women ----------
@@ -44,7 +44,20 @@ export const CATEGORIES: WardrobeCategory[] = [
 
 export const categoryById = (id: string) => CATEGORIES.find((c) => c.id === id)
 export const categoriesForGender = (gender: Gender) => CATEGORIES.filter((c) => c.gender === gender)
-export const slotOfCategory = (id: string) => categoryById(id)?.slot ?? 'top'
+/**
+ * موضع الفئة من الجسم — **والمجهول لا يقود إطلالة**.
+ *
+ * كان الافتراض `'top'`: أي فئة خارج الجدول تُقرأ قطعةً علوية بصمت. وهذا فسّر
+ * عطلين ظهرا معًا في الاستعمال الحقيقي — نظّارة شمسية «تقود الإطلالة» لأنها
+ * حُسبت توبًا، وحذاء لوفر لا يُلقى في بحث الأحذية لأنه حُسب توبًا كذلك.
+ *
+ * و`'accessory'` هو الافتراض الآمن: القطعة المجهولة تُضاف ولا تُبنى عليها.
+ * فأسوأ ما يحدث أن تُهمَل، لا أن تحتلّ موضع قطعة أساسية وتفسد الإطلالة كلها.
+ *
+ * والعلاج الجذري أن تُصنَّف القطعة صحيحًا عند الإضافة — وهذا يبقى في مكانه.
+ */
+export const slotOfCategory = (id: string): BodySlot =>
+  categoryById(id)?.slot ?? 'accessory'
 
 /** فلاتر مواضع الجسم فوق شبكة الخزانة. */
 export const SLOT_FILTERS = [

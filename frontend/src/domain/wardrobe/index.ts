@@ -19,7 +19,7 @@ export {
   slotOfCategory,
 } from './categories'
 export { filterItems, ownedItems, slotOfItem, tryItems } from './filters'
-export { ITEM_COLORS, NEUTRAL_COLOR_NAMES, colorByName } from './colors'
+export { ITEM_COLORS, NEUTRAL_COLOR_NAMES, colorByName, resolveColorName } from './colors'
 export type { ItemColor } from './colors'
 export { SHAPES_BY_SLOT, shapesForSlot } from './shapes'
 export { hexToRgb, nearestItemColor, rgbToLab } from './colorMatch'
