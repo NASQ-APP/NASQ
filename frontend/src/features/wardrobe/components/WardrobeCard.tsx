@@ -5,6 +5,7 @@ import { useWardrobe } from '../store'
 import { useVoice } from '@/features/onboarding/voice'
 import { ROUTES } from '@/shared/config'
 import { cn } from '@/shared/lib'
+import { isTryShelf } from '@/domain/wardrobe'
 import type { Wardrobe } from '@/domain/wardrobe'
 
 /**
@@ -16,14 +17,26 @@ export function WardrobeCard({ wardrobe }: { wardrobe: Wardrobe }) {
   // نختار المصفوفة الثابتة ونضيّقها هنا — المحدّد اللي يبني مصفوفة جديدة كل
   // رسم يخلي zustand v5 يعيد الرسم بلا نهاية
   const allItems = useWardrobe((state) => state.items)
+
+  /*
+    الرفّ الثابت عضويته **بالمصدر** لا بحقل خزانة: قطع التجربة `wardrobeId`
+    فيها `null` دائمًا، فسؤالها عن خزانتها يرجع فاضيًا أبدًا.
+  */
+  const shelf = isTryShelf(wardrobe.id)
   const items = useMemo(
-    () => allItems.filter((item) => item.wardrobeId === wardrobe.id),
-    [allItems, wardrobe.id],
+    () =>
+      allItems.filter((item) =>
+        shelf ? item.source === 'try' : item.wardrobeId === wardrobe.id,
+      ),
+    [allItems, shelf, wardrobe.id],
   )
   const preview = items.slice(0, 4)
 
   return (
-    <Link to={ROUTES.wardrobe(wardrobe.id)} className="group flex flex-col gap-3">
+    <Link
+      to={shelf ? ROUTES.tryPieces : ROUTES.wardrobe(wardrobe.id)}
+      className="group flex flex-col gap-3"
+    >
       <div
         className={cn(
           'lift relative aspect-square overflow-hidden rounded-md border border-line group-hover:border-line-strong',
@@ -42,7 +55,11 @@ export function WardrobeCard({ wardrobe }: { wardrobe: Wardrobe }) {
           )}
         <span className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-[rgba(10,10,10,0.5)] text-white opacity-0 backdrop-blur-[3px] transition-opacity duration-[320ms] ease-soft group-hover:opacity-100">
           <span className="text-[12.5px]">
-            {items.length > 0 ? say('افتحي الخزانة', 'افتح الخزانة') : say('أضيفي أول قطعة', 'أضِف أول قطعة')}
+            {shelf
+              ? say('افتحي قطع التجربة', 'افتح قطع التجربة')
+              : items.length > 0
+                ? say('افتحي الخزانة', 'افتح الخزانة')
+                : say('أضيفي أول قطعة', 'أضِف أول قطعة')}
           </span>
           <span className="lat text-[9.5px] opacity-70">{items.length} pieces</span>
         </span>
@@ -51,7 +68,7 @@ export function WardrobeCard({ wardrobe }: { wardrobe: Wardrobe }) {
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="lat text-[10.5px] font-medium">{wardrobe.nameLatin}</p>
-          <p className="mt-0.5 text-[12.5px]">خزانة {wardrobe.name}</p>
+          <p className="mt-0.5 text-[12.5px]">{shelf ? wardrobe.name : `خزانة ${wardrobe.name}`}</p>
         </div>
         <span className="lat text-[11px] text-faint">{items.length}</span>
       </div>

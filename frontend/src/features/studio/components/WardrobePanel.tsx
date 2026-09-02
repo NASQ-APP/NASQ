@@ -6,11 +6,11 @@
  */
 import { useMemo, useState } from 'react'
 import { ChevronDown, Filter, Heart, PanelRightClose, Search, X } from 'lucide-react'
-import { ALL_WARDROBES, useStudio } from '../store'
+import { ALL_WARDROBES, TRY_PIECES, useStudio } from '../store'
 import { ClothingCard } from './ClothingCard'
 import { useWardrobe } from '@/features/wardrobe/store'
 import { EmptyState } from '@/shared/components/ui'
-import { SLOT_FILTERS, matchesQuery, ownedItems, slotOfItem } from '@/domain/wardrobe'
+import { SLOT_FILTERS, matchesQuery, ownedItems, slotOfItem, tryItems } from '@/domain/wardrobe'
 import { cn } from '@/shared/lib'
 import { useVoice } from '@/features/onboarding/voice'
 import type { WardrobeItem } from '@/domain/wardrobe'
@@ -44,18 +44,24 @@ export function WardrobePanel({
   const activeFilter = SLOT_FILTERS.find((filter) => filter.slot === activeCategory)
 
   const owned = useMemo(() => ownedItems(items), [items])
+  const pieces = useMemo(() => tryItems(items), [items])
   const activeWardrobe = wardrobes.find((w) => w.id === activeWardrobeId)
   const showingAll = activeWardrobeId === ALL_WARDROBES
+  const showingTry = activeWardrobeId === TRY_PIECES
 
   const visible = useMemo(() => {
-    let pool = showingAll ? owned : owned.filter((item) => item.wardrobeId === activeWardrobeId)
+    let pool = showingTry
+      ? pieces
+      : showingAll
+        ? owned
+        : owned.filter((item) => item.wardrobeId === activeWardrobeId)
     if (activeCategory !== 'all') pool = pool.filter((item) => slotOfItem(item) === activeCategory)
     if (favouritesOnly) pool = pool.filter((item) => item.favorite)
     if (query.trim()) {
       pool = pool.filter((item) => matchesQuery(`${item.name} ${item.colorName} ${item.brand ?? ''}`, query))
     }
     return pool
-  }, [owned, showingAll, activeWardrobeId, activeCategory, favouritesOnly, query])
+  }, [owned, pieces, showingAll, showingTry, activeWardrobeId, activeCategory, favouritesOnly, query])
 
   const wardrobeNameFor = (item: WardrobeItem) =>
     showingAll ? wardrobes.find((w) => w.id === item.wardrobeId)?.name : undefined
@@ -104,13 +110,21 @@ export function WardrobePanel({
           aria-expanded={pickerOpen}
           className="flex h-9 w-full items-center justify-between rounded-md border border-line px-3 text-[12.5px] transition-colors hover:border-line-strong"
         >
-          {showingAll ? 'كل ملابسي' : `خزانة ${activeWardrobe?.name ?? ''}`}
+          {showingTry ? 'قطع التجربة' : showingAll ? 'كل ملابسي' : `خزانة ${activeWardrobe?.name ?? ''}`}
           <ChevronDown size={14} strokeWidth={1.5} aria-hidden className="text-faint" />
         </button>
 
         {pickerOpen && (
           <div className="absolute inset-x-4 top-11 z-20 overflow-hidden rounded-md border border-line bg-canvas py-1 shadow-[0_10px_30px_-20px_rgba(0,0,0,0.35)]">
-            {[{ id: ALL_WARDROBES, name: 'كل ملابسي' }, ...wardrobes].map((wardrobe) => (
+            {/*
+              «قطع التجربة» تظهر في القائمة **إن وُجدت قطع فعلاً**: خيار يفتح
+              على فراغ يعلّم المستخدمة أن الميزة معطّلة، لا أنها فاضية.
+            */}
+            {[
+              { id: ALL_WARDROBES, name: 'كل ملابسي' },
+              ...wardrobes,
+              ...(pieces.length > 0 ? [{ id: TRY_PIECES, name: 'قطع التجربة' }] : []),
+            ].map((wardrobe) => (
               <button
                 key={wardrobe.id}
                 onClick={() => {
@@ -122,7 +136,9 @@ export function WardrobePanel({
                   wardrobe.id === activeWardrobeId ? 'text-ink' : 'text-muted',
                 )}
               >
-                {wardrobe.id === ALL_WARDROBES ? wardrobe.name : `خزانة ${wardrobe.name}`}
+                {wardrobe.id === ALL_WARDROBES || wardrobe.id === TRY_PIECES
+                  ? wardrobe.name
+                  : `خزانة ${wardrobe.name}`}
               </button>
             ))}
           </div>

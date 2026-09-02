@@ -67,9 +67,11 @@ export function AdjustModelDrawer({
         <div className="flex gap-3">
           <Button
             onClick={() => onApply(draft, refinement.trim() || undefined)}
-            disabled={busy || (!filled && !refinement.trim())}
+            disabled={!filled && !refinement.trim()}
+            pending={busy}
+            pendingLabel="نعدّل الموديل…"
           >
-            {busy ? 'نعدّل الموديل…' : 'طبّقي التعديل'}
+            طبّقي التعديل
           </Button>
           <Button variant="secondary" onClick={onClose} disabled={busy}>
             إلغاء

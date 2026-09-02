@@ -24,6 +24,18 @@ import { hasBackend } from '@/shared/config'
 
 type PhotoState = {
   urls: Record<string, string>
+  /**
+   * هل انتهت قراءة الروابط؟
+   *
+   * **الفرق بين «ما لها صورة» و«ما وصلتنا بعد»**. المخزن يبدأ فاضيًا،
+   * والقطع تُرسم فورًا من التخزين المحلي بينما التوقيع يحتاج جولة شبكة —
+   * فتظهر كل قطعة مصوّرة ككتلة لون، ثم تنقلب صورًا. الكتلة اللونية جواب
+   * قاطع («ما لها صورة») يُقال قبل أن نعرف.
+   *
+   * تصير `true` عند الانتهاء **نجح التوقيع أو فشل**: الحالتان تعنيان أننا
+   * عرفنا، والفشل يستحق الكتلة اللونية فعلاً.
+   */
+  hydrated: boolean
   hydrate: () => Promise<void>
   set: (itemId: string, blob: Blob) => Promise<void>
   remove: (itemId: string) => Promise<void>
@@ -43,22 +55,23 @@ const revoke = (url?: string) => {
 
 export const useItemPhotos = create<PhotoState>((set, get) => ({
   urls: {},
+  hydrated: false,
 
   hydrate: async () => {
     if (!hasBackend()) {
-      set({ urls: await loadAllPhotos() })
+      set({ urls: await loadAllPhotos(), hydrated: true })
       return
     }
 
     const id = await userId()
     // بلا جلسة ما فيه صور تُقرأ — والحارس يوجّه للدخول أصلاً
-    if (!id) return set({ urls: {} })
+    if (!id) return set({ urls: {}, hydrated: true })
 
     try {
-      set({ urls: await signAllPhotos(id) })
+      set({ urls: await signAllPhotos(id), hydrated: true })
     } catch {
       // تعذّر توقيع الروابط: القطع ترجع لرسمها المتّجه بدل صور مكسورة
-      set({ urls: {} })
+      set({ urls: {}, hydrated: true })
     }
   },
 

@@ -11,7 +11,8 @@
  */
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Camera, Image as ImageIcon, Link2, Loader2, Sparkles, Upload } from 'lucide-react'
+import { Camera, Image as ImageIcon, Link2, Sparkles, Upload } from 'lucide-react'
+import { InlineLoader } from '@/shared/components/render'
 import {
   Button,
   ColorSwatchGroup,
@@ -358,7 +359,7 @@ function AutoFillNotice({
     >
       {status === 'reading' ? (
         <>
-          <Loader2 size={13} strokeWidth={1.6} aria-hidden className="mt-1 flex-none animate-spin" />
+          <InlineLoader className="mt-2 flex-none" label="نقرأ الصورة" />
           نقرأ الصورة ونملأ الحقول…
         </>
       ) : (
