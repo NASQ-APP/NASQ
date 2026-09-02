@@ -15,7 +15,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { itemBySourceLink, useWardrobe } from '@/features/wardrobe/store'
 import { toast } from '@/shared/components/ui'
-import { CATEGORIES, ITEM_COLORS, categoryById, shapesForSlot } from '@/domain/wardrobe'
+import { ITEM_COLORS, categoryById, shapesForSlot } from '@/domain/wardrobe'
 import { productFromRaw, type ImportedProduct, type RawProduct } from './import'
 import { sourceById } from './sources'
 
@@ -153,14 +153,21 @@ export function useStoreBridge() {
           return
         }
 
-        /* بلا فئة موثوقة ما نخمّن — نسأل. بنترست الحالة الوحيدة اليوم. */
-        if (product.storeId === 'pinterest') {
+        /*
+          بلا فئة موثوقة ما نخمّن — **نسأل**.
+
+          كان الشرط `storeId === 'pinterest'`، وهو بديلٌ عن المعنى لا المعنى:
+          بنترست بلا فئة، لكن أي متجر قد يعطينا اسمًا لا نعرف فئته. والشرط
+          الصحيح هو غياب الفئة نفسها — فتُسأل مرة وتُحفظ صحيحة، بدل أن تُخمَّن
+          وتُبنى عليها إطلالات.
+        */
+        if (!product.categoryId) {
           setPending((queue) => [...queue, { product, storeName: store?.name }])
           ack()
           return
         }
 
-        const categoryId = product.categoryId ?? CATEGORIES[0].id
+        const categoryId = product.categoryId
         const slot = categoryById(categoryId)?.slot ?? 'top'
 
         addItem({

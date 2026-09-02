@@ -14,7 +14,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { PageContainer } from '@/shared/components/layout'
 import { Button, PageHeader, toast } from '@/shared/components/ui'
-import { CATEGORIES, ITEM_COLORS, categoryById, shapesForSlot } from '@/domain/wardrobe'
+import { ITEM_COLORS, categoryById, shapesForSlot } from '@/domain/wardrobe'
 import { itemBySourceLink, useWardrobe } from '@/features/wardrobe/store'
 import { importFromUrl } from '@/features/try-pieces/import'
 import { sourceById } from '@/features/try-pieces/sources'
@@ -82,7 +82,14 @@ export function SharePage() {
         return
       }
 
-      const categoryId = product.categoryId ?? CATEGORIES[0].id
+      /*
+      الفئة المجهولة تدخل **إكسسوارًا** لا تيشيرتًا.
+
+      `CATEGORIES[0]` هي `women-tshirts`، فكانت نظّارة شمسية تُحفَظ قطعةً
+      علوية وتقود إطلالة كاملة. والإكسسوار أسوأ ما فيه أن يُهمَل، لا أن يفسد
+      بنية الإطلالة. والمستخدمة تصحّحه من صفحة القطعة.
+    */
+    const categoryId = product.categoryId ?? 'women-accessories'
       const slot = categoryById(categoryId)?.slot ?? 'top'
       const store = sourceById(product.storeId)
 

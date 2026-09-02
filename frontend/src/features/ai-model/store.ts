@@ -87,7 +87,25 @@ export const useAiModels = create<ModelState>()(
         }
       },
 
-      reset: () => set({ models: [], activeModelId: undefined, readyModelId: undefined }),
+      /*
+        الخروج يمسح الصورة الشخصية والوضع معًا.
+
+        كان يمسح الموديلات وحدها، فتبقى صورة جسد صاحبة الحساب السابقة في
+        الذاكرة ويبقى `preferredSource: 'photo'` في التخزين. فمن يدخل بعدها
+        على نفس الجهاز يفتح الاستوديو على جسدٍ ليس جسده. والرابط يُبطَل هنا
+        أيضًا وإلا بقي `blob:` معلّقًا حتى إغلاق التبويب.
+      */
+      reset: () =>
+        set((state) => {
+          if (state.photo?.url.startsWith('blob:')) URL.revokeObjectURL(state.photo.url)
+          return {
+            models: [],
+            activeModelId: undefined,
+            readyModelId: undefined,
+            photo: undefined,
+            preferredSource: 'model' as ModelSource,
+          }
+        }),
 
       saveModel: (characteristics, name) => {
         const model: AiModel = {
@@ -137,10 +155,19 @@ export const useAiModels = create<ModelState>()(
             m.characteristics.gender === gender ? { ...m, isDefault: m.id === id } : m,
           ),
         }))
+        set({ preferredSource: 'model' })
         push(() => remote.setDefaultModel(id, gender), 'الموديل الافتراضي')
       },
 
-      setActive: (activeModelId) => set({ activeModelId }),
+      /*
+        اختيار موديل بعينه **يرجّع وضع الموديل**.
+
+        بلا هذا تختار موديلاً من صفحة الموديلات ويبقى الاستوديو على صورتها،
+        فتظنّ أن الاختيار ما وصل. والقاعدة هنا لا في الأزرار: موزّعةً على
+        ثلاثة مواضع تتفارق عند أول زرٍّ جديد.
+      */
+      setActive: (activeModelId) =>
+        set(activeModelId ? { activeModelId, preferredSource: 'model' } : { activeModelId }),
 
       modelFor: (gender) => {
         const { models, activeModelId } = get()
@@ -150,13 +177,16 @@ export const useAiModels = create<ModelState>()(
         return forGender.find((m) => m.isDefault) ?? forGender[0]
       },
 
-      setReadyModel: (readyModelId) => set({ readyModelId }),
+      setReadyModel: (readyModelId) =>
+        set(readyModelId ? { readyModelId, preferredSource: 'model' } : { readyModelId }),
 
-      setPhoto: (photo) => set({ photo }),
+      // رفع صورتها اختيارٌ بنفسه — ما يحتاج زرًّا ثانيًا يؤكّده
+      setPhoto: (photo) => set({ photo, preferredSource: 'photo' }),
       clearPhoto: () =>
         set((state) => {
           if (state.photo?.url.startsWith('blob:')) URL.revokeObjectURL(state.photo.url)
-          return { photo: undefined }
+          // حذفها رجوعٌ للموديل — وإلا بقي الوضع على صورةٍ ما عادت موجودة
+          return { photo: undefined, preferredSource: 'model' as ModelSource }
         }),
       setPreferredSource: (source) => set({ preferredSource: source }),
       }

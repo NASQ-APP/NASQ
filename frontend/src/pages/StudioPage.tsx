@@ -91,7 +91,6 @@ export function StudioPage() {
   const say = useVoice()
 
   const tryOn = useTryOn()
-  const [modelChoice, setModelChoice] = useState<ModelChoice>('ready')
   const [modelPickerOpen, setModelPickerOpen] = useState(false)
   const [adjustOpen, setAdjustOpen] = useState(false)
   const [adaptedModel, setAdaptedModel] = useState<string>()
@@ -190,6 +189,21 @@ export function StudioPage() {
   const photo = models.photo
 
   /**
+   * وضع الموديل — **من المتجر لا من حالة محلية**.
+   *
+   * العطل: كان `useState('ready')`، فيولد من جديد مع كل تركيب للصفحة. ترفع
+   * صورتها في «إنشاء موديل» وتضغط «ابدئي التجربة»، فيفتح الاستوديو على
+   * `'ready'` ويعرض الموديل الجاهز نفسه الذي جاءت تستبدله. و`preferredSource`
+   * كان في المتجر ومحفوظًا منذ البداية — ولا يقرأه أحد.
+   *
+   * والصورة تعيش في الذاكرة وحدها (§17)، فتختفي بعد التحديث ويبقى الاختيار.
+   * فنرجع حينها للموديل الجاهز بدل استوديو فاضٍ — واسمه ظاهر تحت الصورة، فلا
+   * يلتبس جسدٌ بجسد. وأول ما ترفع صورتها من جديد يرجع الاستوديو لها وحده.
+   */
+  const modelChoice: ModelChoice = models.preferredSource === 'photo' ? 'photo' : 'ready'
+  const usingPhoto = modelChoice === 'photo' && Boolean(photo)
+
+  /**
    * الموديل الفعّال — **مصدر القياسات الوحيد**.
    *
    * يُشتقّ عند كل عرض من بيانات الموديلات المحفوظة، ما يُنسخ في حالة محلية ولا
@@ -228,10 +242,10 @@ export function StudioPage() {
   const adaptedImage = adaptedFor === measurementSource?.id ? adaptedModel : undefined
 
   const personImageUrl =
-    modelChoice === 'photo' ? photo?.url : (adaptedImage ?? readyModel.imageUrl)
+    usingPhoto ? photo?.url : (adaptedImage ?? readyModel.imageUrl)
 
   const hasModel = Boolean(personImageUrl)
-  const modelLabel = modelChoice === 'photo' ? 'صورتك' : readyModel.name
+  const modelLabel = usingPhoto ? 'صورتك' : readyModel.name
 
   /**
    * يجمع مراجع القطع — القطعة بلا صورة تُسقَط لا تُرسل باسمها.
@@ -387,7 +401,7 @@ export function StudioPage() {
         المتفائلة. ومن لا موديل محفوظ له يُترك العمود فارغًا، و`owns_model`
         تقبل الفارغ.
       */
-      modelId: modelChoice === 'photo' ? undefined : measurementSource?.id,
+      modelId: usingPhoto ? undefined : measurementSource?.id,
       framing: 'full',
     })
     toast.ok('حفظنا الإطلالة')
@@ -530,7 +544,7 @@ export function StudioPage() {
           activeModelId={measurementSource?.id}
           hasPhoto={Boolean(photo)}
           onChooseSaved={(id) => {
-            setModelChoice('ready')
+            models.setPreferredSource('model')
             models.setActive(id)
             // الموديل المعدّل يخص موديلاً بعينه، فتبديل الموديل يُسقطه
             setAdaptedModel(undefined)
@@ -540,7 +554,7 @@ export function StudioPage() {
             void clearLook()
           }}
           onChooseReady={(id) => {
-            setModelChoice('ready')
+            models.setPreferredSource('model')
             models.setReadyModel(id)
             // الاختيار الصريح لموديل جاهز يُلغي تثبيت موديل محفوظ، وإلا بقي
             // جنسُه يفرض صورة الأساس ويتجاهل ما اختارته المستخدمة الآن
@@ -552,7 +566,7 @@ export function StudioPage() {
             void clearLook()
           }}
           onChoosePhoto={() => {
-            setModelChoice('photo')
+            models.setPreferredSource('photo')
             setGeneratedLook(undefined)
             void clearLook()
           }}
