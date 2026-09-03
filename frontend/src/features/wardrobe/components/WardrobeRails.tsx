@@ -77,13 +77,16 @@ function Rail({ items, reverse = false }: { items: WardrobeItem[]; reverse?: boo
   const drag = useRef({ active: false, startX: 0, startLeft: 0, moved: 0 })
 
   /**
-   * هل نكرّر القائمة مرتين؟
+   * هل تفيض القطع عن عرض الرفّ؟
    *
-   * التكرار هو اللي يخفي حدّ اللفّ ويخلي المشي متصلًا — لكنه يصلح فقط لمّا
-   * تملأ النسخة الواحدة عرض الرفّ. مع قطع قليلة تبين النسختان معًا على الشاشة،
-   * فتظن المستخدمة إن قطعها تكرّرت — وهذا أسوأ من قفزة في حركة ما تحتاجها أصلًا.
+   * كان الرفّ يرسم القائمة **مرّتين** ليخفي حدّ اللفّ، فيمشي متّصلًا بلا قفزة.
+   * وثمنه أن القطعة تظهر مرّتين — ومع خزانة عامرة يصير الرفّ نصفه تكرارًا،
+   * فتقرؤه صاحبته قطعًا مضاعفة لا حيلةَ عرض.
+   *
+   * فالقائمة نسخة واحدة دائمًا، والمشي يرتدّ عند الطرفين بدل أن يلفّ. والحركة
+   * زينة، أما صدق ما يُعرض فأصل.
    */
-  const [looped, setLooped] = useState(false)
+  const [overflows, setOverflows] = useState(false)
 
   /*
     القياس يصير في ردّ `ResizeObserver` لا في جسم الأثر: هو حدث من المتصفّح،
@@ -93,10 +96,9 @@ function Rail({ items, reverse = false }: { items: WardrobeItem[]; reverse?: boo
     const track = trackRef.current
     if (!track) return
 
+    // نسخة واحدة، فالعرض الكلي هو عرض القطع — بلا قسمة على عدد النسخ
     const observer = new ResizeObserver(() => {
-      const passes = track.dataset.passes === '2' ? 2 : 1
-      const onePass = track.scrollWidth / passes
-      setLooped(onePass > track.clientWidth + 1)
+      setOverflows(track.scrollWidth > track.clientWidth + 1)
     })
     observer.observe(track)
     return () => observer.disconnect()
@@ -111,18 +113,27 @@ function Rail({ items, reverse = false }: { items: WardrobeItem[]; reverse?: boo
    */
   const pos = useRef(0)
 
-  // نبدأ من منتصف المسار، فيبقى للمشي يمينًا مكان من أول لحظة
+  /** اتّجاه المشي: يتقلّب عند كل طرف. سالبٌ يزحف بالقطع يمينًا وموجبٌ يسارًا. */
+  const direction = useRef(reverse ? 1 : -1)
+
+  /*
+    البداية من الطرف الذي يمشي عنه.
+
+    كانت من منتصف المسار لأن القائمة مكرّرة والمنتصف حدّ اللفّ. ومع نسخة واحدة
+    صار المنتصف يخفي أوّل القطع بلا سبب — فمن يمشي يسارًا يبدأ من أوّلها، ومن
+    يمشي يمينًا من آخرها.
+  */
   useEffect(() => {
     const track = trackRef.current
-    if (!track || items.length === 0 || !looped) return
-    pos.current = track.scrollWidth / 2
+    if (!track || items.length === 0) return
+    pos.current = reverse ? 0 : Math.max(track.scrollWidth - track.clientWidth, 0)
     track.scrollLeft = pos.current
-  }, [items, looped])
+  }, [items, reverse])
 
   // حلقة دائمة: تبدأ بعد المهلة وما تتوقّف — الأعلام وحدها تقرّر المشي
   useEffect(() => {
-    // بلا تكرار ما فيه مكان يمشي له ولا حدّ يُخفى — الرفّ يقعد مكانه
-    if (stillMotion || !looped) return
+    // ما تفيض عن الرفّ = ما فيه مكان تمشي إليه. الرفّ يقعد مكانه
+    if (stillMotion || !overflows) return
     const track = trackRef.current
     if (!track) return
 
@@ -135,13 +146,25 @@ function Rail({ items, reverse = false }: { items: WardrobeItem[]; reverse?: boo
       const elapsed = previous ? Math.min((now - previous) / 1000, 0.05) : 0
       previous = now
 
-      const half = track.scrollWidth / 2
-      if (half > 0) {
-        // إنقاص الموضع يزحف بالقطع يمينًا وزيادته يسارًا، واللفّ عند الطرفين
-        // يخفي الحدّ لأن القائمة مكرّرة مرّتين
-        pos.current += (reverse ? 1 : -1) * SPEED * elapsed
-        if (pos.current <= 0) pos.current += half
-        else if (pos.current >= half) pos.current -= half
+      /*
+        يرتدّ عند الطرف ولا يلفّ.
+
+        اللفّ كان يقفز من آخر النسخة إلى أوّلها، ولا يُخفى إلا بنسخة ثانية.
+        والارتداد يستغني عنها: يمشي حتى الطرف ثم يعود — حركةٌ متّصلة بلا قفزة
+        وبلا قطعة تتكرّر.
+      */
+      const span = track.scrollWidth - track.clientWidth
+      if (span > 0) {
+        pos.current += direction.current * SPEED * elapsed
+
+        if (pos.current <= 0) {
+          pos.current = 0
+          direction.current = 1
+        } else if (pos.current >= span) {
+          pos.current = span
+          direction.current = -1
+        }
+
         track.scrollLeft = pos.current
       }
       frame = requestAnimationFrame(step)
@@ -155,7 +178,7 @@ function Rail({ items, reverse = false }: { items: WardrobeItem[]; reverse?: boo
       clearTimeout(timer)
       cancelAnimationFrame(frame)
     }
-  }, [reverse, stillMotion, looped])
+  }, [stillMotion, overflows])
 
   const onPointerDown = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
     const track = trackRef.current
@@ -211,8 +234,6 @@ function Rail({ items, reverse = false }: { items: WardrobeItem[]; reverse?: boo
         ref={trackRef}
         // ltr يخلي scrollLeft يتصرّف باتّجاه واحد، فالحساب ما يختلف بين المتصفّحات
         dir="ltr"
-        // المراقب يقرأ منه كم نسخة مرسومة ليقسم عليها العرض الكلي
-        data-passes={looped ? '2' : '1'}
         className="flex touch-pan-y select-none gap-6 overflow-x-auto overflow-y-hidden pb-2 pt-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         // صور القطع وروابطها قابلة للسحب أصلاً في المتصفّح، وسحبها الأصلي يبتلع
         // أحداث المؤشّر فيتجمّد سحب القضيب. نمنعه فيبقى السحب لنا.
@@ -223,8 +244,8 @@ function Rail({ items, reverse = false }: { items: WardrobeItem[]; reverse?: boo
         onPointerCancel={endDrag}
         onClickCapture={onClickCapture}
       >
-        {/* مرّتان: تكرار القائمة هو اللي يخلي اللفّ غير مرئي */}
-        {[0, 1].map((pass) =>
+        {/* نسخة واحدة: ما تتكرّر قطعة أبدًا، والمشي يرتدّ عند الطرف */}
+        {[0].map((pass) =>
           items.map((item) => (
             <Link
               key={`${pass}-${item.id}`}
