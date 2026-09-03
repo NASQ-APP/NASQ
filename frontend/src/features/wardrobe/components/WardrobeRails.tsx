@@ -185,7 +185,15 @@ function Rail({ items, reverse = false }: { items: WardrobeItem[]; reverse?: boo
     if (!track) return
     stopped.current = true
     drag.current = { active: true, startX: event.clientX, startLeft: track.scrollLeft, moved: 0 }
-    track.setPointerCapture(event.pointerId)
+    /*
+      **لا نأسر المؤشّر هنا.**
+
+      كان الأسر يقع مع كل ضغطة. وأسر المؤشّر يعيد توجيه أحداث الفأرة التوافقية
+      إلى العنصر الآسِر، فيُطلَق `click` على المسار لا على `<Link>` — والرابط
+      لا يُفعَّل أبدًا. فالنقر على أي قطعة في هذا العرض كان ميتًا، سحبٌ أو لا.
+
+      الأسر ينتقل إلى `onPointerMove`: يقع حين تصير الحركة سحبًا فعلاً.
+    */
   }, [])
 
   const onPointerMove = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
@@ -203,6 +211,11 @@ function Rail({ items, reverse = false }: { items: WardrobeItem[]; reverse?: boo
     if (!drag.current.active) return
     const dx = event.clientX - drag.current.startX
     drag.current.moved = Math.max(drag.current.moved, Math.abs(dx))
+
+    // صار سحبًا لا نقرة — الآن نأسر المؤشّر فلا يفلت خارج المسار
+    if (drag.current.moved > DRAG_SLOP && !track.hasPointerCapture(event.pointerId)) {
+      track.setPointerCapture(event.pointerId)
+    }
     track.scrollLeft = drag.current.startLeft - dx
     pos.current = track.scrollLeft
   }, [])

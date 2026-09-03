@@ -152,27 +152,45 @@ export function AddItemModal({
     patch({ categoryId, shape: shapesForSlot(slot)[0].id })
   }
 
+  /*
+    حارس الإرسال — **الزرّ كان بلا أي حماية**.
+
+    `addItem` تُنشئ الصفّ فورًا، ثم تنتظر الدالةُ حفظَ الصورة. والانتظار قد
+    يطول ثانيةً أو ثانيتين، والنموذج يبقى مفتوحًا والزرّ حيًّا. فمن ضغطت مرةً
+    ثانية — وهو ما يفعله كلّ من ظنّ أن الضغطة ما وصلت — أنشأت قطعةً ثانية.
+
+    والقاعدة ظهرت في بياناتها: «ساعه بني» خمس مرات في **أربع ثوانٍ**، و«بوت»
+    ثلاثًا في أربع. هذي ليست إضافةً مقصودة.
+  */
+  const [saving, setSaving] = useState(false)
+
   const save = async () => {
-    if (!draft) return
+    if (saving || !draft) return
     if (!draft.name.trim()) {
       toast.error(say('اكتبي اسم القطعة', 'اكتب اسم القطعة'))
       return
     }
 
-    const item = addItem({ ...draft, name: draft.name.trim() })
-    if (photo) {
-      try {
-        const stored = await prepareForStorage(photo.blob)
-        await setPhoto(item.id, stored.blob)
-      } catch {
-        // القطعة انحفظت بدون صورة — الرسم المتّجه يغطّيها فما تنكسر الشبكة
-        toast.error('حفظنا القطعة، لكن تعذّر حفظ صورتها.')
-        close()
-        return
+    setSaving(true)
+    try {
+      const item = addItem({ ...draft, name: draft.name.trim() })
+      if (photo) {
+        try {
+          const stored = await prepareForStorage(photo.blob)
+          await setPhoto(item.id, stored.blob)
+        } catch {
+          // القطعة انحفظت بدون صورة — الرسم المتّجه يغطّيها فما تنكسر الشبكة
+          toast.error('حفظنا القطعة، لكن تعذّر حفظ صورتها.')
+          close()
+          return
+        }
       }
+      toast.ok('أضفناها لخزانتك')
+      close()
+    } finally {
+      // في `finally` لا بعد النجاح — وإلا بقي الزرّ ميتًا بعد أي فشل
+      setSaving(false)
     }
-    toast.ok('أضفناها لخزانتك')
-    close()
   }
 
   const shapes = shapesForSlot(draft ? (categoryById(draft.categoryId)?.slot ?? 'top') : 'top')
@@ -193,7 +211,9 @@ export function AddItemModal({
       footer={
         phase === 'review' && (
           <div className="flex gap-3">
-            <Button onClick={save}>{say('أضيفيها للخزانة', 'أضِفها للخزانة')}</Button>
+            <Button onClick={save} pending={saving} pendingLabel="نضيفها…">
+              {say('أضيفيها للخزانة', 'أضِفها للخزانة')}
+            </Button>
             <Button variant="secondary" onClick={close}>
               إلغاء
             </Button>
