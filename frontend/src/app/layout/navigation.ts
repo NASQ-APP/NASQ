@@ -7,6 +7,8 @@ export type NavLinkItem = {
   label: string
   icon: ComponentType<{ size?: number; strokeWidth?: number }>
   end?: boolean
+  /** لا يُعرض للزائرة — صفحة لا معنى لها بلا حساب */
+  needsAccount?: boolean
 }
 
 export type NavGroup = {
@@ -36,7 +38,12 @@ export const NAV_GROUPS: NavGroup[] = [
     label: 'You',
     links: [
       { to: ROUTES.models, label: 'موديلي', icon: UserRound },
-      { to: ROUTES.settings, label: 'الإعدادات', icon: Settings },
+      /*
+        الإعدادات تُخفى عن الزائرة لا تُحرَس وحدها: القائمة تَعِد بما وراءها،
+        ورابطٌ كل ما يفعله أن يقذفها لصفحة دخول هو وعدٌ مكسور. وقاع الشريط
+        الجانبي يعرض «تسجيل الدخول» أصلاً، فما ضاع عليها باب.
+      */
+      { to: ROUTES.settings, label: 'الإعدادات', icon: Settings, needsAccount: true },
     ],
   },
 ]

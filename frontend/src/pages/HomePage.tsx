@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { ArrowLeft, Sparkles } from 'lucide-react'
-import { Button, ButtonLink, Card, EmptyState, SectionHeader } from '@/shared/components/ui'
+import { Button, Card, EmptyState, SectionHeader } from '@/shared/components/ui'
 import { PageContainer } from '@/shared/components/layout'
 import { WardrobeCard } from '@/features/wardrobe/components/WardrobeCard'
 import { LookCard } from '@/features/looks/components/LookCard'
@@ -8,6 +8,7 @@ import { useWardrobe } from '@/features/wardrobe/store'
 import { useLooks } from '@/features/looks/store'
 import { useAuth } from '@/features/auth/store'
 import { useAiModels } from '@/features/ai-model/store'
+import { AccountLink } from '@/features/auth/AccountLink'
 import { DailySuggestions, QUICK_PROMPTS } from '@/features/stylist'
 import { WeatherLine } from '@/features/weather'
 import { useAppShell } from '@/app/layout'
@@ -102,7 +103,9 @@ export function HomePage() {
               طولك ومقاسك ولون بشرتك — مرة وحدة، ونستخدمه في كل إطلالة.
             </p>
           </div>
-          <ButtonLink to={ROUTES.newModel}>{say('أنشئي موديلك', 'أنشئ موديلك')}</ButtonLink>
+          <AccountLink to={ROUTES.newModel} reason="عشان تنشئ موديلاً بمقاساتك ونحفظه لك">
+            {say('أنشئي موديلك', 'أنشئ موديلك')}
+          </AccountLink>
         </Card>
       )}
 

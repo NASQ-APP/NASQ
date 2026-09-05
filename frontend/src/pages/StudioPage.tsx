@@ -38,6 +38,8 @@ import { useWardrobe } from '@/features/wardrobe/store'
 import { useAiModels } from '@/features/ai-model/store'
 import { useLooks } from '@/features/looks/store'
 import { useAppShell } from '@/app/layout'
+import { useAccountGate } from '@/features/auth/useAccountGate'
+import { useAuth } from '@/features/auth/store'
 import { resolveSelection, sheetPanels, studioLayout, type OutfitSlotId } from '@/domain/studio'
 import { OCCASIONS, ownedItems } from '@/domain/wardrobe'
 import {
@@ -63,6 +65,21 @@ const report = (error?: { message: string; hint?: string }) => {
 
 export function StudioPage() {
   const { openAdd, openStylist } = useAppShell()
+  /*
+    الاستوديو **يُتصفَّح** بلا حساب: الأعمدة الثلاثة والموديل الجاهز يبيّنون
+    شكل الأداة قبل أي التزام. اللي يحتاج حسابًا فعلان يتركان أثرًا: التوليد
+    يكلّف رصيدًا يُخصم من صاحبه، والحفظ يكتب صفًّا يحتاج مالكًا.
+  */
+  const gate = useAccountGate()
+  /*
+    صاحب الإطلالة المحفوظة.
+
+    القاعدة تخصّ المتصفّح لا الحساب، فبلا هذا المعرّف كانت آخر إطلالة مولّدة
+    تُعرض على **كل** من يفتح الاستوديو بعدها: تفتح زائرة الصفحة فتلقى الموديل
+    لابسًا فستان من سبقها ومكتوبًا فوقه «إطلالتك المولّدة». الزائرة بلا معرّف،
+    فترى الموديل الأساسي كما هو — وهو الصحيح: ما ولّدت شيئًا بعد.
+  */
+  const owner = useAuth((state) => state.user?.id)
 
   const items = useWardrobe((state) => state.items)
   const models = useAiModels()
@@ -113,14 +130,33 @@ export function StudioPage() {
    * ولّدت شيئًا في هذي الجلسة فهو الأحدث، والقراءة غير المتزامنة ما تسبقه.
    * والبصمة تُستعاد معها، فترجع الصورة موسومة «قديمة» إن تغيّرت القطع.
    */
+  /*
+    تبدّل الصاحب يُفرغ ما على الشاشة — **أثناء الرسم لا في مؤثّر**.
+
+    الحالة هنا مشتقّة من هوية القارئ، وتصفيرها في مؤثّر يعني إطارًا كاملاً
+    تُعرض فيه صورة من خرجت لمن جاء بعدها قبل أن تُمسح. والتصفير أثناء الرسم
+    يجعلها لا تُرسم أصلاً — وهو النمط الذي توصي به React لحالة تتبع قيمة أخرى.
+
+    ولا يمسح عمل هذي الجلسة: عند الإقلاع الحالة فاضية، والشرط لا يصدق إلا حين
+    تتغيّر الهوية فعلاً — وأبرزه الخروج من الحساب وأنت في الاستوديو.
+  */
+  const [lookOwner, setLookOwner] = useState(owner)
+  if (lookOwner !== owner) {
+    setLookOwner(owner)
+    setGeneratedLook(undefined)
+    setLookSignature(undefined)
+    setAdaptedModel(undefined)
+    setAdaptedFor(undefined)
+  }
+
   useEffect(() => {
     let cancelled = false
-    void readLook().then((stored) => {
+    void readLook(owner).then((stored) => {
       if (cancelled || !stored) return
       setGeneratedLook((current) => current ?? stored.image)
       setLookSignature((current) => current ?? stored.signature)
     })
-    void readAdapted().then((stored) => {
+    void readAdapted(owner).then((stored) => {
       if (cancelled || !stored) return
       setAdaptedModel((current) => current ?? stored.image)
       setAdaptedFor((current) => current ?? stored.modelId)
@@ -128,7 +164,7 @@ export function StudioPage() {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [owner])
 
   const owned = useMemo(() => ownedItems(items), [items])
 
@@ -277,7 +313,7 @@ export function StudioPage() {
     return garments
   }
 
-  const generateLook = async () => {
+  const runGenerateLook = async () => {
     if (!personImageUrl) {
       toast.error(say('اختاري موديلاً أو ارفعي صورتك أول.', 'اختر موديلاً أو ارفع صورتك أول.'))
       return
@@ -299,12 +335,12 @@ export function StudioPage() {
       setGeneratedLook(result.image)
       // البصمة تُلتقط من إغلاق هذا العرض، فهي اختيار لحظة الطلب لا لحظة الرد
       setLookSignature(selectionSignature)
-      void persistLook({ image: result.image, signature: selectionSignature })
+      void persistLook({ image: result.image, signature: selectionSignature, owner })
     }
     report(error)
   }
 
-  const regenerate = async () => {
+  const runRegenerate = async () => {
     if (!personImageUrl) return
     const person = await referenceFromUrl(personImageUrl)
     if (!person) return
@@ -320,7 +356,7 @@ export function StudioPage() {
     if (result) {
       setGeneratedLook(result.image)
       setLookSignature(selectionSignature)
-      void persistLook({ image: result.image, signature: selectionSignature })
+      void persistLook({ image: result.image, signature: selectionSignature, owner })
     }
     report(error)
   }
@@ -354,7 +390,8 @@ export function StudioPage() {
     if (result) {
       setAdaptedModel(result.image)
       setAdaptedFor(measurementSource?.id)
-      if (measurementSource) void saveAdapted({ image: result.image, modelId: measurementSource.id })
+      if (measurementSource)
+        void saveAdapted({ image: result.image, modelId: measurementSource.id, owner })
       setGeneratedLook(undefined)
       void clearLook()
       setAdjustOpen(false)
@@ -410,6 +447,15 @@ export function StudioPage() {
     setLookNotes('')
   }
 
+  const generateLook = gate('عشان نولّد لك صورة الإطلالة على موديلك', runGenerateLook)
+  /*
+    والتحديث يُحرَس مثل التوليد وإن بدا وراءه: الإطلالة المولّدة تُستعاد من
+    IndexedDB عند فتح الاستوديو، فمن خرج من حسابه في هذا المتصفّح يلقى صورته
+    أمامه وزرّ «حدّث» تحتها — وهو توليد ثانٍ برصيد ثانٍ.
+  */
+  const regenerate = gate('عشان نحدّث لك صورة الإطلالة', runRegenerate)
+  const openSave = gate('عشان تحفظ الإطلالة في إطلالاتك', () => setSaveOpen(true))
+
   return (
     <div className="flex h-[calc(100vh-64px)] min-h-0 flex-col bg-surface">
       <StudioHeader
@@ -417,7 +463,7 @@ export function StudioPage() {
         canSave={selected.length > 0}
         selectedCount={selected.length}
         onToggleFocus={studio.toggleFocusMode}
-        onSave={() => setSaveOpen(true)}
+        onSave={openSave}
         onClear={studio.clear}
       />
 
@@ -471,7 +517,7 @@ export function StudioPage() {
             onChooseModel={() => setModelPickerOpen(true)}
             onGenerate={generateLook}
             onRegenerate={regenerate}
-            onSaveLook={() => setSaveOpen(true)}
+            onSaveLook={openSave}
             onStartOver={() => {
               setGeneratedLook(undefined)
               void clearLook()

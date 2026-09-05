@@ -17,6 +17,7 @@ import {
 } from '@/shared/components/ui'
 import { PageContainer } from '@/shared/components/layout'
 import { useVoice } from '@/features/onboarding/voice'
+import { useAccountGate } from '@/features/auth/useAccountGate'
 import { TripCard } from '@/features/travel/components'
 import { useTravel } from '@/features/travel/store'
 import { useWardrobe } from '@/features/wardrobe/store'
@@ -36,6 +37,10 @@ export function TravelPage() {
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
   const [dayCount, setDayCount] = useState(5)
+
+  // الرحلة تُحفظ لصاحبها — والحراسة عند فتح النموذج لا عند «إنشاء الرحلة»،
+  // فما نخلّي أحدًا يعبّئ وجهة وتواريخ ثم نقول له في آخر ضغطة إنه يحتاج حسابًا.
+  const openNew = useAccountGate()('عشان تخطّط رحلة وتحفظها', () => setOpen(true))
 
   const create = () => {
     if (!city.trim()) {
@@ -67,7 +72,7 @@ export function TravelPage() {
           'خطّط إطلالة كل يوم من خزائنك، وقائمة الشنطة تتولّد لحالها.',
         )}
         action={
-          <Button onClick={() => setOpen(true)}>
+          <Button onClick={openNew}>
             <Plus size={14} strokeWidth={1.6} aria-hidden />
             رحلة جديدة
           </Button>
@@ -79,7 +84,7 @@ export function TravelPage() {
           title="ما فيه رحلات بعد."
           body={say('أنشئي رحلة، ووزّعي قطع خزانتك على أيامها.', 'أنشئ رحلة، ووزّع قطع خزانتك على أيامها.')}
           icon={<Plane size={22} strokeWidth={1.2} />}
-          action={<Button onClick={() => setOpen(true)}>رحلة جديدة</Button>}
+          action={<Button onClick={openNew}>رحلة جديدة</Button>}
         />
       ) : (
         <div className="grid gap-4 lg:grid-cols-2">

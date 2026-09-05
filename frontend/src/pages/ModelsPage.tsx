@@ -14,7 +14,6 @@ import { Camera, Check, Pencil, Trash2, UserRound } from 'lucide-react'
 import {
   Badge,
   Button,
-  ButtonLink,
   ConfirmDialog,
   EmptyState,
   PageHeader,
@@ -22,6 +21,7 @@ import {
 } from '@/shared/components/ui'
 import { Reveal, RevealItem } from '@/shared/components/motion'
 import { PageContainer } from '@/shared/components/layout'
+import { AccountLink } from '@/features/auth/AccountLink'
 import { useVoice } from '@/features/onboarding/voice'
 import { READY_MODELS } from '@/domain/model'
 import { useAiModels } from '@/features/ai-model/store'
@@ -46,7 +46,11 @@ export function ModelsPage() {
         eyebrow="My models"
         title="موديلاتي"
         description="موديل لكل تشكيلة. القطع النسائية تنعرض على الموديل النسائي، والرجالية على الرجالي."
-        action={<ButtonLink to="/models/new">موديل جديد</ButtonLink>}
+        action={
+          <AccountLink to="/models/new" reason="عشان تنشئ موديلاً بمقاساتك ونحفظه لك">
+            موديل جديد
+          </AccountLink>
+        }
       />
 
       {/* ---------------- الموديلات الجاهزة ---------------- */}
@@ -116,7 +120,11 @@ export function ModelsPage() {
             'الموديلات الجاهزة فوق تكفي للتجربة، وتقدر تنشئ موديلاً بمقاساتك لنتيجة أقرب.',
           )}
           icon={<UserRound size={22} strokeWidth={1.2} />}
-          action={<ButtonLink to="/models/new">{say('أنشئي موديلك', 'أنشئ موديلك')}</ButtonLink>}
+          action={
+            <AccountLink to="/models/new" reason="عشان تنشئ موديلاً بمقاساتك ونحفظه لك">
+              {say('أنشئي موديلك', 'أنشئ موديلك')}
+            </AccountLink>
+          }
         />
       ) : (
         <Reveal className="grid gap-6 sm:grid-cols-2 sm:gap-7 xl:grid-cols-3">

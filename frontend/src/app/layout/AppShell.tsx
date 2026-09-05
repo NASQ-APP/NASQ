@@ -2,7 +2,7 @@
  * قشرة التطبيق: شريط جانبي على سطح المكتب، وقائمة منسدلة على الجوال (X-03).
  * تجمع الأجزاء فقط — كل جزء يعيش في ملفه.
  */
-import { useCallback, useEffect, useState, type CSSProperties } from 'react'
+import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { PageTransition } from '@/shared/components/motion'
 import { AppShellContext } from './context'
@@ -12,6 +12,8 @@ import { TopBar } from './TopBar'
 import { useSidebar } from './useSidebar'
 import { AddItemModal } from '@/features/wardrobe/components/AddItemModal'
 import { StylistDrawer } from '@/features/stylist/StylistDrawer'
+import { SignInPrompt } from '@/features/auth/SignInPrompt'
+import { useAccountGate } from '@/features/auth/useAccountGate'
 import { ROUTES } from '@/shared/config'
 import { shell } from '@/theme'
 
@@ -30,8 +32,22 @@ export function AppShell() {
     window.scrollTo({ top: 0 })
   }, [pathname])
 
-  const openAdd = useCallback(() => setAddOpen(true), [])
-  const openStylist = useCallback(() => setStylistOpen(true), [])
+  /*
+    الفعلان الوحيدان اللي تفتحهما القشرة — ومنها يُحرسان.
+
+    الحراسة هنا لا عند كل نداء: `openAdd` و`openStylist` يُستدعيان من الرئيسية
+    والاستوديو وصفحة القطع، فحراستهما عند المصدر تكفي الجميع وما تترك بابًا
+    نسيناه. والنافذة تشرح السبب بلسان الفعل نفسه.
+  */
+  const gate = useAccountGate()
+  const openAdd = useMemo(
+    () => gate('عشان تضيف قطعة لخزانتك', () => setAddOpen(true)),
+    [gate],
+  )
+  const openStylist = useMemo(
+    () => gate('عشان يشوف المنسّق خزانتك وينسّق لك منها', () => setStylistOpen(true)),
+    [gate],
+  )
 
   const runSearch = () => {
     const query = term.trim()
@@ -67,6 +83,8 @@ export function AppShell() {
 
         <AddItemModal open={addOpen} onClose={() => setAddOpen(false)} />
         <StylistDrawer open={stylistOpen} onClose={() => setStylistOpen(false)} />
+        {/* في القشرة لأن الطلب يجي من أي صفحة تحتها — ونسخة وحدة تكفي كلها */}
+        <SignInPrompt />
       </div>
     </AppShellContext.Provider>
   )
